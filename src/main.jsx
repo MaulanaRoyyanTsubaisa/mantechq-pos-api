@@ -1,0 +1,3660 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { Toaster, toast } from 'sonner'
+import {
+  Bell,
+  Boxes,
+  CalendarDays,
+  CheckCircle2,
+  ChartColumn,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  CircleDollarSign,
+  ClipboardList,
+  CreditCard,
+  Download,
+  FileText,
+  Gift,
+  HeartHandshake,
+  HelpCircle,
+  Home,
+  Info,
+  ListFilter,
+  LayoutDashboard,
+  Menu,
+  Megaphone,
+  MoreVertical,
+  Package,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Percent,
+  Plus,
+  Search,
+  Settings,
+  ShieldCheck,
+  ShoppingBag,
+  Sparkles,
+  Star,
+  Store,
+  Tags,
+  Trash2,
+  Truck,
+  Upload,
+  Users,
+  X,
+} from 'lucide-react'
+import './style.css'
+
+const sidebarGroups = [
+  { label: 'Menu Favorit', icon: Star, children: [] },
+  { label: 'Dashboard', icon: LayoutDashboard, children: [] },
+  {
+    label: 'Laporan',
+    icon: ClipboardList,
+    children: [
+      {
+        label: 'Laporan Penjualan',
+        children: [
+          'Ringkasan Penjualan',
+          'Detail Penjualan',
+          'Penjualan Per Periode',
+          'Penjualan Outlet',
+          'Laporan Uang Muka',
+          'Laporan Jenis Bayar',
+          'Laporan Jenis Order',
+          'Laporan Void',
+          'Laporan Refund',
+        ],
+      },
+      {
+        label: 'Laporan Dapur',
+        children: ['Laporan Proses Order', 'Laporan Proses Produk'],
+      },
+      {
+        label: 'Laporan Produk',
+        children: ['Penjualan Produk', 'Penjualan Departemen', 'Penjualan Kategori', 'Penjualan Ekstra', 'Penjualan Sub Ekstra'],
+      },
+      {
+        label: 'Laporan Jasa',
+        children: ['Laporan Jasa', 'Laporan Reservasi', 'Laporan Reservasi & Utilisasi'],
+      },
+      'Laporan Fasilitas',
+      'Laporan Promo & Loyalti',
+      'Laporan Pajak',
+      {
+        label: 'Laporan Kasir',
+        children: ['Laporan Kas Kasir', 'Penjualan Per Kasir', 'Penjualan Per Terminal', 'Laporan Tutup Kasir', 'Laporan Tutup Toko'],
+      },
+      {
+        label: 'Laporan Deposit',
+        children: ['Penjualan Deposit', 'Deposit Kedaluwarsa', 'Sisa Deposit'],
+      },
+      'Laporan Pelanggan',
+      'Laporan Karyawan',
+      {
+        label: 'Laporan Persediaan',
+        children: ['Lap. Ringkasan Persediaan', 'Lap. Detail Persediaan', 'Laporan Stok Kedaluwarsa', 'Laporan Serial Number', 'Laporan Batch Number'],
+      },
+      {
+        label: 'Laporan Settlement',
+        children: ['QRIS', 'Order Online'],
+      },
+    ],
+  },
+  {
+    label: 'Produk',
+    icon: Package,
+    children: [
+      'Daftar Kategori',
+      'Daftar Produk',
+      'Penjadwalan Harga',
+      'Harga Berdasarkan Waktu',
+      'Cetak Barcode',
+      'Daftar Kategori Catatan',
+      'Master Resep',
+    ],
+  },
+  {
+    label: 'Inventori',
+    icon: Boxes,
+    children: ['Daftar Bahan Baku', 'Pembelian Stok', 'Kelola Stok'],
+  },
+  {
+    label: 'Pelanggan',
+    icon: Users,
+    children: ['Daftar Pelanggan', 'Grup Pelanggan', 'Grup Harga Spesial', 'Kustom Data Pelanggan', 'Pengaturan Data Pelanggan'],
+  },
+  {
+    label: 'Promosi',
+    icon: Percent,
+    children: [{ label: 'Promo', children: ['Basic Promo', 'Per Total Pembelian', 'Per Produk'] }, 'Kupon', 'Loyalty', 'Poin Reward'],
+  },
+  {
+    label: 'Invoice',
+    icon: FileText,
+    children: [
+      'Daftar Penawaran Penjualan',
+      'Daftar Pesanan Penjualan',
+      'Daftar Pengiriman Penjualan',
+      'Daftar Invoice',
+      'Daftar Penerimaan Penjualan',
+    ],
+  },
+]
+
+const defaultOutlets = ['Software House', 'Semua Outlet']
+const accessRoleOptions = ['Kasir', 'Manager', 'Admin Outlet', 'Supervisor', 'Owner']
+const categoryOptions = ['Makanan', 'Minuman', 'Paket Hemat', 'Jasa', 'Retail']
+const unitOptions = ['Pcs', 'Porsi', 'Cup', 'Kg', 'Gram', 'Liter']
+const serialInputOptions = ['Input manual', 'Scan barcode', 'Auto generate']
+const groupOptions = ['Menu Utama', 'Minuman', 'Paket Promo', 'Produk Retail']
+const extraOptions = ['Saus Sambal', 'Topping Keju', 'Gula', 'Es Batu', 'Level Pedas']
+const recipeOptions = ['Resep Salad', 'Resep Kopi Susu', 'Resep Nasi Goreng', 'Resep Teh Lemon']
+const provinceOptions = ['Jawa Tengah', 'DKI Jakarta', 'Jawa Barat', 'Jawa Timur', 'Banten']
+const cityOptions = ['Kab. Tegal', 'Jakarta Selatan', 'Bandung', 'Surabaya', 'Tangerang']
+const socialOptions = ['Instagram', 'Facebook', 'TikTok', 'Website']
+const scheduleDays = ['Setiap hari', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+
+const topTabs = [
+  { label: 'Penjualan', icon: ShoppingBag },
+  { label: 'Order Online', icon: Store },
+  { label: 'Appointment', icon: CalendarDays },
+  { label: 'Karyawan', icon: Users },
+]
+
+const moreMenu = ['Keuangan', 'Pengaturan', 'Bantuan', 'Layanan', 'Inspirasi', 'Kamu Punya Pendanaan Siap pakai', 'Supplies']
+
+const reportCards = [
+  ['Kontrol Fraud', 'Belum Ada Transaksi', ShieldCheck],
+  ['Metode Pembayaran', 'Belum Ada Pembayaran', CreditCard],
+  ['Jenis Order', 'Belum Ada Transaksi', ShoppingBag],
+  ['Penjualan per Kategori', 'Belum Ada Transaksi', ChartColumn],
+  ['Produk Terlaris', 'Belum Ada Transaksi', Package],
+  ['Komisi per Kasir', 'Belum Ada Data Komisi', HeartHandshake],
+  ['Penjualan per Kasir', 'Belum Ada Transaksi', Users],
+  ['Stok Terendah', 'Belum Ada Transaksi', Boxes],
+]
+
+const quickFavorites = ['Dashboard', 'Laporan Penjualan', 'Daftar Produk', 'Kelola Stok', 'Daftar Pelanggan', 'Promo']
+
+const moduleBlueprints = {
+  'Laporan Penjualan': {
+    type: 'report',
+    title: 'Laporan Penjualan',
+    description: 'Ringkasan transaksi, pembayaran, pajak, diskon, refund, dan channel penjualan.',
+    actions: ['Export', 'Cetak'],
+    filters: ['Outlet', 'Tanggal', 'Kasir', 'Metode Bayar', 'Jenis Order'],
+    columns: ['Tanggal', 'No Transaksi', 'Pelanggan', 'Kasir', 'Total', 'Status'],
+    rows: [],
+  },
+  'Laporan Dapur': {
+    type: 'report',
+    title: 'Laporan Dapur',
+    description: 'Pantau pesanan dapur berdasarkan status proses, waktu tunggu, dan item terjual.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Status Dapur'],
+    columns: ['Waktu', 'No Order', 'Produk', 'Qty', 'Status', 'Durasi'],
+    rows: [],
+  },
+  'Laporan Produk': {
+    type: 'report',
+    title: 'Laporan Produk',
+    description: 'Detail produk terjual, kategori, HPP, margin, dan performa per outlet.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Departemen', 'Kategori'],
+    columns: ['Produk', 'Kategori', 'Qty', 'Gross Sales', 'Diskon', 'Net Sales'],
+    rows: [],
+  },
+  'Laporan Jasa': {
+    type: 'report',
+    title: 'Laporan Jasa',
+    description: 'Rekap penjualan jasa, appointment, durasi layanan, dan staff pelaksana.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Staff'],
+    columns: ['Jasa', 'Staff', 'Booking', 'Selesai', 'Pendapatan'],
+    rows: [],
+  },
+  'Laporan Fasilitas': {
+    type: 'report',
+    title: 'Laporan Fasilitas',
+    description: 'Monitor penggunaan fasilitas dan paket booking per periode.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Fasilitas'],
+    columns: ['Fasilitas', 'Booking', 'Jam Pakai', 'Pendapatan', 'Status'],
+    rows: [],
+  },
+  'Laporan Promo & Loyalti': {
+    type: 'report',
+    title: 'Laporan Promo & Loyalti',
+    description: 'Efektivitas promo, kupon, poin, dan loyalti pelanggan.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Tipe Promo'],
+    columns: ['Promo', 'Digunakan', 'Diskon', 'Penjualan', 'Konversi'],
+    rows: [],
+  },
+  'Laporan Pajak': {
+    type: 'report',
+    title: 'Laporan Pajak',
+    description: 'Rekap pajak transaksi, service charge, dan nilai sebelum atau sesudah pajak.',
+    actions: ['Export', 'Cetak'],
+    filters: ['Outlet', 'Tanggal', 'Tipe Pajak'],
+    columns: ['Tanggal', 'Pajak', 'DPP', 'Nilai Pajak', 'Total'],
+    rows: [],
+  },
+  'Laporan Kasir': {
+    type: 'report',
+    title: 'Laporan Kasir',
+    description: 'Shift kasir, uang masuk, uang keluar, selisih kas, dan tutup kasir.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Kasir', 'Shift'],
+    columns: ['Kasir', 'Shift', 'Modal Awal', 'Penjualan', 'Selisih', 'Status'],
+    rows: [],
+  },
+  'Laporan Deposit': {
+    type: 'report',
+    title: 'Laporan Deposit',
+    description: 'Mutasi saldo deposit pelanggan dan pemakaian deposit per transaksi.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Pelanggan'],
+    columns: ['Pelanggan', 'Masuk', 'Keluar', 'Saldo', 'Update'],
+    rows: [],
+  },
+  'Laporan Pelanggan': {
+    type: 'report',
+    title: 'Laporan Pelanggan',
+    description: 'Analisis pelanggan baru, pelanggan aktif, frekuensi belanja, dan nilai transaksi.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Grup'],
+    columns: ['Pelanggan', 'Transaksi', 'Total Belanja', 'Terakhir Belanja', 'Grup'],
+    rows: [],
+  },
+  'Laporan Karyawan': {
+    type: 'report',
+    title: 'Laporan Karyawan',
+    description: 'Produktivitas karyawan, absensi, komisi, dan penjualan per staff.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Jabatan'],
+    columns: ['Karyawan', 'Jabatan', 'Transaksi', 'Komisi', 'Status'],
+    rows: [],
+  },
+  'Laporan Persediaan': {
+    type: 'report',
+    title: 'Laporan Persediaan',
+    description: 'Rekap stok masuk, stok keluar, stok opname, dan nilai persediaan.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Kategori'],
+    columns: ['Item', 'Awal', 'Masuk', 'Keluar', 'Akhir', 'Nilai'],
+    rows: [],
+  },
+  'Laporan Settlement': {
+    type: 'report',
+    title: 'Laporan Settlement',
+    description: 'Status settlement pembayaran digital dan rekonsiliasi transaksi.',
+    actions: ['Export'],
+    filters: ['Outlet', 'Tanggal', 'Provider', 'Status'],
+    columns: ['Tanggal', 'Provider', 'Nominal', 'Fee', 'Diterima', 'Status'],
+    rows: [],
+  },
+  'Waktu Teramai Produk': {
+    type: 'analysis',
+    title: 'Waktu Teramai Produk',
+    description: 'Jam dan hari paling ramai untuk tiap produk.',
+    filters: ['Outlet', 'Tanggal', 'Produk'],
+    columns: ['Jam', 'Produk', 'Qty', 'Penjualan', 'Tren'],
+    rows: [],
+  },
+  'Waktu Teramai Penjualan': {
+    type: 'analysis',
+    title: 'Waktu Teramai Penjualan',
+    description: 'Pola traffic penjualan berdasarkan jam, hari, dan outlet.',
+    filters: ['Outlet', 'Tanggal'],
+    columns: ['Jam', 'Transaksi', 'Total Penjualan', 'Rata-rata Struk'],
+    rows: [],
+  },
+  'Perputaran Stok': {
+    type: 'analysis',
+    title: 'Perputaran Stok',
+    description: 'Produk dengan perputaran tercepat dan stok yang perlu diperhatikan.',
+    filters: ['Outlet', 'Tanggal', 'Kategori'],
+    columns: ['Produk', 'Stok Awal', 'Terjual', 'Stok Akhir', 'Turnover'],
+    rows: [],
+  },
+  'Kepuasan Pelanggan': {
+    type: 'analysis',
+    title: 'Kepuasan Pelanggan',
+    description: 'Ringkasan rating, feedback, dan keluhan pelanggan.',
+    filters: ['Outlet', 'Tanggal', 'Rating'],
+    columns: ['Tanggal', 'Pelanggan', 'Rating', 'Feedback', 'Status'],
+    rows: [],
+  },
+}
+
+const crudBlueprints = {
+  'Daftar Departemen': ['Nama Departemen', 'Jumlah Kategori', 'Produk', 'Status'],
+  'Daftar Kategori': ['Kategori', 'Departemen', 'Produk', 'Status'],
+  'Daftar Produk': ['Nama Produk', 'SKU', 'Kategori', 'Harga', 'Stok', 'Status'],
+  'Produk Layanan': ['Nama Layanan', 'Durasi', 'Harga', 'Staff', 'Status'],
+  'Produk Fasilitas': ['Fasilitas', 'Kapasitas', 'Tarif', 'Jadwal', 'Status'],
+  'Produk Ekstra': ['Ekstra', 'Produk Terkait', 'Harga', 'Status'],
+  'Produk Paket': ['Paket', 'Isi Paket', 'Harga', 'Status'],
+  Deposit: ['Nama Deposit', 'Nominal', 'Bonus', 'Masa Aktif', 'Status'],
+  'Penjadwalan Perubahan Resep': ['Produk', 'Resep Baru', 'Mulai Berlaku', 'Status'],
+  'Daftar Harga Ojek Online': ['Produk', 'Platform', 'Harga Outlet', 'Harga Online', 'Status'],
+  'Penjadwalan Harga': ['Produk', 'Harga Baru', 'Periode', 'Status'],
+  'Harga Berdasarkan Waktu': ['Produk', 'Hari/Jam', 'Harga', 'Status'],
+  'Cetak Barcode': ['Produk', 'SKU', 'Barcode', 'Status'],
+  'Daftar Kategori Catatan': ['Kategori Catatan', 'Jumlah Catatan', 'Status'],
+  'Master Resep': ['Produk', 'Bahan Baku', 'Qty Resep', 'Status'],
+  'Daftar Bahan Baku': ['Bahan Baku', 'Satuan', 'Stok', 'Minimum', 'Status'],
+  'Pembelian Stok': ['No Pembelian', 'Pemasok', 'Tanggal', 'Total', 'Status'],
+  'Kelola Stok': ['Item', 'Stok Sistem', 'Stok Fisik', 'Selisih', 'Status'],
+  'Produksi Stok': ['No Produksi', 'Produk', 'Qty', 'Tanggal', 'Status'],
+  'Mutasi Antar Outlet': ['No Mutasi', 'Dari Outlet', 'Ke Outlet', 'Qty', 'Status'],
+  'Daftar Pemasok': ['Pemasok', 'Kontak', 'Kategori', 'Status'],
+  'Daftar Pelanggan': ['Nama Pelanggan', 'No HP', 'Grup', 'Poin', 'Status'],
+  'Grup Pelanggan': ['Grup', 'Jumlah Pelanggan', 'Benefit', 'Status'],
+  'Grup Harga Spesial': ['Grup Harga', 'Produk', 'Harga Spesial', 'Status'],
+  'Kustom Data Pelanggan': ['Field', 'Tipe Data', 'Wajib', 'Status'],
+  'Pengaturan Data Pelanggan': ['Pengaturan', 'Nilai', 'Status'],
+  Promo: ['Nama Promo', 'Periode', 'Tipe', 'Nilai', 'Status'],
+  Kupon: ['Kode Kupon', 'Kuota', 'Terpakai', 'Periode', 'Status'],
+  Loyalty: ['Program Loyalty', 'Mekanisme', 'Reward', 'Status'],
+  'Poin Reward': ['Reward', 'Poin', 'Stok', 'Status'],
+  'Daftar Grup Komisi': ['Grup Komisi', 'Tipe', 'Nilai', 'Karyawan', 'Status'],
+  'Daftar Penawaran Penjualan': ['No Penawaran', 'Pelanggan', 'Tanggal', 'Total', 'Status'],
+  'Daftar Pesanan Penjualan': ['No Pesanan', 'Pelanggan', 'Tanggal', 'Total', 'Status'],
+  'Daftar Pengiriman Penjualan': ['No Pengiriman', 'Pelanggan', 'Kurir', 'Status'],
+  'Daftar Invoice': ['No Invoice', 'Pelanggan', 'Jatuh Tempo', 'Total', 'Status'],
+  'Daftar Penerimaan Penjualan': ['No Penerimaan', 'Invoice', 'Tanggal', 'Nominal', 'Status'],
+  'Kirim Kampanye Marketing': ['Nama Kampanye', 'Segmentasi', 'Channel', 'Jadwal', 'Status'],
+  'Beli Kampanye Marketing': ['Paket Kampanye', 'Target Audience', 'Harga', 'Status'],
+}
+
+Object.entries(crudBlueprints).forEach(([key, columns]) => {
+  moduleBlueprints[key] = {
+    type: 'master',
+    title: key,
+    description: `Kelola ${key.toLowerCase()} untuk operasional TripleSys PoS.`,
+    actions: ['Tambah', 'Import', 'Export'],
+    filters: ['Outlet', 'Status'],
+    columns,
+    rows: [],
+  }
+})
+
+const salesReportPages = [
+  'Ringkasan Penjualan',
+  'Detail Penjualan',
+  'Penjualan Per Periode',
+  'Penjualan Outlet',
+  'Laporan Uang Muka',
+  'Laporan Jenis Bayar',
+  'Laporan Jenis Order',
+  'Laporan Void',
+  'Laporan Refund',
+]
+
+salesReportPages.forEach((page) => {
+  moduleBlueprints[page] = {
+    type: 'report',
+    title: page,
+    description: 'Laporan transaksi penjualan berdasarkan periode dan outlet.',
+    actions: ['Ekspor Data'],
+    filters: ['Tanggal', 'Outlet', 'Kasir'],
+    controls: 'date-status',
+    columns:
+      page === 'Detail Penjualan'
+        ? ['NO TRANSAKSI', 'TANGGAL', 'PRODUK', 'QTY', 'HARGA', 'DISKON', 'TOTAL']
+        : ['TANGGAL', 'OUTLET', 'TRANSAKSI', 'PENJUALAN KOTOR', 'DISKON', 'PENJUALAN BERSIH'],
+    rows: [],
+  }
+})
+
+const reportPageConfigs = {
+  'Laporan Uang Muka': {
+    title: 'Laporan Uang Muka',
+    metrics: [['Total Transaksi Uang Muka', '0', 'green'], ['Total Penerimaan Uang Muka', 'Rp 0', 'blue']],
+    columns: ['NO TRANSAKSI', 'TANGGAL', 'PELANGGAN', 'KASIR', 'PENERIMAAN UANG MUKA', 'OUTLET'],
+  },
+  'Laporan Jenis Bayar': {
+    title: 'Laporan Jenis Bayar',
+    chartTitle: 'Grafik Jenis Pembayaran',
+    metrics: [
+      ['Total Transaksi Terbayar', '0', 'green'],
+      ['Total Penjualan Terbayar', 'Rp 0', 'yellow'],
+      ['Total Jenis Pembayaran', '0', 'blue'],
+      ['Total Transaksi Deposit', '0', 'cyan'],
+      ['Total Transaksi Uang Muka', '0', 'red'],
+      ['Total Penjualan Deposit', 'Rp 0', 'purple'],
+      ['Total Penerimaan Uang Muka', 'Rp 0', 'orange'],
+    ],
+    columns: ['JENIS PEMBAYARAN', 'JUMLAH TRANSAKSI', 'TRANSAKSI (%)', 'JML TRANSAKSI DEPOSIT', 'JML TRANSAKSI UANG MUKA', 'PENJUALAN (RP)', 'PENJUALAN (%)', 'PENJUALAN DEPOSIT', 'PENERIMAAN UANG MUKA'],
+  },
+  'Laporan Jenis Order': {
+    title: 'Laporan Jenis Order',
+    chartTitle: 'Grafik Jenis Order',
+    metrics: [['Total Transaksi', '0', 'green'], ['Total Penjualan', 'Rp 0', 'blue']],
+    columns: ['JENIS ORDER', 'JUMLAH TRANSAKSI', 'JUMLAH TRANSAKSI (%)', 'PENJUALAN (RP)', 'PENJUALAN %'],
+  },
+  'Laporan Void': {
+    title: 'Laporan Void',
+    variant: 'tableOnly',
+    filters: ['orderType'],
+    metrics: [['Total Void', 'Rp 0', 'red'], ['Total Transaksi', '0', 'green']],
+    columns: ['NO NOTA', 'TANGGAL VOID', 'TANGGAL ORDER', 'KASIR', 'OTORISASI', 'PRODUK', 'SUBTOTAL VOID', 'JENIS ORDER', 'NAMA MEJA'],
+  },
+  'Laporan Refund': {
+    title: 'Laporan Refund',
+    variant: 'tableOnly',
+    tabs: ['Semua', 'Tunai', 'Non Tunai'],
+    tableSettings: true,
+    metrics: [['Total Transaksi Refund', '0', 'green'], ['Total Refund', 'Rp 0', 'red']],
+    columns: ['NO TRANSAKSI REFUND', 'TANGGAL', 'REFUND (RP)', 'METODE PEMBAYARAN', 'NAMA OUTLET'],
+  },
+  'Laporan Proses Order': {
+    title: 'Laporan Waktu Proses Order',
+    variant: 'tableOnly',
+    columns: ['NO ORDER', 'PERIODE', 'PRODUK', 'JUMLAH', 'ORDER-PROSES (PRODUK)', 'PROSES-SELESAI (PRODUK)', 'TOTAL (PRODUK)', 'ORDER-PROSES (ORDER)', 'PROSES-SELESAI (ORDER)', 'TOTAL (ORDER)'],
+  },
+  'Laporan Proses Produk': {
+    title: 'Laporan Waktu Proses Produk',
+    variant: 'tableOnly',
+    columns: ['PRODUK', 'JUMLAH', 'RATA-RATA ORDER-PROSES', 'RATA-RATA PROSES-SELESAI', 'RATA-RATA TOTAL WAKTU', 'WAKTU TERCEPAT', 'WAKTU TERLAMA'],
+  },
+  'Penjualan Produk': {
+    title: 'Penjualan Produk',
+    chartTitle: 'Grafik Penjualan Produk',
+    filters: ['category', 'department', 'orderType', 'productType'],
+    helper: '44 jenis order terpilih',
+    metrics: [['Total Penjualan Per Produk', 'Rp 0', 'green'], ['Total Produk Terjual', '0 Produk', 'blue'], ['Total Laba Kotor Per Produk', 'Rp 0', 'purple']],
+    columns: ['PRODUK', 'SKU', 'DEPARTEMEN', 'KATEGORI', 'JENIS PRODUK', 'JUMLAH', 'PENJUALAN (RP)', 'JUMLAH REFUND', 'REFUND (RP)'],
+  },
+  'Penjualan Departemen': {
+    title: 'Penjualan Departemen',
+    variant: 'tableOnly',
+    metrics: [['Total Departemen', '0', 'green'], ['Total Penjualan Departemen', 'Rp 0', 'blue']],
+    columns: ['DEPARTEMEN', 'JUMLAH PRODUK', 'PRODUK (%)', 'PENJUALAN (RP)', 'PENJUALAN (%)'],
+  },
+  'Penjualan Kategori': {
+    title: 'Penjualan Kategori',
+    chartTitle: 'Grafik Penjualan Kategori',
+    filters: ['department'],
+    metrics: [['Total Kategori', '0', 'green'], ['Total Penjualan Kategori', 'Rp 0', 'blue']],
+    columns: ['KATEGORI', 'JUMLAH PRODUK', 'PRODUK (%)', 'PENJUALAN (RP)', 'PENJUALAN (%)', 'HPP (RP)'],
+  },
+  'Penjualan Ekstra': {
+    title: 'Penjualan Ekstra',
+    chartTitle: 'Grafik Penjualan Ekstra',
+    metrics: [['Total Ekstra', '0', 'green'], ['Total Item Ekstra', '0', 'blue'], ['Total Penjualan Ekstra', 'Rp 0', 'purple'], ['Total Refund Ekstra', 'Rp 0', 'red']],
+    columns: ['NAMA EKSTRA', 'JUMLAH', 'JUMLAH (%)', 'PENJUALAN (RP)', 'PENJUALAN (%)', 'LABA KOTOR (RP)', 'LABA KOTOR (%)', 'JUMLAH REFUND', 'REFUND (RP)'],
+  },
+  'Penjualan Sub Ekstra': {
+    title: 'Penjualan Sub Ekstra',
+    chartTitle: 'Grafik Penjualan Sub Ekstra',
+    metrics: [['Total Sub Ekstra', '0', 'green'], ['Total Penjualan', 'Rp 0', 'blue'], ['Total Refund Sub Ekstra', 'Rp 0', 'red']],
+    columns: ['SUB EKSTRA', 'EKSTRA', 'JUMLAH', 'JUMLAH %', 'PENJUALAN (RP)', 'PENJUALAN %', 'LABA KOTOR (RP)', 'LABA KOTOR %', 'JUMLAH REFUND', 'REFUND (RP)'],
+  },
+  'Laporan Jasa': {
+    title: 'Laporan Jasa',
+    chartTitle: 'Grafik Laporan Jasa',
+    metrics: [['Total Jasa Terjual', '0', 'green'], ['Total Penjualan Jasa', 'Rp 0', 'blue']],
+    columns: ['JASA', 'STAFF', 'JUMLAH', 'PENJUALAN (RP)', 'LABA KOTOR (RP)', 'OUTLET'],
+  },
+  'Laporan Reservasi': {
+    title: 'Laporan Reservasi',
+    variant: 'tableOnly',
+    columns: ['TANGGAL RESERVASI', 'NO RESERVASI', 'PELANGGAN', 'ORDER', 'TANGGAL BUAT', 'STATUS LAYANAN'],
+  },
+  'Laporan Reservasi & Utilisasi': {
+    title: 'Laporan Reservasi & Utilisasi',
+    chartTitle: 'Grafik Utilisasi Reservasi',
+    metrics: [['Total Reservasi', '0', 'green'], ['Total Utilisasi', '0%', 'blue']],
+    columns: ['TANGGAL', 'FASILITAS', 'RESERVASI', 'UTILISASI', 'STATUS'],
+  },
+  'Laporan Kas Kasir': {
+    title: 'Laporan Kas Kasir',
+    variant: 'tableOnly',
+    metrics: [['Total Kas Kasir', 'Rp 0', 'green'], ['Total Uang Masuk', 'Rp 0', 'blue'], ['Total Uang Keluar', 'Rp 0', 'red']],
+    columns: ['TRANSAKSI', 'TANGGAL', 'OUTLET', 'MASUK (RP)', 'KELUAR (RP)', 'KATEGORI', 'NAMA LOGIN', 'NAMA DEVICE'],
+  },
+  'Penjualan Per Kasir': {
+    title: 'Penjualan per Kasir',
+    chartTitle: 'Grafik per Kasir',
+    filters: ['cashierPay'],
+    columns: ['KASIR', 'OUTLET', 'PENJUALAN (RP)', 'PENJUALAN (%)', 'LABA KOTOR (RP)', 'LABA KOTOR (%)', 'JUMLAH TRANSAKSI'],
+  },
+  'Penjualan Per Terminal': {
+    title: 'Penjualan per Terminal',
+    variant: 'tableOnly',
+    columns: ['TERMINAL', 'OUTLET', 'PENJUALAN (RP)', 'LABA KOTOR (RP)', 'JUMLAH TRANSAKSI', 'JUMLAH PRODUK', 'PENGEMBALIAN (RP)'],
+  },
+  'Laporan Tutup Kasir': {
+    title: 'Laporan Tutup Kasir',
+    variant: 'tableOnly',
+    columns: ['WAKTU BUKA / TUTUP KASIR', 'KASIR', 'OUTLET', 'MODAL AWAL (RP)', 'SALDO AKHIR (RP)', 'TOTAL TUNAI AKTUAL (RP)', 'TOTAL PENERIMAAN NON TUNAI (RP)'],
+  },
+  'Laporan Tutup Toko': {
+    title: 'Laporan Tutup Toko',
+    variant: 'tableOnly',
+    columns: ['TANGGAL', 'OUTLET', 'KASIR', 'TOTAL PENJUALAN', 'SELISIH KAS', 'STATUS'],
+  },
+  'Penjualan Deposit': {
+    title: 'Penjualan Deposit',
+    variant: 'tableOnly',
+    metrics: [['Jumlah Transaksi Deposit', '0', 'green'], ['Total Penjualan Deposit', 'Rp 0', 'blue']],
+    columns: ['NO. TRANSAKSI', 'TANGGAL TRANSAKSI', 'KASIR', 'PELANGGAN', 'NAMA DEPOSIT', 'JENIS DEPOSIT', 'NILAI DEPOSIT', 'KEDALUWARSA'],
+  },
+  'Deposit Kedaluwarsa': {
+    title: 'Deposit Kedaluwarsa',
+    variant: 'tableOnly',
+    metrics: [['Total Deposit Kedaluwarsa', '0', 'yellow'], ['Total Nominal Kedaluwarsa', 'Rp 0', 'red']],
+    columns: ['NO TRANSAKSI', 'TANGGAL', 'PELANGGAN', 'NAMA PAKET', 'TANGGAL KEDALUWARSA', 'NOMINAL KEDALUWARSA', 'OUTLET'],
+  },
+  'Sisa Deposit': {
+    title: 'Laporan Sisa Deposit',
+    variant: 'tableOnly',
+    singleDate: true,
+    columns: ['PELANGGAN', 'SISA DEPOSIT'],
+  },
+  'Lap. Ringkasan Persediaan': {
+    title: 'Laporan Ringkasan Persediaan',
+    variant: 'tableOnly',
+    singleDate: true,
+    filters: ['category', 'productType'],
+    metrics: [['Total Nilai Persediaan', 'Rp 0', 'green']],
+    columns: ['NAMA PRODUK', 'SKU', 'JENIS', 'KATEGORI', 'KUANTITAS', 'SATUAN', 'HARGA MODAL', 'TOTAL NILAI PERSEDIAAN'],
+  },
+  'Lap. Detail Persediaan': {
+    title: 'Laporan Detail Persediaan',
+    variant: 'tableOnly',
+    info: 'Harap pilih outlet dan produk terlebih dahulu untuk menampilkan data pada Laporan Detail Persediaan',
+    filters: ['outlet', 'product', 'type'],
+    columns: ['OUTLET', 'TANGGAL TRANSAKSI', 'TRANSAKSI', 'NO TRANSAKSI', 'KUANTITAS', 'SATUAN', 'HARGA JUAL/BELI', 'STOK'],
+  },
+  'Laporan Stok Kedaluwarsa': {
+    title: 'Laporan Stok Kedaluwarsa',
+    variant: 'tableOnly',
+    columns: ['PRODUK', 'SKU', 'KATEGORI', 'TANGGAL KEDALUWARSA', 'STOK', 'OUTLET'],
+  },
+  'Laporan Serial Number': {
+    title: 'Laporan Serial Number',
+    variant: 'tableOnly',
+    columns: ['PRODUK', 'SERIAL NUMBER', 'STATUS', 'OUTLET', 'TANGGAL'],
+  },
+  'Laporan Batch Number': {
+    title: 'Laporan Batch Number',
+    variant: 'tableOnly',
+    columns: ['PRODUK', 'BATCH NUMBER', 'TANGGAL MASUK', 'KEDALUWARSA', 'STOK', 'OUTLET'],
+  },
+  QRIS: {
+    title: 'Laporan Settlement QRIS',
+    variant: 'tableOnly',
+    tabs: ['Transaksi Berhasil', 'Transaksi Gagal', 'Settlement Diproses', 'Settlement Tertunda', 'Settlement Berhasil'],
+    filters: ['type', 'status'],
+    metrics: [['Total Penjualan', 'Rp 0', 'green'], ['Total MDR', 'Rp 0', 'purple'], ['Total Settlement', 'Rp 0', 'blue'], ['Settlement Tertunda', 'Rp 0', 'orange']],
+    columns: ['NO TRANSAKSI', 'TANGGAL TRANSAKSI', 'TIPE QRIS', 'NOMOR REFERENSI', 'TOTAL', 'STATUS SETTLEMENT', 'TANGGAL SETTLEMENT'],
+  },
+  'Order Online': {
+    title: 'Order Online',
+    variant: 'settlementOnline',
+    singleDate: false,
+    filters: ['outlet', 'transactionType'],
+    metrics: [['Pemasukan', 'Rp 0', 'green'], ['Penarikan', 'Rp 0', 'red']],
+    columns: ['OUTLET', 'TANGGAL', 'JENIS TRANSAKSI', 'NOMOR', 'TOTAL', 'KETERANGAN'],
+  },
+}
+
+;['Basic Promo', 'Per Total Pembelian', 'Per Produk'].forEach((page) => {
+  moduleBlueprints[page] = {
+    type: 'master',
+    title: page,
+    description: 'Kelola promo aktif untuk transaksi kasir dan pelanggan.',
+    actions: ['Tambah Promo'],
+    filters: ['Outlet', 'Status'],
+    controls: 'status-tabs',
+    columns: ['NAMA PROMO', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS'],
+    rows: [],
+  }
+})
+
+Object.assign(moduleBlueprints, {
+  'Daftar Produk': {
+    type: 'master',
+    title: 'Daftar Produk',
+    subtitle: 'Software House -',
+    countLabel: '0 Produk barang',
+    actions: ['Impor Data', 'Ekspor Data', 'Tambah Produk'],
+    filters: ['Kategori'],
+    controls: 'product',
+    columns: ['NAMA PRODUK', 'SKU', 'KATEGORI', 'HARGA MODAL', 'HARGA BELI', 'HARGA JUAL', 'STATUS'],
+    rows: [],
+  },
+  'Daftar Bahan Baku': {
+    type: 'master',
+    title: 'Daftar Bahan Baku',
+    actions: ['Impor Bahan Baku', 'Ekspor Bahan Baku', 'Tambah Bahan Baku'],
+    filters: [],
+    controls: 'search-only',
+    columns: ['SKU', 'NAMA', 'SATUAN'],
+    rows: [],
+  },
+  'Daftar Pelanggan': {
+    type: 'master',
+    title: 'Daftar Pelanggan',
+    actions: ['Ekspor Data', 'Impor Data', 'Tambah Pelanggan'],
+    filters: [],
+    controls: 'search-only',
+    columns: ['NAMA', 'KODE PELANGGAN', 'ALAMAT', 'TELEPON', 'JENIS KELAMIN', 'POIN', 'SALDO DEPOSIT'],
+    rows: [],
+  },
+  'Daftar Invoice': {
+    type: 'invoice',
+    title: 'Daftar Invoice',
+    subtitle: '01 Juni 2026 - 30 Juni 2026',
+    actions: ['Impor Invoice', 'Ekspor Invoice', 'Tambah Invoice'],
+    filters: ['Tanggal', 'Status'],
+    controls: 'invoice',
+    summary: [
+      ['Invoice', 'Rp 0'],
+      ['Void', 'Rp 0'],
+      ['Lunas', 'Rp 0'],
+      ['Belum Lunas', 'Rp 0'],
+    ],
+    columns: ['NO INVOICE', 'PELANGGAN', 'OUTLET', 'TANGGAL', 'TOTAL TAGIHAN (RP)', 'SISA TAGIHAN (RP)', 'STATUS'],
+    rows: [],
+  },
+})
+
+const productPageConfigs = {
+  'Daftar Kategori': {
+    title: 'Daftar Kategori',
+    addLabel: 'Tambah Kategori',
+    addFlow: 'category',
+    columns: ['NAMA KATEGORI', 'URUTAN', 'JUMLAH PRODUK', 'DEPARTEMEN', 'STATUS', ''],
+    rows: [['IT', '1', '0 item', 'IT', 'Tampil di Menu', '']],
+    pagination: 'Ditampilkan 1 - 1 dari 1 data',
+  },
+  'Daftar Produk': {
+    title: 'Daftar Produk',
+    subtitle: 'Software House - 0 Produk barang',
+    addLabel: 'Tambah Produk',
+    addFlow: 'product',
+    actions: ['Impor Data', 'Ekspor Data'],
+    filters: ['Semua Kategori'],
+    columns: ['NAMA PRODUK', 'SKU', 'KATEGORI', 'HARGA MODAL', 'HARGA BELI', 'HARGA JUAL', 'STATUS', ''],
+    rows: [],
+  },
+  'Penjadwalan Harga': {
+    title: 'Penjadwalan Harga',
+    addLabel: 'Tambah Jadwal Harga',
+    filters: ['Semua Kategori', 'Semua Status'],
+    columns: ['NAMA JADWAL', 'PERIODE', 'PRODUK', 'HARGA BARU', 'STATUS', ''],
+    rows: [],
+  },
+  'Harga Berdasarkan Waktu': {
+    title: 'Harga Berdasarkan Waktu',
+    addLabel: 'Tambah Harga Waktu',
+    filters: ['Semua Kategori', 'Semua Hari'],
+    columns: ['PRODUK', 'HARI/JAM', 'HARGA', 'OUTLET', 'STATUS', ''],
+    rows: [],
+  },
+  'Cetak Barcode': {
+    title: 'Cetak Barcode',
+    addLabel: 'Cetak Barcode',
+    filters: ['Semua Kategori'],
+    columns: ['NAMA PRODUK', 'SKU', 'BARCODE', 'KATEGORI', 'STATUS', ''],
+    rows: [],
+  },
+  'Daftar Kategori Catatan': {
+    title: 'Daftar Kategori Catatan',
+    addLabel: 'Tambah Kategori Catatan',
+    columns: ['KATEGORI CATATAN', 'JUMLAH CATATAN', 'STATUS', ''],
+    rows: [],
+  },
+  'Master Resep': {
+    title: 'Master Resep',
+    addLabel: 'Tambah Resep',
+    filters: ['Semua Kategori'],
+    columns: ['NAMA RESEP', 'PRODUK', 'BAHAN BAKU', 'QTY RESEP', 'STATUS', ''],
+    rows: [],
+  },
+}
+
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ')
+}
+
+function itemLabel(item) {
+  return typeof item === 'string' ? item : item.label
+}
+
+function itemChildren(item) {
+  return typeof item === 'string' ? [] : item.children || []
+}
+
+function flattenItems(items) {
+  return items.flatMap((item) => [itemLabel(item), ...flattenItems(itemChildren(item))])
+}
+
+function Button({ className, variant = 'default', ...props }) {
+  return <button className={cn('btn', `btn-${variant}`, className)} {...props} />
+}
+
+function Brand() {
+  return (
+    <div className="brand" aria-label="TripleSys PoS">
+      <span className="brand-mark">
+        <Store size={21} />
+      </span>
+      <span>TripleSys</span>
+      <strong>PoS</strong>
+    </div>
+  )
+}
+
+function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, setIsOpen, activeOutlet }) {
+  const [openNested, setOpenNested] = useState('Laporan Penjualan')
+  const choose = (group, child) => {
+    const nextPage = child || group.label
+    setActivePage(nextPage)
+    setOpenGroup(group.children.length || group.label === 'Menu Favorit' ? group.label : '')
+    if (window.innerWidth < 900) setIsOpen(false)
+    toast.success(`${nextPage} dibuka`)
+  }
+
+  return (
+    <>
+      <div className={cn('mobile-scrim', isOpen && 'show')} onClick={() => setIsOpen(false)} />
+      <aside className={cn('sidebar', isOpen && 'open')}>
+        <div className="sidebar-head">
+          <Brand />
+          <Button variant="ghost" className="mobile-close" onClick={() => setIsOpen(false)} aria-label="Tutup menu">
+            <X size={18} />
+          </Button>
+        </div>
+
+        <button className="outlet-switch" onClick={() => toast.info(`Outlet aktif: ${activeOutlet}`)}>
+          <Store size={30} />
+          <span>
+            <small>Outlet</small>
+            {activeOutlet}
+          </span>
+          <PanelLeftClose size={18} />
+        </button>
+
+        <nav className="side-nav" aria-label="Navigasi utama">
+          {sidebarGroups.map((group) => {
+            const Icon = group.icon
+            const expanded = openGroup === group.label
+            const flatChildren = flattenItems(group.children)
+            const active = activePage === group.label || flatChildren.includes(activePage)
+            const hasCaret = group.children.length || group.label === 'Menu Favorit'
+            return (
+              <section key={group.label}>
+                <button
+                  className={cn('side-item', active && 'active', expanded && 'expanded')}
+                  onClick={() => {
+                    if (group.children.length) {
+                      setOpenGroup(expanded ? '' : group.label)
+                      return
+                    }
+                    choose(group)
+                  }}
+                >
+                  <Icon size={19} />
+                  <span>{group.label}</span>
+                  {hasCaret ? <ChevronDown className={cn('chevron', expanded && 'rotate')} size={17} /> : null}
+                </button>
+                {group.children.length && expanded ? (
+                  <div className="submenu expanded">
+                    {group.children.map((child) => {
+                      const label = itemLabel(child)
+                      const nested = itemChildren(child)
+                      const nestedActive = nested.includes(activePage)
+                      const nestedOpen = openNested === label || nestedActive
+                      if (!nested.length) {
+                        return (
+                          <button key={label} className={cn(activePage === label && 'selected')} onClick={() => choose(group, label)}>
+                            {label}
+                          </button>
+                        )
+                      }
+                      return (
+                        <div key={label} className="submenu-group">
+                          <button
+                            className={cn((activePage === label || nestedActive) && 'selected')}
+                            onClick={() => setOpenNested(nestedOpen ? '' : label)}
+                          >
+                            <span>{label}</span>
+                            <ChevronDown className={cn('chevron', nestedOpen && 'rotate')} size={14} />
+                          </button>
+                          {nestedOpen ? (
+                            <div className="nested-submenu">
+                              {nested.map((grandchild) => (
+                                <button
+                                  key={grandchild}
+                                  className={cn(activePage === grandchild && 'selected')}
+                                  onClick={() => choose(group, grandchild)}
+                                >
+                                  {grandchild}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </section>
+            )
+          })}
+        </nav>
+
+        <button className="care-card" onClick={() => toast.info('TripleSys Care siap membantu 24 jam')}>
+          <span className="care-logo">
+            <HelpCircle size={19} /> Care
+          </span>
+          <strong>Chat 24 Jam</strong>
+        </button>
+      </aside>
+    </>
+  )
+}
+
+function Topbar({ activeTab, setActiveTab, setIsOpen }) {
+  const [showMore, setShowMore] = useState(false)
+  return (
+    <header className="topbar">
+      <Button variant="ghost" className="hamburger" onClick={() => setIsOpen(true)} aria-label="Buka menu">
+        <Menu size={21} />
+      </Button>
+      <div className="top-tabs" role="tablist" aria-label="Modul">
+        {topTabs.map((tab) => {
+          const Icon = tab.icon
+          return (
+            <button
+              key={tab.label}
+              className={cn(activeTab === tab.label && 'active')}
+              role="tab"
+              aria-selected={activeTab === tab.label}
+              onClick={() => setActiveTab(tab.label)}
+            >
+              <Icon size={16} />
+              <span>{tab.label}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="more-wrap">
+        <Button variant="ghost" className="capital-pill" onClick={() => setShowMore((value) => !value)} aria-expanded={showMore}>
+          <span>Lainnya |</span>
+          <CircleDollarSign size={20} />
+          <strong>Dana Siap Pakai</strong>
+          <ChevronDown size={15} />
+        </Button>
+        {showMore ? (
+          <div className="dropdown">
+            {moreMenu.map((item) => (
+              <button
+                key={item}
+                onClick={() => {
+                  setShowMore(false)
+                  toast.info(`${item} dipilih`)
+                }}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="top-actions">
+        <Button variant="ghost" aria-label="Cari">
+          <Search size={19} />
+        </Button>
+        <Button variant="ghost" className="notif" aria-label="Notifikasi" onClick={() => toast('Tidak ada notifikasi baru')}>
+          <Bell size={19} />
+        </Button>
+        <button className="account" onClick={() => toast.info('Software House - royyan')}>
+          <span>SH</span>
+          <strong>Software House</strong>
+          <small>royyan</small>
+        </button>
+        <Button variant="ghost" aria-label="Menu akun">
+          <MoreVertical size={19} />
+        </Button>
+      </div>
+    </header>
+  )
+}
+
+function CapitalBanner({ compact }) {
+  return (
+    <section className={cn('capital-banner', compact && 'compact')}>
+      <div className="capital-visual">
+        <strong>m Capital</strong>
+        <span>Powered by GOtyme</span>
+      </div>
+      <div>
+        <h2>SAATNYA BISNIS BERJALAN LEBIH LANCAR</h2>
+        <p>Operasional bisnis lancar dengan modal hingga 280jt*</p>
+        <small>Ajukan Sekarang</small>
+      </div>
+      <button aria-label="Sembunyikan banner"><ChevronDown size={18} /></button>
+    </section>
+  )
+}
+
+function Onboarding({ onStartFlow }) {
+  return (
+    <section className="onboarding">
+      <div className="setup">
+        <div className="setup-title">
+          <strong>Langkah Mudah Buka Outlet</strong>
+          <span>0/3</span>
+          <div className="progress">
+            <span />
+          </div>
+          <Button variant="soft" aria-label="Sembunyikan onboarding">
+            <ChevronDown size={16} />
+          </Button>
+        </div>
+        <div className="setup-grid">
+          {[
+            ['Siapkan Produk', Package, 'product'],
+            ['Informasi Karyawan', Users, 'employee'],
+            ['Lengkapi Data Outlet', Store, 'outlet'],
+          ].map(([label, Icon, flow]) => (
+            <button key={label} onClick={() => onStartFlow(flow)}>
+              <Icon size={19} />
+              <span>{label}</span>
+              <ChevronRight size={18} />
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function SalesDashboard({ activeTab, onStartFlow }) {
+  const [period, setPeriod] = useState('Harian')
+  const heading = activeTab === 'Penjualan' ? 'Dashboard Penjualan' : `Dashboard ${activeTab}`
+  return (
+    <main className="content">
+      <Onboarding onStartFlow={onStartFlow} />
+      <section className="panel dashboard-panel">
+        <div className="title-row">
+          <div>
+            <h1>{heading}</h1>
+            <p>Diperbarui 06 Juni 2026, 08:09:46</p>
+          </div>
+          <div className="title-icons">
+            <HelpCircle size={19} />
+            <Star size={20} />
+          </div>
+        </div>
+
+        <div className="filters">
+          <div className="segmented">
+            {['Harian', 'Mingguan', 'Bulan'].map((item) => (
+              <button key={item} className={period === item ? 'active' : ''} onClick={() => setPeriod(item)}>
+                {item}
+              </button>
+            ))}
+          </div>
+          <div className="date-nav">
+            <Button variant="outline" aria-label="Tanggal sebelumnya">
+              <ChevronLeft size={18} />
+            </Button>
+            <span>{period === 'Bulan' ? '01 Jun 26 - 30 Jun 26' : '06 Jun 26 - 06 Jun 26'}</span>
+            <Button variant="outline" aria-label="Tanggal berikutnya">
+              <ChevronRight size={18} />
+            </Button>
+          </div>
+        </div>
+
+        <div className="summary">
+          <div className="revenue">
+            <span>Total Penjualan</span>
+            <strong>Rp 0</strong>
+            <p>Akumulasi dari Awal Bulan Rp 0</p>
+            <p>Proyeksi Bulan Ini Rp 0</p>
+          </div>
+          <div className="paid">
+            <Metric label="Penjualan Belum Dibayar" value="Rp 0" />
+            <Metric label="Penjualan Terbayar" value="Rp 0" />
+          </div>
+          <div className="metric-grid">
+            <Metric label="Transaksi" value="0" />
+            <Metric label="Penjualan per Transaksi" value="Rp 0" />
+            <Metric label="Produk Terjual" value="0" />
+            <Metric label="Produk per Transaksi" value="0" />
+          </div>
+        </div>
+
+        <div className="chart-block">
+          <div className="chart-head">
+            <strong>Penjualan</strong>
+            <span>06 Juni 2026</span>
+          </div>
+          <div className="chart">
+            <div className="chart-grid" />
+            <div className="axis-label top">1</div>
+            <div className="axis-label mid">0.5</div>
+            <div className="axis-label bottom">0</div>
+            <div className="zero-line" />
+            <div className="legend">
+              <span>
+                <i className="muted-dot" /> Periode Sebelumnya
+              </span>
+              <span>
+                <i /> Total Penjualan
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="report-grid">
+        {reportCards.map(([title, empty, Icon]) => (
+          <article className="panel report-card" key={title}>
+            <div>
+              <Icon size={20} />
+              <strong>{title}</strong>
+            </div>
+            <p>{empty}</p>
+            <Button variant="link" onClick={() => toast.info(`Membuka detail ${title}`)}>
+              Lihat Semua
+            </Button>
+          </article>
+        ))}
+      </section>
+    </main>
+  )
+}
+
+const topModuleBlueprints = {
+  'Order Online': {
+    title: 'Order Online',
+    description: 'Kelola channel penjualan online, marketplace, dan pesanan masuk.',
+    cards: [
+      ['Pesanan Baru', '0', ShoppingBag],
+      ['Diproses', '0', ClipboardList],
+      ['Siap Dikirim', '0', Truck],
+      ['Selesai', '0', CheckCircle2],
+    ],
+    actions: ['Sinkronkan Pesanan', 'Atur Channel'],
+    columns: ['NO ORDER', 'CHANNEL', 'PELANGGAN', 'TOTAL', 'STATUS'],
+  },
+  Appointment: {
+    title: 'Appointment',
+    description: 'Atur jadwal booking, layanan, staff, fasilitas, dan status appointment.',
+    cards: [
+      ['Booking Hari Ini', '0', CalendarDays],
+      ['Menunggu Konfirmasi', '0', ClipboardList],
+      ['Sedang Berjalan', '0', Users],
+      ['Selesai', '0', CheckCircle2],
+    ],
+    actions: ['Tambah Appointment', 'Atur Kalender'],
+    columns: ['JAM', 'PELANGGAN', 'LAYANAN', 'STAFF', 'STATUS'],
+  },
+  Karyawan: {
+    title: 'Karyawan',
+    description: 'Kelola data karyawan, akses POS, jadwal kerja, absensi, dan komisi.',
+    cards: [
+      ['Total Karyawan', '0', Users],
+      ['Aktif', '0', CheckCircle2],
+      ['Shift Hari Ini', '0', CalendarDays],
+      ['Komisi', 'Rp 0', HeartHandshake],
+    ],
+    actions: ['Tambah Karyawan', 'Atur Hak Akses'],
+    columns: ['NAMA', 'JABATAN', 'OUTLET', 'AKSES', 'STATUS'],
+  },
+}
+
+function TopModulePage({ activeTab, onStartFlow }) {
+  const blueprint = topModuleBlueprints[activeTab]
+  if (!blueprint) return <SalesDashboard activeTab={activeTab} />
+  return (
+    <main className="content">
+      <section className="panel top-module">
+        <div className="majoo-page-head">
+          <div className="majoo-title">
+            <h1>{blueprint.title}</h1>
+            <p>{blueprint.description}</p>
+          </div>
+          <div className="majoo-actions">
+            {blueprint.actions.map((action) => (
+              <Button
+                key={action}
+                variant={action.startsWith('Tambah') || action.startsWith('Sinkron') ? 'default' : 'outline'}
+                onClick={() => {
+                  if (action === 'Tambah Karyawan') onStartFlow('employee')
+                  else toast.success(action)
+                }}
+              >
+                <Sparkles size={16} />
+                {action}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <div className="top-module-grid">
+          {blueprint.cards.map(([label, value, Icon]) => (
+            <article key={label} className="top-module-card">
+              <Icon size={21} />
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </article>
+          ))}
+        </div>
+        <div className="majoo-filterbar">
+          <label>
+            <Search size={17} />
+            <input placeholder="Cari ..." />
+          </label>
+          <SelectButton label="Semua Outlet" />
+          <SelectButton label="Semua Status" />
+        </div>
+        <div className="module-table">
+          <div className="module-table-head" style={{ gridTemplateColumns: `44px repeat(${blueprint.columns.length}, minmax(130px, 1fr))` }}>
+            <span className="check-col">
+              <input type="checkbox" aria-label="Toggle All Current Page Rows Selected" />
+            </span>
+            {blueprint.columns.map((column) => (
+              <span key={column}>{column}</span>
+            ))}
+          </div>
+          <EmptyModuleState type="master" />
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function Metric({ label, value }) {
+  return (
+    <div className="metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function EmptyModuleState({ type }) {
+  const text = 'Data tidak tersedia'
+  return (
+    <div className="module-empty">
+      <div>
+        <ClipboardList size={42} />
+        <strong>{text}</strong>
+        <p>Belum ada data yang dapat ditampilkan di halaman ini</p>
+      </div>
+    </div>
+  )
+}
+
+function ModulePage({ activePage, onStartFlow }) {
+  if (activePage === 'Ringkasan Penjualan') {
+    return <SalesSummaryReportPage />
+  }
+  if (activePage === 'Detail Penjualan') {
+    return <SalesDetailReportPage />
+  }
+  if (activePage === 'Penjualan Per Periode') {
+    return <SalesPeriodReportPage />
+  }
+  if (activePage === 'Penjualan Outlet') {
+    return <SalesOutletReportPage />
+  }
+  if (reportPageConfigs[activePage]) {
+    return <MajooGenericReportPage config={reportPageConfigs[activePage]} />
+  }
+  if (productPageConfigs[activePage]) {
+    return <ProductDirectoryPage config={productPageConfigs[activePage]} onStartFlow={onStartFlow} />
+  }
+
+  const parent = useMemo(
+    () => sidebarGroups.find((group) => group.label === activePage || flattenItems(group.children).includes(activePage)),
+    [activePage],
+  )
+  const blueprint = moduleBlueprints[activePage] || {
+    type: 'master',
+    title: activePage,
+    description: `Kelola ${activePage.toLowerCase()} untuk operasional TripleSys PoS.`,
+    actions: ['Tambah'],
+    filters: ['Outlet', 'Status'],
+    columns: ['Nama', 'Status', 'Update'],
+    rows: [],
+  }
+  const Icon = parent?.icon || Sparkles
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('Semua Status')
+  const controls = blueprint.controls || (blueprint.type === 'report' ? 'date-status' : 'status-tabs')
+  const actionIcon = (action) => {
+    if (action.toLowerCase().includes('impor')) return Truck
+    if (action.toLowerCase().includes('ekspor')) return FileText
+    return Sparkles
+  }
+
+  return (
+    <main className="content">
+      <section className="panel module-page">
+        <div className="majoo-page-head">
+          <div className="majoo-title">
+            <h1>{blueprint.title}</h1>
+            {blueprint.subtitle ? <p>{blueprint.subtitle}</p> : null}
+            {blueprint.countLabel ? <p>{blueprint.countLabel}</p> : null}
+          </div>
+          <div className="majoo-actions">
+            {(blueprint.actions || ['Tambah']).map((action) => {
+              const ActionIcon = actionIcon(action)
+              return (
+                <Button
+                  key={action}
+                  variant={action.toLowerCase().includes('tambah') ? 'default' : 'outline'}
+                  onClick={() => {
+                    if (action === 'Tambah Produk') onStartFlow('product')
+                    else toast.success(`${action} ${blueprint.title}`)
+                  }}
+                >
+                  <ActionIcon size={16} />
+                  {action}
+                </Button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="module-context">
+          <span className="module-icon">
+            <Icon size={20} />
+          </span>
+          <div>
+            <strong>{parent?.label || 'TripleSys PoS'}</strong>
+            <p>{blueprint.description}</p>
+          </div>
+        </div>
+
+        <div className="majoo-filterbar">
+          <label>
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari ..." />
+          </label>
+          {controls === 'product' ? <SelectButton label="Semua Kategori" /> : null}
+          {controls === 'invoice' || controls === 'date-status' ? <SelectButton label="01 Jun 2026 - 30 Jun 2026" /> : null}
+          {controls === 'invoice' || controls === 'date-status' ? <SelectButton label={status} onClick={() => setStatus('Semua Status')} /> : null}
+          {controls === 'status-tabs' || controls === 'product' ? (
+            <div className="radio-tabs" role="tablist" aria-label="Status tampil">
+              {['Semua', 'Tampil di Menu', 'Tidak Tampil di Menu'].map((item) => (
+                <button key={item} className={item === 'Semua' ? 'active' : ''} onClick={() => toast.info(item)}>
+                  {item}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {blueprint.summary ? (
+          <div className="invoice-summary">
+            {blueprint.summary.map(([label, value]) => (
+              <MiniKpi key={label} label={label} value={value} />
+            ))}
+          </div>
+        ) : null}
+
+        <div className="module-table">
+          <div className="module-table-head" style={{ gridTemplateColumns: `44px repeat(${blueprint.columns.length}, minmax(130px, 1fr))` }}>
+            <span className="check-col">
+              <input type="checkbox" aria-label="Toggle All Current Page Rows Selected" />
+            </span>
+            {blueprint.columns.map((column) => (
+              <span key={column}>{column}</span>
+            ))}
+          </div>
+          {blueprint.rows.length ? null : <EmptyModuleState type={blueprint.type} />}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+const summaryMetricCards = [
+  ['Total Pendapatan', 'Rp 0', 'green'],
+  ['Biaya Promosi', 'Rp 0', 'yellow'],
+  ['Total Penjualan', 'Rp 0', 'blue'],
+  ['Penjualan Bersih', 'Rp 0', 'cyan'],
+  ['Total Laba Kotor', 'Rp 0', 'purple'],
+]
+
+const summaryBreakdowns = [
+  {
+    title: 'Pendapatan',
+    tone: 'green',
+    rows: [
+      ['Penjualan Kotor', 'Rp 0'],
+      ['Ongkos Kirim', 'Rp 0'],
+      ['Biaya Pelayanan', 'Rp 0'],
+      ['Biaya Pelayanan MDR', 'Rp 0'],
+      ['Pembulatan', 'Rp 0'],
+      ['Pajak', 'Rp 0'],
+      ['Asuransi', 'Rp 0'],
+      ['Platform', 'Rp 0'],
+      ['Lainnya', 'Rp 0'],
+    ],
+    total: ['TOTAL PENDAPATAN', 'Rp 0'],
+  },
+  {
+    title: 'Biaya Promosi',
+    tone: 'yellow',
+    rows: [
+      ['Promo Pembelian', '( Rp 0 )'],
+      ['Promo Produk', '( Rp 0 )'],
+      ['Komplimen', '( Rp 0 )'],
+    ],
+    total: ['TOTAL BIAYA PROMOSI', '( Rp 0 )'],
+  },
+  {
+    title: 'Biaya Administrasi',
+    tone: 'red',
+    rows: [['Biaya Administrasi', '( Rp 0 )']],
+    total: ['TOTAL BIAYA ADMINISTRASI', '( Rp 0 )'],
+  },
+  {
+    title: 'Penjualan Bersih',
+    tone: 'blue',
+    rows: [
+      ['Total Penjualan', 'Rp 0'],
+      ['Pengembalian', '( Rp 0 )'],
+    ],
+    total: ['TOTAL PENJUALAN BERSIH', 'Rp 0'],
+  },
+  {
+    title: 'Laba Kotor',
+    tone: 'purple',
+    wide: true,
+    rows: [
+      ['Penjualan Bersih', 'Rp 0'],
+      ['Biaya MDR', '( Rp 0 )'],
+      ['HPP', '( Rp 0 )'],
+      ['Komisi', '( Rp 0 )'],
+      ['Biaya Ongkos Kirim', '( Rp 0 )'],
+      ['Biaya Asuransi', '( Rp 0 )'],
+    ],
+    total: ['TOTAL LABA KOTOR', 'Rp 0'],
+  },
+]
+
+function SalesSummaryReportPage() {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [favorite, setFavorite] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState('dalam beberapa detik')
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setLastUpdated('baru saja')
+    setCalendarOpen(false)
+    toast.success(`Ringkasan diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Ringkasan Penjualan ${format} disiapkan`)
+  }
+
+  return (
+    <main className="content report-summary-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card">
+        <div className="report-summary-head">
+          <div>
+            <div className="report-title-row">
+              <h1>Ringkasan Penjualan</h1>
+              <button className="icon-link" onClick={() => setHelpOpen((value) => !value)} aria-label="Bantuan Ringkasan Penjualan">
+                <HelpCircle size={19} />
+              </button>
+              <button className={cn('icon-link favorite', favorite && 'active')} onClick={() => setFavorite((value) => !value)} aria-label="Favorit">
+                <Star size={21} />
+              </button>
+            </div>
+            {helpOpen ? <HelpTutorialPopover onClose={() => setHelpOpen(false)} /> : null}
+          </div>
+          <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+        </div>
+
+        <div className="report-toolbar">
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+        </div>
+
+        <div className="report-updated">Terakhir Diperbarui: {lastUpdated}</div>
+
+        <div className="summary-metrics">
+          {summaryMetricCards.map(([label, value, tone]) => (
+            <ReportMetricCard key={label} label={label} value={value} tone={tone} />
+          ))}
+        </div>
+
+        <h2>Rincian Ringkasan Penjualan</h2>
+        <div className="summary-breakdown-grid">
+          {summaryBreakdowns.map((section) => (
+            <ReportBreakdownTable key={section.title} {...section} />
+          ))}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function ReportMetricCard({ label, value, tone }) {
+  return (
+    <article className={cn('report-metric-card', tone)}>
+      <span>
+        {label}
+        <Info size={14} />
+      </span>
+      <strong>{value}</strong>
+    </article>
+  )
+}
+
+function ReportBreakdownTable({ title, tone, rows, total, wide }) {
+  return (
+    <article className={cn('breakdown-table', tone, wide && 'wide')}>
+      <header>{title.toUpperCase()}</header>
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <span>{label}</span>
+          <strong>{value}</strong>
+        </div>
+      ))}
+      <footer>
+        <span>{total[0]}</span>
+        <strong>{total[1]}</strong>
+      </footer>
+    </article>
+  )
+}
+
+function ExportDropdown({ open, onToggle, onExport }) {
+  return (
+    <div className="export-wrap">
+      <Button onClick={onToggle}>
+        <Download size={16} />
+        Ekspor Laporan
+      </Button>
+      {open ? (
+        <div className="export-menu">
+          {['PDF', 'Excel'].map((format) => (
+            <button key={format} onClick={() => onExport(format)}>{format}</button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function DateRangePicker({ open, range, onToggle, onProcess, onCancel }) {
+  const [draft, setDraft] = useState(range)
+  const presets = [
+    ['Hari Ini', '06 Jun 2026 - 06 Jun 2026', '06 Juni 2026 - 06 Juni 2026'],
+    ['Kemarin', '05 Jun 2026 - 05 Jun 2026', '05 Juni 2026 - 05 Juni 2026'],
+    ['7 Hari Terakhir', '31 Mei 2026 - 06 Jun 2026', '31 Mei 2026 - 06 Juni 2026'],
+    ['Minggu Ini', '01 Jun 2026 - 06 Jun 2026', '01 Juni 2026 - 06 Juni 2026'],
+    ['Minggu Lalu', '25 Mei 2026 - 31 Mei 2026', '25 Mei 2026 - 31 Mei 2026'],
+    ['30 Hari Terakhir', '08 Mei 2026 - 06 Jun 2026', '08 Mei 2026 - 06 Juni 2026'],
+    ['Bulan Ini', '01 Jun 2026 - 30 Jun 2026', '01 Juni 2026 - 30 Juni 2026'],
+    ['Bulan Lalu', '01 Mei 2026 - 31 Mei 2026', '01 Mei 2026 - 31 Mei 2026'],
+  ]
+  const juneDays = Array.from({ length: 30 }, (_, index) => index + 1)
+  const mayDays = Array.from({ length: 31 }, (_, index) => index + 1)
+
+  useEffect(() => {
+    if (open) setDraft(range)
+  }, [open, range])
+
+  const choosePreset = ([, label, display]) => {
+    setDraft((current) => ({ ...current, label, display }))
+  }
+
+  return (
+    <div className="date-picker-wrap">
+      <button className="date-trigger" onClick={onToggle}>
+        <CalendarDays size={18} />
+        {range.label}
+      </button>
+      {open ? (
+        <div className="date-popover">
+          <div className="date-presets">
+            {presets.map((preset) => (
+              <button key={preset[0]} onClick={() => choosePreset(preset)}>{preset[0]}</button>
+            ))}
+          </div>
+          <MiniMonth title="Mei 2026" days={mayDays} mutedFrom={31} />
+          <MiniMonth title="Juni 2026" days={juneDays} selectedStart={1} selectedEnd={30} rangeStart={1} rangeEnd={30} />
+          <div className="date-time-panel">
+            <label>Dari Tanggal<span>{draft.display.split(' - ')[0]}</span></label>
+            <label>Dari Pukul<input value={draft.startTime} onChange={(event) => setDraft((current) => ({ ...current, startTime: event.target.value }))} /></label>
+            <label>Hingga Tanggal<span>{draft.display.split(' - ')[1]}</span></label>
+            <label>Hingga Pukul<input value={draft.endTime} onChange={(event) => setDraft((current) => ({ ...current, endTime: event.target.value }))} /></label>
+          </div>
+          <footer>
+            <strong>{draft.display}</strong>
+            <div>
+              <button onClick={onCancel}>Batal</button>
+              <Button onClick={() => onProcess(draft)}>Proses</Button>
+            </div>
+          </footer>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function MiniMonth({ title, days, selectedStart, selectedEnd, rangeStart, rangeEnd }) {
+  return (
+    <div className="mini-month">
+      <header>
+        <button><ChevronLeft size={18} /></button>
+        <strong>{title}</strong>
+        <button><ChevronRight size={18} /></button>
+      </header>
+      <div className="weekdays">{['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((day) => <span key={day}>{day}</span>)}</div>
+      <div className="days-grid">
+        {days.map((day) => {
+          const selected = day === selectedStart || day === selectedEnd
+          const inRange = rangeStart && rangeEnd && day >= rangeStart && day <= rangeEnd
+          return <button key={day} className={cn(inRange && 'in-range', selected && 'selected')}>{day}</button>
+        })}
+      </div>
+    </div>
+  )
+}
+
+function HelpTutorialPopover({ onClose }) {
+  return (
+    <div className="tutorial-popover">
+      <button className="tutorial-close" onClick={onClose}><X size={16} /></button>
+      <div className="tutorial-image">
+        <span>Tutorial Dashboard Baru</span>
+        <strong>Halaman Ringkasan Penjualan</strong>
+        <button><ChevronRight size={22} /></button>
+      </div>
+      <p><strong>Informasi Umum</strong>Halaman Laporan Ringkasan Penjualan menyajikan informasi akumulasi nilai penjualan yang dihitung berdasarkan periode pilihan.</p>
+      <Button onClick={() => toast.info('Tutorial Ringkasan Penjualan dibuka')}>Pelajari Selengkapnya</Button>
+    </div>
+  )
+}
+
+const detailMetrics = [
+  ['Total Penjualan', 'Rp 0'],
+  ['Total Transaksi', '0'],
+  ['Penjualan Bersih', 'Rp 0'],
+  ['Total Pembayaran', 'Rp 0'],
+  ['Total Piutang', 'Rp 0'],
+]
+
+const detailColumns = [
+  'NO TRANSAKSI',
+  'WAKTU ORDER',
+  'WAKTU BAYAR',
+  'OUTLET',
+  'JENIS ORDER',
+  'TOTAL PENJUALAN (RP)',
+  'METODE PEMBAYARAN',
+  'BAYAR',
+  'ORDER',
+]
+
+const detailFilterGroups = {
+  'Status Pembayaran': ['Sudah Dibayar', 'Belum Dibayar', 'Piutang'],
+  'Jenis Order': ['Dine In', 'Take Away', 'Delivery', 'Online Order'],
+  Penjualan: ['Semua Penjualan', 'Penjualan Bersih', 'Penjualan Kotor'],
+  'Penjualan Kotor': ['Dengan pajak', 'Tanpa pajak', 'Dengan ongkir'],
+  'Metode Pembayaran': ['Tunai', 'QRIS', 'Transfer Bank', 'Kartu Debit'],
+  Kasir: ['royyan', 'Kasir Utama', 'Admin Outlet'],
+  'Jenis Harga': ['Harga Normal', 'Harga Grosir', 'Harga Promo'],
+}
+
+function SalesDetailReportPage() {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [timeOpen, setTimeOpen] = useState(false)
+  const [timeBasis, setTimeBasis] = useState('Waktu Order')
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [tableOpen, setTableOpen] = useState(false)
+  const [activeFilter, setActiveFilter] = useState('Status Pembayaran')
+  const [filterValues, setFilterValues] = useState({})
+  const [visibleColumns, setVisibleColumns] = useState(detailColumns)
+  const [query, setQuery] = useState('')
+  const [lastUpdated, setLastUpdated] = useState('beberapa detik yang lalu')
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setLastUpdated('baru saja')
+    setCalendarOpen(false)
+    toast.success(`Detail penjualan diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Detail Penjualan ${format} disiapkan`)
+  }
+
+  const applyFilters = () => {
+    setFilterOpen(false)
+    setLastUpdated('baru saja')
+    toast.success('Filter laporan diterapkan')
+  }
+
+  const toggleColumn = (column) => {
+    setVisibleColumns((current) => {
+      if (current.includes(column)) return current.length === 1 ? current : current.filter((item) => item !== column)
+      return detailColumns.filter((item) => current.includes(item) || item === column)
+    })
+  }
+
+  return (
+    <main className="content report-summary-page sales-detail-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-detail-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Detail Penjualan</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <Button variant="outline" onClick={() => setTableOpen(true)}>
+              <Settings size={16} />
+              Atur Tabel
+            </Button>
+            <Button variant="outline" onClick={() => setFilterOpen(true)}>
+              <ListFilter size={16} />
+              Filter
+            </Button>
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="detail-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+          <div className="select-dropdown-wrap">
+            <button className="select-button detail-time-select" onClick={() => setTimeOpen((value) => !value)}>
+              <span>{timeBasis}</span>
+              <ChevronDown size={15} />
+            </button>
+            {timeOpen ? (
+              <div className="simple-select-menu">
+                {['Waktu Order', 'Waktu Bayar'].map((item) => (
+                  <button
+                    key={item}
+                    className={item === timeBasis ? 'active' : ''}
+                    onClick={() => {
+                      setTimeBasis(item)
+                      setTimeOpen(false)
+                      toast.info(`Basis tanggal: ${item}`)
+                    }}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="detail-metrics-grid">
+          {detailMetrics.map(([label, value]) => (
+            <article key={label} className="detail-metric-card">
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </article>
+          ))}
+        </div>
+
+        <div className="detail-table-wrap">
+          <table className="detail-report-table">
+            <thead>
+              <tr>
+                {visibleColumns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+                <th />
+              </tr>
+            </thead>
+          </table>
+          <EmptyModuleState type="report" />
+        </div>
+        <div className="report-updated">Terakhir diperbarui {lastUpdated}</div>
+      </section>
+
+      {filterOpen ? (
+        <div className="modal-backdrop">
+          <div className="report-dialog filter-report-dialog">
+            <header>
+              <h2>Filter Laporan</h2>
+              <button onClick={() => setFilterOpen(false)}><X size={18} /></button>
+            </header>
+            <div className="filter-dialog-body">
+              <nav>
+                {Object.keys(detailFilterGroups).map((group) => (
+                  <button key={group} className={group === activeFilter ? 'active' : ''} onClick={() => setActiveFilter(group)}>
+                    {group}
+                  </button>
+                ))}
+              </nav>
+              <section>
+                <label>{activeFilter}</label>
+                <div className="check-list">
+                  {detailFilterGroups[activeFilter].map((item) => (
+                    <label key={item}>
+                      <input
+                        type="checkbox"
+                        checked={(filterValues[activeFilter] || []).includes(item)}
+                        onChange={(event) => {
+                          setFilterValues((current) => {
+                            const selected = current[activeFilter] || []
+                            return {
+                              ...current,
+                              [activeFilter]: event.target.checked
+                                ? [...selected, item]
+                                : selected.filter((value) => value !== item),
+                            }
+                          })
+                        }}
+                      />
+                      <span>{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+            </div>
+            <footer>
+              <button onClick={() => setFilterOpen(false)}>Batal</button>
+              <Button onClick={applyFilters}>Atur</Button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+
+      {tableOpen ? (
+        <div className="modal-backdrop">
+          <div className="report-dialog table-dialog">
+            <header>
+              <h2>Atur Tabel</h2>
+              <button onClick={() => setTableOpen(false)}><X size={18} /></button>
+            </header>
+            <p>Pilih kolom yang ingin ditampilkan pada tabel detail penjualan.</p>
+            <div className="column-check-grid">
+              {detailColumns.map((column) => (
+                <label key={column}>
+                  <input type="checkbox" checked={visibleColumns.includes(column)} onChange={() => toggleColumn(column)} />
+                  <span>{column}</span>
+                </label>
+              ))}
+            </div>
+            <footer>
+              <button onClick={() => setVisibleColumns(detailColumns)}>Reset</button>
+              <Button onClick={() => { setTableOpen(false); toast.success('Pengaturan tabel disimpan') }}>Simpan</Button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+    </main>
+  )
+}
+
+const periodColumns = [
+  'PERIODE',
+  'PENJUALAN (RP)',
+  'LABA KOTOR (RP)',
+  'TOTAL PRODUK',
+  'TOTAL TRANSAKSI',
+  'PENGEMBALIAN (RP)',
+  'KOMISI (RP)',
+  'ORDER/TRANSAKSI (RP)',
+  'PRODUK/TRANSAKSI',
+]
+
+const periodMetrics = [
+  ['Total Penjualan', 'Rp 0'],
+  ['Total Laba Kotor', 'Rp 0'],
+  ['Total Transaksi', '0'],
+  ['Total Produk', '0'],
+]
+
+const orderTypeOptions = [
+  'Semua Jenis Order',
+  'Bukalapak',
+  'Bungkus',
+  'Consumer',
+  'Delivery',
+  'Drive Thru',
+  'Free Table',
+  'Go-Food',
+  'Gofood',
+  'Grab Food',
+  'Invoice',
+  'Jasa',
+  'Kiosk',
+  'Lainnya',
+  'majoo Order',
+  'Ojek Online',
+  'Quick Service',
+  'Reservasi',
+  'Self Order',
+  'Shopee',
+  'Table',
+  'Tokopedia',
+]
+
+function SalesPeriodReportPage() {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const [orderOpen, setOrderOpen] = useState(false)
+  const [periodType, setPeriodType] = useState('Hari')
+  const [orderType, setOrderType] = useState('Semua Jenis Order')
+  const [query, setQuery] = useState('')
+  const [chartOpen, setChartOpen] = useState(true)
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setCalendarOpen(false)
+    toast.success(`Penjualan per periode diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Penjualan Per Periode ${format} disiapkan`)
+  }
+
+  return (
+    <main className="content report-summary-page sales-period-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Penjualan Per Periode</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="detail-filter-line period-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+          <ReportSelectDropdown
+            value={periodType}
+            options={['Jam', 'Hari', 'Minggu', 'Bulan', 'Tahun']}
+            open={periodOpen}
+            setOpen={setPeriodOpen}
+            onSelect={(value) => {
+              setPeriodType(value)
+              toast.info(`Periode: ${value}`)
+            }}
+          />
+          <ReportSelectDropdown
+            value={orderType}
+            options={orderTypeOptions}
+            open={orderOpen}
+            setOpen={setOrderOpen}
+            onSelect={(value) => {
+              setOrderType(value)
+              toast.info(value)
+            }}
+            wide
+          />
+        </div>
+
+        <section className="period-chart-section">
+          <button className="period-chart-toggle" onClick={() => setChartOpen((value) => !value)}>
+            <span>Grafik Penjualan Per Periode</span>
+            <strong>{chartOpen ? 'Sembunyikan' : 'Tampilkan'}</strong>
+            <ChevronDown size={18} />
+          </button>
+          {chartOpen ? (
+            <div className="period-chart-box" aria-label="Grafik Penjualan Per Periode">
+              <div className="chart-grid-lines">
+                <span>1</span>
+                <span>0.5</span>
+                <span>0</span>
+              </div>
+              <div className="chart-legend">
+                <span><i /> Total Penjualan</span>
+                <span><i /> Laba Kotor</span>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        <div className="detail-metrics-grid period-metrics-grid">
+          {periodMetrics.map(([label, value]) => (
+            <article key={label} className="detail-metric-card">
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </article>
+          ))}
+        </div>
+
+        <div className="detail-table-wrap">
+          <table className="detail-report-table period-report-table">
+            <thead>
+              <tr>
+                {periodColumns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+          </table>
+          <EmptyModuleState type="report" />
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function ReportSelectDropdown({ value, options, open, setOpen, onSelect, wide }) {
+  return (
+    <div className={cn('select-dropdown-wrap', wide && 'wide-select-wrap')}>
+      <button className="select-button detail-time-select" onClick={() => setOpen((current) => !current)}>
+        <span>{value}</span>
+        <ChevronDown size={15} />
+      </button>
+      {open ? (
+        <div className={cn('simple-select-menu', wide && 'wide-select-menu')}>
+          {options.map((item) => (
+            <button
+              key={item}
+              className={item === value ? 'active' : ''}
+              onClick={() => {
+                onSelect(item)
+                setOpen(false)
+              }}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+const outletReportColumns = [
+  'OUTLET',
+  'PENJUALAN (RP)',
+  'LABA KOTOR (RP)',
+  'JUMLAH PRODUK',
+  'JUMLAH TRANSAKSI',
+  'PENJUALAN %',
+  'LABA KOTOR %',
+  'PRODUK %',
+  'TRANSAKSI (%)',
+  'PENJUALAN/TRANSAKSI (RP)',
+  'PRODUK/TRANSAKSI',
+]
+
+function SalesOutletReportPage() {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [orderOpen, setOrderOpen] = useState(false)
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const [metricOpen, setMetricOpen] = useState(false)
+  const [orderType, setOrderType] = useState('Semua Jenis Order')
+  const [periodType, setPeriodType] = useState('Hari')
+  const [chartMetric, setChartMetric] = useState('Penjualan')
+  const [query, setQuery] = useState('')
+  const [chartOpen, setChartOpen] = useState(true)
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setCalendarOpen(false)
+    toast.success(`Penjualan outlet diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Penjualan Outlet ${format} disiapkan`)
+  }
+
+  return (
+    <main className="content report-summary-page sales-outlet-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card sales-outlet-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Penjualan Outlet</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="detail-filter-line outlet-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+          <ReportSelectDropdown
+            value={orderType}
+            options={orderTypeOptions}
+            open={orderOpen}
+            setOpen={setOrderOpen}
+            onSelect={(value) => {
+              setOrderType(value)
+              toast.info(value)
+            }}
+            wide
+          />
+        </div>
+
+        <section className="outlet-kpi-strip">
+          <div className="outlet-main-kpi">
+            <h2>Rp 0</h2>
+            <p>Total Penjualan</p>
+          </div>
+          <div>
+            <strong>Rp 0</strong>
+            <span>Laba Kotor</span>
+          </div>
+          <div>
+            <strong>0</strong>
+            <span>Transaksi</span>
+          </div>
+          <div>
+            <strong>0</strong>
+            <span>Produk Terjual</span>
+          </div>
+        </section>
+
+        <section className="period-chart-section outlet-chart-section">
+          <button className="period-chart-toggle" onClick={() => setChartOpen((value) => !value)}>
+            <span>Grafik Penjualan Outlet</span>
+            <strong>{chartOpen ? 'Sembunyikan' : 'Tampilkan'}</strong>
+            <ChevronDown size={18} />
+          </button>
+          {chartOpen ? (
+            <div className="outlet-chart-body">
+              <div className="outlet-chart-controls">
+                <ReportSelectDropdown
+                  value={periodType}
+                  options={['Jam', 'Hari', 'Minggu', 'Bulan', 'Tahun']}
+                  open={periodOpen}
+                  setOpen={setPeriodOpen}
+                  onSelect={(value) => {
+                    setPeriodType(value)
+                    toast.info(`Grafik: ${value}`)
+                  }}
+                />
+                <ReportSelectDropdown
+                  value={chartMetric}
+                  options={['Penjualan', 'Laba', 'Transaksi', 'Produk']}
+                  open={metricOpen}
+                  setOpen={setMetricOpen}
+                  onSelect={(value) => {
+                    setChartMetric(value)
+                    toast.info(`Metrik grafik: ${value}`)
+                  }}
+                />
+              </div>
+              <div className="period-chart-box outlet-chart-box" aria-label="Grafik Penjualan Outlet">
+                <div className="chart-grid-lines">
+                  <span>1</span>
+                  <span>0.5</span>
+                  <span>0</span>
+                </div>
+                <div className="chart-legend">
+                  <span><i /> {chartMetric}</span>
+                  <span><i /> Software House</span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        <div className="detail-table-wrap">
+          <table className="detail-report-table outlet-report-table">
+            <thead>
+              <tr>
+                {outletReportColumns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+          </table>
+          <EmptyModuleState type="report" />
+        </div>
+      </section>
+    </main>
+  )
+}
+
+const reportFilterOptions = {
+  category: ['Semua Kategori', 'Makanan', 'Minuman', 'Paket Hemat', 'Retail'],
+  department: ['Semua Departemen', 'Food', 'Beverage', 'Service', 'Retail'],
+  orderType: orderTypeOptions,
+  productType: ['Semua Jenis Produk', 'Produk Barang', 'Produk Jasa', 'Produk Paket', 'Produk Ekstra'],
+  cashierPay: ['Kasir Bayar', 'Kasir Order', 'Kasir Void'],
+  outlet: ['Pilih Outlet', 'Software House', 'Semua Outlet'],
+  product: ['Pilih Produk', 'Produk Utama', 'Paket Hemat', 'Layanan'],
+  type: ['Semua Tipe', 'Masuk', 'Keluar', 'Penyesuaian'],
+  status: ['Semua Status', 'Berhasil', 'Gagal', 'Diproses', 'Tertunda'],
+  transactionType: ['Semua Jenis Transaksi', 'Pemasukan', 'Penarikan'],
+}
+
+function MajooGenericReportPage({ config }) {
+  const defaultRange = config.singleDate
+    ? { label: '06 Juni 2026', display: '06 Juni 2026', startTime: '00:00', endTime: '23:59' }
+    : { label: '01 Jun 2026 - 30 Jun 2026', display: '01 Juni 2026 - 30 Juni 2026', startTime: '00:00', endTime: '23:59' }
+  const [range, setRange] = useState(defaultRange)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [chartOpen, setChartOpen] = useState(config.variant !== 'tableOnly' && config.variant !== 'settlementOnline')
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const [metricOpen, setMetricOpen] = useState(false)
+  const [periodType, setPeriodType] = useState('Hari')
+  const [metricType, setMetricType] = useState('Penjualan')
+  const [activeTab, setActiveTab] = useState(config.tabs?.[0] || '')
+  const [tableOpen, setTableOpen] = useState(false)
+  const [visibleColumns, setVisibleColumns] = useState(config.columns)
+  const [dropdowns, setDropdowns] = useState({})
+  const [lastUpdated, setLastUpdated] = useState('beberapa detik yang lalu')
+
+  useEffect(() => {
+    setRange(defaultRange)
+    setVisibleColumns(config.columns)
+    setActiveTab(config.tabs?.[0] || '')
+    setChartOpen(config.variant !== 'tableOnly' && config.variant !== 'settlementOnline')
+    setDropdowns({})
+    setLastUpdated('beberapa detik yang lalu')
+  }, [config])
+
+  const processRange = (nextRange) => {
+    setRange(config.singleDate ? { ...nextRange, label: nextRange.display.split(' - ')[0], display: nextRange.display.split(' - ')[0] } : nextRange)
+    setCalendarOpen(false)
+    setLastUpdated('baru saja')
+    toast.success(`${config.title} diproses`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor ${config.title} ${format} disiapkan`)
+  }
+
+  const toggleColumn = (column) => {
+    setVisibleColumns((current) => {
+      if (current.includes(column)) return current.length === 1 ? current : current.filter((item) => item !== column)
+      return config.columns.filter((item) => current.includes(item) || item === column)
+    })
+  }
+
+  const renderFilter = (filterKey) => {
+    const options = reportFilterOptions[filterKey] || ['Semua']
+    const value = dropdowns[filterKey] || options[0]
+    return (
+      <ReportSelectDropdown
+        key={filterKey}
+        value={value}
+        options={options}
+        open={dropdowns[`${filterKey}Open`] || false}
+        setOpen={(updater) => setDropdowns((current) => ({ ...current, [`${filterKey}Open`]: typeof updater === 'function' ? updater(current[`${filterKey}Open`] || false) : updater }))}
+        onSelect={(nextValue) => {
+          setDropdowns((current) => ({ ...current, [filterKey]: nextValue }))
+          setLastUpdated('baru saja')
+          toast.info(nextValue)
+        }}
+        wide={filterKey === 'orderType' || filterKey === 'product'}
+      />
+    )
+  }
+
+  if (config.variant === 'settlementOnline') {
+    return (
+      <main className="content report-summary-page">
+        <section className="panel report-summary-card sales-period-card generic-report-card online-report-card">
+          <div className="online-balance-head">
+            <div>
+              <h1>{config.title}</h1>
+              <p>Total Saldo Merchant <Info size={14} /></p>
+              <strong>Rp 0</strong>
+            </div>
+            <div>
+              <Button variant="link">Detail Saldo</Button>
+              <Button variant="link">Info Penarikan Saldo</Button>
+              <Button>Tarik Saldo</Button>
+            </div>
+          </div>
+          <div className="online-balance-grid">
+            <article><strong>Rp 0</strong><span>Saldo Ditahan</span><Button variant="link">Lihat Mutasi</Button></article>
+            <article><strong>Rp 0</strong><span>Saldo Pelanggan</span><Button variant="link">Detail Saldo</Button></article>
+          </div>
+        </section>
+        <section className="panel report-summary-card sales-period-card generic-report-card">
+          <GenericReportHeader config={{ ...config, title: 'Riwayat Saldo' }} range={range} exportOpen={exportOpen} setExportOpen={setExportOpen} exportReport={exportReport} hideExport />
+          <GenericReportFilters config={config} query={query} setQuery={setQuery} range={range} calendarOpen={calendarOpen} setCalendarOpen={setCalendarOpen} processRange={processRange} renderFilter={renderFilter} />
+          <GenericMetrics metrics={config.metrics} />
+          <GenericReportTable columns={visibleColumns} />
+        </section>
+      </main>
+    )
+  }
+
+  return (
+    <main className="content report-summary-page sales-period-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card generic-report-card">
+        <GenericReportHeader config={config} range={range} exportOpen={exportOpen} setExportOpen={setExportOpen} exportReport={exportReport} onTable={() => setTableOpen(true)} />
+        {config.info ? <div className="info-banner report-info-banner"><Info size={16} /> {config.info}</div> : null}
+        {config.tabs?.length ? (
+          <div className="generic-tabs" role="tablist" aria-label={`${config.title} tab`}>
+            {config.tabs.map((tabName) => (
+              <button
+                key={tabName}
+                className={tabName === activeTab ? 'active' : ''}
+                onClick={() => {
+                  setActiveTab(tabName)
+                  setLastUpdated('baru saja')
+                }}
+              >
+                {tabName}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <GenericReportFilters config={config} query={query} setQuery={setQuery} range={range} calendarOpen={calendarOpen} setCalendarOpen={setCalendarOpen} processRange={processRange} renderFilter={renderFilter} />
+        {config.variant !== 'tableOnly' ? (
+          <section className="period-chart-section">
+            <button className="period-chart-toggle" onClick={() => setChartOpen((value) => !value)}>
+              <span>{config.chartTitle || `Grafik ${config.title}`}</span>
+              <strong>{chartOpen ? 'Sembunyikan' : 'Tampilkan'}</strong>
+              <ChevronDown size={18} />
+            </button>
+            {chartOpen ? (
+              <div className="generic-chart-body">
+                <div className="outlet-chart-controls">
+                  <ReportSelectDropdown value={periodType} options={['Jam', 'Hari', 'Minggu', 'Bulan', 'Tahun']} open={periodOpen} setOpen={setPeriodOpen} onSelect={setPeriodType} />
+                  <ReportSelectDropdown value={metricType} options={['Penjualan', 'Laba Kotor', 'Transaksi', 'Produk']} open={metricOpen} setOpen={setMetricOpen} onSelect={setMetricType} />
+                </div>
+                <div className="period-chart-box generic-chart-box" aria-label={config.chartTitle || `Grafik ${config.title}`}>
+                  <div className="chart-grid-lines">
+                    <span>Rp 200</span>
+                    <span>Rp 150</span>
+                    <span>Rp 100</span>
+                    <span>Rp 50</span>
+                    <span>0</span>
+                  </div>
+                  <div className="chart-dates">
+                    {['01 Jun', '03 Jun', '05 Jun', '07 Jun', '09 Jun', '11 Jun', '13 Jun', '15 Jun', '17 Jun', '19 Jun', '21 Jun', '23 Jun', '25 Jun', '27 Jun', '30 Jun'].map((day) => <span key={day}>{day}</span>)}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+        <GenericMetrics metrics={config.metrics} />
+        <GenericReportTable columns={visibleColumns} />
+        <div className="report-updated">Terakhir diperbarui {lastUpdated}</div>
+      </section>
+      {tableOpen ? (
+        <div className="modal-backdrop">
+          <div className="report-dialog table-dialog">
+            <header>
+              <h2>Atur Tabel</h2>
+              <button onClick={() => setTableOpen(false)}><X size={18} /></button>
+            </header>
+            <p>Pilih kolom yang ingin ditampilkan pada {config.title}.</p>
+            <div className="column-check-grid">
+              {config.columns.map((column) => (
+                <label key={column}>
+                  <input type="checkbox" checked={visibleColumns.includes(column)} onChange={() => toggleColumn(column)} />
+                  <span>{column}</span>
+                </label>
+              ))}
+            </div>
+            <footer>
+              <button onClick={() => setVisibleColumns(config.columns)}>Reset</button>
+              <Button onClick={() => { setTableOpen(false); toast.success('Pengaturan tabel disimpan') }}>Simpan</Button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+    </main>
+  )
+}
+
+function GenericReportHeader({ config, range, exportOpen, setExportOpen, exportReport, onTable, hideExport }) {
+  const [favorite, setFavorite] = useState(false)
+  return (
+    <div className="sales-detail-head generic-report-head">
+      <div>
+        <div className="report-title-row">
+          <h1>{config.title}</h1>
+          <button className="icon-link" onClick={() => toast.info(`Bantuan ${config.title}`)} aria-label={`Bantuan ${config.title}`}>
+            <HelpCircle size={19} />
+          </button>
+          <button className={cn('icon-link favorite', favorite && 'active')} onClick={() => setFavorite((value) => !value)} aria-label="Favorit">
+            <Star size={21} />
+          </button>
+        </div>
+        <p><CalendarDays size={16} /> {range.display}</p>
+      </div>
+      <div className="sales-detail-actions">
+        {(config.tableSettings || onTable) && !hideExport ? (
+          <Button variant="outline" onClick={onTable}>
+            <Settings size={16} />
+            Atur Tabel
+          </Button>
+        ) : null}
+        {!hideExport ? <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} /> : null}
+      </div>
+    </div>
+  )
+}
+
+function GenericReportFilters({ config, query, setQuery, range, calendarOpen, setCalendarOpen, processRange, renderFilter }) {
+  return (
+    <div className="detail-filter-line generic-filter-line">
+      <label className="detail-search">
+        <Search size={17} />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari ..." />
+      </label>
+      <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+      {(config.filters || []).map(renderFilter)}
+      {config.helper ? <small className="filter-helper">{config.helper}</small> : null}
+    </div>
+  )
+}
+
+function GenericMetrics({ metrics = [] }) {
+  if (!metrics.length) return null
+  return (
+    <div className="generic-metrics-grid">
+      {metrics.map(([label, value, tone = 'green']) => (
+        <ReportMetricCard key={label} label={label} value={value} tone={tone} />
+      ))}
+    </div>
+  )
+}
+
+function GenericReportTable({ columns }) {
+  return (
+    <div className="detail-table-wrap generic-table-wrap">
+      <table className="detail-report-table generic-report-table">
+        <thead>
+          <tr>
+            {columns.map((column) => (
+              <th key={column}>{column}</th>
+            ))}
+            <th>+</th>
+          </tr>
+        </thead>
+      </table>
+      <EmptyModuleState type="report" />
+    </div>
+  )
+}
+
+function ProductDirectoryPage({ config, onStartFlow }) {
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('Semua')
+  const [favorite, setFavorite] = useState(false)
+  const rows = config.rows || []
+
+  const runAction = (action) => {
+    if (action.toLowerCase().includes('impor')) toast.success(`${action} dibuka`)
+    else toast.success(`${action} disiapkan`)
+  }
+
+  return (
+    <main className="content product-page">
+      <CapitalBanner compact />
+      <section className="panel product-directory-card">
+        <header className="product-directory-head">
+          <div>
+            <div className="report-title-row">
+              <h1>{config.title}</h1>
+              <button className="icon-link" onClick={() => toast.info(`Bantuan ${config.title}`)} aria-label={`Bantuan ${config.title}`}>
+                <HelpCircle size={19} />
+              </button>
+              <button className={cn('icon-link favorite', favorite && 'active')} onClick={() => setFavorite((value) => !value)} aria-label="Favorit">
+                <Star size={21} />
+              </button>
+            </div>
+            {config.subtitle ? <p>{config.subtitle}</p> : null}
+          </div>
+          <div className="product-directory-actions">
+            {(config.actions || []).map((action) => (
+              <Button key={action} variant="link" onClick={() => runAction(action)}>
+                {action.toLowerCase().includes('impor') ? <Upload size={16} /> : <Download size={16} />}
+                {action}
+              </Button>
+            ))}
+            {config.addLabel ? (
+              <Button onClick={() => (config.addFlow ? onStartFlow(config.addFlow) : toast.success(config.addLabel))}>
+                <Plus size={18} />
+                {config.addLabel}
+              </Button>
+            ) : null}
+          </div>
+        </header>
+
+        <div className="product-directory-toolbar">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari ..." />
+          </label>
+          {(config.filters || []).map((filter) => (
+            <SelectButton key={filter} label={filter} />
+          ))}
+          <div className="radio-tabs product-status-tabs" role="tablist" aria-label="Status produk">
+            {['Semua', 'Tampil di Menu', 'Tidak Tampil di Menu'].map((item) => (
+              <button
+                key={item}
+                className={item === status ? 'active' : ''}
+                onClick={() => {
+                  setStatus(item)
+                  toast.info(item)
+                }}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="product-table-wrap">
+          <table className="product-table">
+            <thead>
+              <tr>
+                {config.columns.map((column) => (
+                  <th key={column || 'action'}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={`${row[0]}-${rowIndex}`}>
+                  {row.map((cell, index) => {
+                    const isStatus = String(cell).includes('Tampil di Menu')
+                    const isAction = index === row.length - 1
+                    return (
+                      <td key={`${cell}-${index}`}>
+                        {isStatus ? <span className="status-pill">Tampil di Menu</span> : isAction ? <button className="row-more" aria-label="Aksi baris"><MoreVertical size={16} /></button> : cell}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!rows.length ? <EmptyModuleState type="master" /> : null}
+        </div>
+
+        <footer className="product-pagination">
+          <div>
+            <span>Tampilkan:</span>
+            <button>10 <ChevronDown size={14} /></button>
+            <span>{config.pagination || 'Ditampilkan 0 - 0 dari 0 data'}</span>
+          </div>
+          <nav aria-label="Pagination">
+            <button><ChevronLeft size={17} /> Sebelumnya</button>
+            <strong>1</strong>
+            <button>Selanjutnya <ChevronRight size={17} /></button>
+          </nav>
+        </footer>
+      </section>
+    </main>
+  )
+}
+
+function SelectButton({ label, onClick }) {
+  return (
+    <button className="select-button" onClick={onClick || (() => toast.info(label))}>
+      <span>{label}</span>
+      <ChevronDown size={15} />
+    </button>
+  )
+}
+
+function MiniKpi({ label, value }) {
+  return (
+    <div className="mini-kpi">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+const productSections = ['Informasi Produk', 'Varian', 'Ekstra', 'Resep', 'majoo Order']
+
+const productGuideSteps = [
+  {
+    key: 'outlet',
+    title: 'Daftar Outlet',
+    body: 'Tambahkan produk pada outlet yang diinginkan.',
+    count: '1 / 8',
+  },
+  {
+    key: 'identity',
+    title: 'Informasi Produk',
+    body: 'Gunakan nama produk yang berbeda untuk setiap produk agar mudah dikenali.',
+    count: '2 / 8',
+  },
+  {
+    key: 'category',
+    title: 'Kategori Produk',
+    body: 'Buat kategori untuk mengelompokkan produk-produk yang serupa.',
+    count: '3 / 8',
+  },
+  {
+    key: 'options',
+    title: 'Opsi Lanjutan',
+    body: 'Atur produk favorit dan tampilkan produk di halaman kasir.',
+    count: '4 / 8',
+  },
+  {
+    key: 'stock',
+    title: 'Monitor Persediaan',
+    body: 'Aktifkan monitor persediaan untuk memantau kuantitas produk.',
+    count: '5 / 8',
+  },
+  {
+    key: 'unit',
+    title: 'Satuan & Konversi',
+    body: 'Sesuaikan satuan produk untuk memudahkan pembelian berdasarkan ukuran atau jumlah.',
+    count: '6 / 8',
+  },
+  {
+    key: 'price',
+    title: 'Harga Jual',
+    body: 'Harga jual adalah harga yang akan dibayar pembeli dan tampil pada menu kasir.',
+    count: '7 / 8',
+  },
+  {
+    key: 'dimension',
+    title: 'Dimensi Produk',
+    body: 'Atur dimensi produk yang dapat dikirim menggunakan jasa ekspedisi.',
+    count: '8 / 8',
+  },
+]
+
+function SetupFlow({ type, onClose, outlets, onOutletCreated }) {
+  if (type === 'product') return <ProductSetupFlow onClose={onClose} outlets={outlets} />
+  if (type === 'category') return <CategorySetupFlow onClose={onClose} outlets={outlets} />
+  if (type === 'outlet') return <OutletDetailFlow onClose={onClose} onOutletSaved={onOutletCreated} outlets={outlets} />
+  return <SimpleSetupFlow type={type} onClose={onClose} outlets={outlets} onOutletCreated={onOutletCreated} />
+}
+
+function CategorySetupFlow({ onClose, outlets }) {
+  const [values, setValues] = useState({
+    outlet: outlets[0] || '',
+    name: '',
+    order: '',
+    department: '',
+    visible: true,
+  })
+  const [errors, setErrors] = useState({})
+  const [confirmClose, setConfirmClose] = useState(false)
+  const setField = (field, value) => {
+    setValues((current) => ({ ...current, [field]: value }))
+    setErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+  const validate = () => {
+    const nextErrors = {}
+    if (!values.outlet) nextErrors.outlet = 'Outlet wajib dipilih.'
+    if (!values.name.trim()) nextErrors.name = 'Nama kategori wajib diisi.'
+    if (!values.order.trim()) nextErrors.order = 'Urutan wajib diisi.'
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length) {
+      toast.error(Object.values(nextErrors)[0])
+      return false
+    }
+    toast.success('Kategori berhasil divalidasi dan siap disimpan')
+    return true
+  }
+
+  return (
+    <div className="setup-flow category-flow">
+      <FlowHeader title="Tambah Kategori" onClose={() => setConfirmClose(true)} />
+      <main className="category-flow-body">
+        <section className="flow-card category-form-card">
+          <FormRow label="Atur Outlet*" error={errors.outlet}>
+            <SelectInput placeholder="Pilih" value={values.outlet} options={outlets} onChange={(value) => setField('outlet', value)} />
+            <div className="selected-chip">
+              <span>{values.outlet || 'Software Ho...'}</span>
+              <button onClick={() => setField('outlet', '')}><X size={14} /></button>
+            </div>
+          </FormRow>
+          <FormRow label="Nama Kategori*" error={errors.name}>
+            <input value={values.name} onChange={(event) => setField('name', event.target.value)} placeholder="Contoh: Snack" />
+          </FormRow>
+          <FormRow label="Ikon Kategori">
+            <div className="category-upload-row">
+              <p>Gunakan rasio gambar 1:1 dengan ukuran 10Kb dan maksimal 100Kb. Format foto .jpg .jpeg .png ukuran minimum 100px x 100px.</p>
+              <UploadBox />
+            </div>
+          </FormRow>
+          <FormRow label="Urutan*" error={errors.order}>
+            <input value={values.order} onChange={(event) => setField('order', event.target.value)} placeholder="Contoh: 1" />
+          </FormRow>
+          <FormRow label="Departemen">
+            <SelectInput placeholder="Pilih" value={values.department} options={['IT', 'Food', 'Beverage', 'Retail']} onChange={(value) => setField('department', value)} />
+          </FormRow>
+          <FormRow label="Tampil di Menu">
+            <button className="toggle-button" onClick={() => setField('visible', !values.visible)}>
+              <Toggle checked={values.visible} />
+            </button>
+            <span className="form-inline-note">Tampilkan kategori pada aplikasi kasir</span>
+          </FormRow>
+        </section>
+      </main>
+      <FlowFooter simple onCancel={() => setConfirmClose(true)} onSave={validate} />
+      {confirmClose ? (
+        <div className="modal-scrim">
+          <div className="confirm-dialog">
+            <header>
+              <h2>Batal Tambah Kategori</h2>
+              <button onClick={() => setConfirmClose(false)}><X size={18} /></button>
+            </header>
+            <p>Membatalkan <strong>Tambah Kategori</strong> akan menghapus seluruh data yang telah diinput dan tidak dapat dibatalkan. Lanjutkan?</p>
+            <footer>
+              <button onClick={() => setConfirmClose(false)}>Batal</button>
+              <Button variant="danger" onClick={onClose}>Ya, Lanjutkan</Button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function ProductSetupFlow({ onClose, outlets }) {
+  const [activeSection, setActiveSection] = useState('Informasi Produk')
+  const [guideStep, setGuideStep] = useState(0)
+  const [guideDone, setGuideDone] = useState(false)
+  const [guideRect, setGuideRect] = useState(null)
+  const [values, setValues] = useState({
+    outlet: outlets[0] || '',
+    productName: '',
+    category: '',
+    unit: '',
+    sku: '',
+    minPurchase: '1',
+    sellPrice: '',
+    length: '1',
+    width: '1',
+    height: '1',
+    weight: '100',
+  })
+  const [errors, setErrors] = useState({})
+  const refs = useRef({})
+  const currentGuide = productGuideSteps[guideStep]
+
+  useEffect(() => {
+    if (!currentGuide) return
+    const node = refs.current[currentGuide.key]
+    node?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const measure = () => {
+      if (!node) return
+      const rect = node.getBoundingClientRect()
+      setGuideRect({
+        top: Math.max(72, rect.top - 6),
+        left: Math.max(12, rect.left - 6),
+        width: rect.width + 12,
+        height: rect.height + 12,
+      })
+    }
+    measure()
+    const timer = window.setTimeout(measure, 380)
+    window.addEventListener('resize', measure)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('resize', measure)
+    }
+  }, [currentGuide])
+
+  const register = (key) => (node) => {
+    if (node) refs.current[key] = node
+  }
+
+  const setField = (field, value) => {
+    setValues((current) => ({ ...current, [field]: value }))
+    setErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const goSection = (section) => {
+    setActiveSection(section)
+    refs.current[`section-${section}`]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const nextGuide = () => {
+    if (guideStep >= productGuideSteps.length - 1) {
+      setGuideStep(null)
+      setGuideRect(null)
+      setGuideDone(true)
+      return
+    }
+    setGuideStep((step) => step + 1)
+  }
+
+  const sectionIndex = productSections.indexOf(activeSection)
+  const nextSection = () => {
+    const next = productSections[Math.min(sectionIndex + 1, productSections.length - 1)]
+    goSection(next)
+  }
+
+  const validateProduct = () => {
+    const nextErrors = {}
+    if (!values.outlet) nextErrors.outlet = 'Daftar outlet wajib dipilih.'
+    if (!values.productName.trim()) nextErrors.productName = 'Nama produk wajib diisi.'
+    if (!values.category) nextErrors.category = 'Kategori produk wajib dipilih.'
+    if (!values.unit) nextErrors.unit = 'Satuan wajib dipilih.'
+    if (!values.sku.trim()) nextErrors.sku = 'SKU wajib diisi.'
+    if (!values.minPurchase.trim()) nextErrors.minPurchase = 'Minimum pembelian wajib diisi.'
+    if (!values.sellPrice.trim()) nextErrors.sellPrice = 'Harga jual wajib diisi.'
+    if (!values.length || !values.width || !values.height || !values.weight) {
+      nextErrors.dimension = 'Dimensi dan berat produk wajib diisi.'
+    }
+    setErrors(nextErrors)
+    const firstField = Object.keys(nextErrors)[0]
+    const fieldToRef = {
+      outlet: 'outlet',
+      productName: 'identity',
+      category: 'category',
+      unit: 'unit',
+      sku: 'unit',
+      minPurchase: 'unit',
+      sellPrice: 'price',
+      dimension: 'dimension',
+    }
+    if (firstField) {
+      refs.current[fieldToRef[firstField]]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      toast.error(nextErrors[firstField])
+      return false
+    }
+    toast.success('Produk berhasil divalidasi dan siap disimpan')
+    return true
+  }
+
+  return (
+    <div className="setup-flow">
+      <FlowHeader title="Tambahkan Produk" onClose={onClose} />
+      {currentGuide ? <TourSpotlight rect={guideRect} /> : null}
+      <div className="flow-body">
+        <aside className="flow-sidebar">
+          {productSections.map((section, index) => {
+            const completed = productSections.indexOf(activeSection) > index
+            return (
+              <button key={section} className={cn(activeSection === section && 'active', completed && 'done')} onClick={() => goSection(section)}>
+                {completed ? <CheckCircle2 size={16} /> : null}
+                <span>{section}</span>
+              </button>
+            )
+          })}
+        </aside>
+
+        <main className="flow-main">
+          <section ref={register('section-Informasi Produk')} className="flow-card">
+            <h2>Informasi Produk</h2>
+            <FormRow refNode={register('outlet')} guideKey="outlet" currentKey={currentGuide?.key} label="Daftar Outlet*" error={errors.outlet} wide>
+              <SelectInput placeholder="Pilih" value={values.outlet} options={outlets} onChange={(value) => setField('outlet', value)} />
+            </FormRow>
+            <FormRow refNode={register('identity')} guideKey="identity" currentKey={currentGuide?.key} label="Nama Produk*" hint={`${values.productName.length}/255`} error={errors.productName}>
+              <textarea value={values.productName} onChange={(event) => setField('productName', event.target.value)} placeholder="Contoh: nasi padang" />
+            </FormRow>
+            <FormRow label="Deskripsi Produk">
+              <textarea placeholder="Contoh: yang best seller" />
+            </FormRow>
+            <FormRow label="Foto Produk">
+              <div className="photo-row">
+                <p>Gunakan rasio foto 1:1 dengan ukuran 10Kb dan maksimal 1Mb. Format foto .jpg, .jpeg, .png ukuran minimum 100px x 100px.</p>
+                <button className="upload-box">
+                  <Package size={20} />
+                  <span>Pilih atau letakkan berkas di sini</span>
+                </button>
+              </div>
+            </FormRow>
+            <FormRow refNode={register('category')} guideKey="category" currentKey={currentGuide?.key} label="Kategori Produk*" error={errors.category}>
+              <SelectInput placeholder="Pilih Kategori" value={values.category} options={categoryOptions} onChange={(value) => setField('category', value)} />
+              <small>
+                Kategori belum tersedia? <button>Buat Kategori Baru</button>
+              </small>
+            </FormRow>
+            <FormRow refNode={register('options')} guideKey="options" currentKey={currentGuide?.key} label="Opsi Lanjutan">
+              <label className="check-line">
+                <input type="checkbox" /> Produk Favorit
+              </label>
+              <label className="check-line">
+                <input type="checkbox" defaultChecked /> Tampil di Menu
+              </label>
+            </FormRow>
+            <FormRow refNode={register('stock')} guideKey="stock" currentKey={currentGuide?.key} label="Monitor Persediaan">
+              <div className="inline-control">
+                <Toggle /> <span>Aktifkan Monitor Persediaan</span>
+              </div>
+              <input placeholder="0" />
+            </FormRow>
+            <FormRow label="Serial Number">
+              <FeaturePanel title="Serial Number" text="Kasir wajib memilih manual serial number saat penjualan. Nomor seri bisa dicatat per produk untuk pelacakan stok.">
+                <div className="two-col">
+                  <SelectInput placeholder="Metode input serial number" options={serialInputOptions} />
+                  <input placeholder="Contoh: SN-0001" />
+                </div>
+              </FeaturePanel>
+            </FormRow>
+            <FormRow label="Batch Number">
+              <FeaturePanel title="Batch Number" text="Kelola batch produksi, tanggal kedaluwarsa, dan stok masuk untuk produk ini.">
+                <div className="two-col">
+                  <input placeholder="Nomor batch" />
+                  <input placeholder="Tanggal kedaluwarsa" />
+                </div>
+              </FeaturePanel>
+            </FormRow>
+            <FormRow label="Grup">
+              <SelectInput placeholder="Pilih" options={groupOptions} />
+              <label className="check-line">
+                <input type="checkbox" /> Tetapkan sebagai Induk
+              </label>
+            </FormRow>
+            <FormRow label="Izinkan Ubah Produk Tidak Dijual">
+              <div className="inline-control">
+                <Toggle /> <span>Izinkan kasir mengubah produk menjadi tidak tersedia/tidak dapat dijual di POS/Order Online</span>
+              </div>
+            </FormRow>
+          </section>
+
+          <section className="flow-card">
+            <h2>Harga dan Satuan</h2>
+            <FormRow refNode={register('unit')} guideKey="unit" currentKey={currentGuide?.key} label="Satuan*" error={errors.unit || errors.sku || errors.minPurchase}>
+              <div className="two-col">
+                <SelectInput placeholder="Pilih Satuan" value={values.unit} options={unitOptions} onChange={(value) => setField('unit', value)} />
+                <input value={values.sku} onChange={(event) => setField('sku', event.target.value)} placeholder="Contoh: S001" />
+                <input value={values.minPurchase} onChange={(event) => setField('minPurchase', event.target.value)} placeholder="Min. Pembelian" />
+                <input value="1" readOnly />
+              </div>
+            </FormRow>
+            <FormRow refNode={register('price')} guideKey="price" currentKey={currentGuide?.key} label="Harga*" error={errors.sellPrice}>
+              <div className="two-col">
+                <input value={values.sellPrice} onChange={(event) => setField('sellPrice', event.target.value)} placeholder="Rp 0" />
+                <input value="Rp    0" readOnly />
+              </div>
+            </FormRow>
+            <FormRow refNode={register('dimension')} guideKey="dimension" currentKey={currentGuide?.key} label="Dimensi Produk*" error={errors.dimension}>
+              <div className="dimension-row">
+                <input value={values.length} onChange={(event) => setField('length', event.target.value)} />
+                <input value={values.width} onChange={(event) => setField('width', event.target.value)} />
+                <input value={values.height} onChange={(event) => setField('height', event.target.value)} />
+                <span>cm</span>
+                <input value={values.weight} onChange={(event) => setField('weight', event.target.value)} />
+                <span>gram</span>
+              </div>
+              <button className="outline-wide">Tambah Satuan</button>
+            </FormRow>
+            <FormRow label="Ubah Harga Jual">
+              <div className="inline-control">
+                <Toggle /> <span>Izinkan kasir untuk mengubah harga jual</span>
+              </div>
+              <input value="Maks.    0%" readOnly />
+            </FormRow>
+            <FormRow label="Harga Grosir">
+              <FeaturePanel title="Harga Grosir" text="Berikan harga bertingkat untuk pelanggan yang membeli dalam jumlah tertentu.">
+                <div className="tier-row">
+                  <input placeholder="Min. Qty" />
+                  <input placeholder="Harga Grosir" />
+                  <button>Tambah Tier</button>
+                </div>
+              </FeaturePanel>
+            </FormRow>
+          </section>
+
+          <section ref={register('section-Varian')} className="flow-card compact-flow-card">
+            <h2>Varian Produk</h2>
+            <FeaturePanel title="Produk Memiliki Varian" text="Tambahkan variasi ukuran, warna, rasa, atau opsi lain untuk produk ini.">
+              <div className="variant-builder">
+                <input placeholder="Nama varian, contoh: Ukuran" />
+                <input placeholder="Pilihan, contoh: S, M, L" />
+                <button>Tambah Varian</button>
+              </div>
+            </FeaturePanel>
+          </section>
+
+          <section ref={register('section-Ekstra')} className="flow-card compact-flow-card">
+            <h2>Ekstra</h2>
+            <FormRow label="Produk Memiliki Ekstra">
+              <div className="inline-control">
+                <Toggle checked /> <HelpCircle size={16} />
+              </div>
+            </FormRow>
+            <FormRow label="Ubah Data Ekstra">
+              <div className="inline-control">
+                <Toggle /> <HelpCircle size={16} />
+              </div>
+            </FormRow>
+            <FormRow label="Atur Ekstra">
+              <SelectInput placeholder="Pilih Ekstra" options={extraOptions} />
+              <div className="tier-row">
+                <input placeholder="Nama ekstra, contoh: Sambal" />
+                <input placeholder="Harga ekstra" />
+                <button>Tambah Ekstra</button>
+              </div>
+            </FormRow>
+          </section>
+
+          <section ref={register('section-Resep')} className="flow-card compact-flow-card">
+            <h2>Resep</h2>
+            <FeaturePanel title="Master Resep" text="Pilih resep yang sudah tersedia atau buat komposisi bahan baku langsung untuk produk ini.">
+              <SelectInput placeholder="Pilih Master Resep" options={recipeOptions} />
+            </FeaturePanel>
+            <FormRow label="Resep Produk">
+              <div className="inline-control">
+                <Toggle checked /> <span>Aktifkan untuk menambahkan resep pada produk</span>
+              </div>
+            </FormRow>
+            <FormRow label="Atur Bahan Baku">
+              <button className="outline-wide">Tambah Bahan Baku</button>
+            </FormRow>
+          </section>
+
+          <section ref={register('section-majoo Order')} className="flow-card compact-flow-card">
+            <h2>majoo Order</h2>
+            <div className="integration-empty">
+              <Store size={92} />
+              <p>Outlet ini belum terintegrasi dengan marketplace, silakan lakukan proses integrasi terlebih dahulu untuk menggunakan fitur ini</p>
+              <Button>Ajukan Integrasi</Button>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      {currentGuide ? <GuideBubble step={currentGuide} rect={guideRect} onSkip={() => { setGuideStep(null); setGuideRect(null) }} onNext={nextGuide} /> : null}
+      {guideDone ? <GuideDone onRepeat={() => setGuideStep(0)} onClose={() => setGuideDone(false)} /> : null}
+      <FlowFooter onCancel={onClose} onBack={() => goSection(productSections[Math.max(sectionIndex - 1, 0)])} onNext={nextSection} onSave={validateProduct} />
+    </div>
+  )
+}
+
+function OutletDetailFlow({ onClose, onOutletSaved }) {
+  const [values, setValues] = useState({
+    name: 'Software House',
+    manager: 'royyan',
+    managerEmail: 'maulanaroyyan33@gmail.com',
+    type: 'Penjualan',
+    status: 'Buka',
+    plan: 'TRIAL',
+    expires: '19 Juni 2026',
+    phone: '089530132499',
+    whatsapp: '',
+    email: 'maulanaroyyan33@gmail.com',
+    country: 'Indonesia',
+    province: 'Jawa Tengah',
+    city: 'Kab. Tegal',
+    address: '',
+    socialType: 'Instagram',
+    socialAccount: '',
+    closeStore: false,
+  })
+  const [errors, setErrors] = useState({})
+  const [managerOpen, setManagerOpen] = useState(false)
+  const refs = useRef({})
+
+  const setOutletField = (field, value) => {
+    setValues((current) => ({ ...current, [field]: value }))
+    setErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+
+  const validateOutlet = () => {
+    const nextErrors = {}
+    if (!values.name.trim()) nextErrors.name = 'Nama outlet wajib diisi.'
+    if (!values.phone.trim()) nextErrors.phone = 'Telepon wajib diisi.'
+    if (!values.country.trim()) nextErrors.country = 'Negara wajib diisi.'
+    if (!values.province.trim()) nextErrors.province = 'Provinsi wajib dipilih.'
+    if (!values.city.trim()) nextErrors.city = 'Kota wajib dipilih.'
+    if (!values.address.trim()) nextErrors.address = 'Alamat lengkap wajib diisi.'
+    setErrors(nextErrors)
+    const first = Object.keys(nextErrors)[0]
+    if (first) {
+      refs.current[first]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      toast.error(nextErrors[first])
+      return false
+    }
+    onOutletSaved?.(values.name)
+    toast.success(`Outlet ${values.name} berhasil disimpan`)
+    return true
+  }
+
+  const addManager = (manager) => {
+    setValues((current) => ({ ...current, manager: manager.name, managerEmail: manager.email }))
+    setManagerOpen(false)
+    toast.success('Manager outlet ditambahkan')
+  }
+
+  return (
+    <div className="setup-flow outlet-detail-flow">
+      <FlowHeader title="Detail Outlet" onClose={onClose} />
+      <main className="outlet-detail-body">
+        <div className="info-banner">
+          <Info size={16} />
+          <span>Pengaturan pada nama, logo, jadwal operasional, dan alamat outlet akan tersimpan di berbagai fitur dan produk TripleSys PoS yang terintegrasi</span>
+        </div>
+
+        <section className="flow-card outlet-detail-card">
+          <h2>Informasi Outlet</h2>
+          <h3>Detail Logo</h3>
+          <FormRow label={<span className="label-inline">Logo Outlet <Info size={16} /></span>}>
+            <div className="outlet-upload-line">
+              <small>Ukuran 500px x 500px, maks 1MB</small>
+              <UploadBox />
+            </div>
+          </FormRow>
+          <FormRow label="Logo Struk">
+            <div className="outlet-upload-line">
+              <small>Ukuran dapat diatur sesuai kebutuhan, maks 1MB</small>
+              <UploadBox />
+            </div>
+          </FormRow>
+
+          <h3>Detail Outlet</h3>
+          <FormRow refNode={(node) => { if (node) refs.current.name = node }} label={<span className="label-inline">Nama Outlet* <Info size={16} /></span>} error={errors.name}>
+            <input value={values.name} onChange={(event) => setOutletField('name', event.target.value)} />
+          </FormRow>
+          <FormRow label="Manager Outlet">
+            <div className="manager-field">
+              <input value={values.manager} readOnly />
+              <button type="button" onClick={() => setManagerOpen(true)}>...</button>
+            </div>
+            <small>{values.managerEmail}</small>
+            <button type="button" className="outline-wide" onClick={() => setManagerOpen(true)}>Tambah Manager</button>
+          </FormRow>
+          <FormRow label="Jenis Outlet">
+            <div className="radio-grid">
+              <RadioCard label="Penjualan" checked={values.type === 'Penjualan'} onChange={() => setOutletField('type', 'Penjualan')} />
+              <RadioCard label="Gudang" checked={values.type === 'Gudang'} onChange={() => setOutletField('type', 'Gudang')} />
+            </div>
+          </FormRow>
+          <FormRow label="Status Outlet">
+            <div className="radio-grid">
+              <RadioCard label="Buka" checked={values.status === 'Buka'} onChange={() => setOutletField('status', 'Buka')} />
+              <RadioCard label="Tutup" checked={values.status === 'Tutup'} onChange={() => setOutletField('status', 'Tutup')} />
+            </div>
+          </FormRow>
+          <FormRow label="Layanan Langganan">
+            <input value={values.plan} readOnly />
+          </FormRow>
+          <FormRow label="Masa Berlaku">
+            <div className="expiry-row">
+              <input value={values.expires} readOnly />
+              <Button variant="outline">Perpanjang</Button>
+            </div>
+          </FormRow>
+
+          <OutletSchedule />
+        </section>
+
+        <section className="flow-card outlet-detail-card">
+          <h2>Tutup Toko</h2>
+          <FormRow label="Tutup Toko">
+            <div className="inline-control">
+              <button type="button" className="toggle-button" onClick={() => setOutletField('closeStore', !values.closeStore)}>
+                <Toggle checked={values.closeStore} />
+              </button>
+              <strong>{values.closeStore ? 'Tutup Toko Aktif' : 'Tutup Toko Tidak Aktif'}</strong>
+            </div>
+            <div className="notice-pill">Fitur tersedia pada POS versi 3.2.23100 ke atas</div>
+            <small>Fitur Tutup Toko berfungsi untuk mengakhiri operasional harian di POS sekaligus menghasilkan laporan tutup toko</small>
+          </FormRow>
+        </section>
+
+        <section className="flow-card outlet-detail-card">
+          <h2>Kontak Outlet</h2>
+          <FormRow refNode={(node) => { if (node) refs.current.phone = node }} label="Telepon*" error={errors.phone}>
+            <input value={values.phone} onChange={(event) => setOutletField('phone', event.target.value)} />
+          </FormRow>
+          <FormRow label="Whatsapp">
+            <input value={values.whatsapp} onChange={(event) => setOutletField('whatsapp', event.target.value)} placeholder="Contoh: 081 231600681" />
+          </FormRow>
+          <FormRow label="Email">
+            <input value={values.email} onChange={(event) => setOutletField('email', event.target.value)} />
+          </FormRow>
+          <FormRow label={<span className="label-inline">Alamat <Info size={16} /></span>}>
+            <div className="address-grid">
+              <label>
+                Negara*
+                <input ref={(node) => { if (node) refs.current.country = node }} value={values.country} onChange={(event) => setOutletField('country', event.target.value)} />
+              </label>
+              <label>
+                Provinsi*
+                <SelectInput placeholder="Pilih provinsi" value={values.province} options={provinceOptions} onChange={(value) => setOutletField('province', value)} />
+              </label>
+              <label className="wide">
+                Kota*
+                <SelectInput placeholder="Pilih kota" value={values.city} options={cityOptions} onChange={(value) => setOutletField('city', value)} />
+              </label>
+              <label className="wide address-input">
+                Alamat Lengkap*
+                <div>
+                  <input ref={(node) => { if (node) refs.current.address = node }} value={values.address} onChange={(event) => setOutletField('address', event.target.value)} placeholder="Contoh: Jalan Mangga No.12" />
+                  <Button variant="outline">Ubah</Button>
+                </div>
+                <small>Pilih lokasi melalui Maps</small>
+              </label>
+            </div>
+            {(errors.country || errors.province || errors.city || errors.address) ? <p className="field-error">{errors.country || errors.province || errors.city || errors.address}</p> : null}
+          </FormRow>
+        </section>
+
+        <section className="flow-card outlet-detail-card">
+          <h2>Media Sosial</h2>
+          <p className="section-note">Jika media sosial lebih dari 1, silakan isi Nama Akun dan tekan enter untuk menambahkan (maks 4)</p>
+          <FormRow label="Media Sosial">
+            <div className="two-col">
+              <SelectInput placeholder="Pilih media sosial" value={values.socialType} options={socialOptions} onChange={(value) => setOutletField('socialType', value)} />
+              <input value={values.socialAccount} onChange={(event) => setOutletField('socialAccount', event.target.value)} placeholder="Contoh: serudimajoo" />
+            </div>
+          </FormRow>
+        </section>
+      </main>
+      {managerOpen ? <ManagerModal outlet={values.name} onClose={() => setManagerOpen(false)} onSave={addManager} /> : null}
+      <FlowFooter simple onCancel={onClose} onSave={validateOutlet} />
+    </div>
+  )
+}
+
+function RadioCard({ label, checked, onChange }) {
+  return (
+    <label className={cn('radio-card', checked && 'checked')}>
+      <input type="radio" checked={checked} onChange={onChange} />
+      <span>{label}</span>
+    </label>
+  )
+}
+
+function OutletSchedule() {
+  return (
+    <div className="schedule-block">
+      <h3>
+        Jadwal Operasional Outlet
+        <Info size={16} />
+      </h3>
+      <p>Tentukan hari dan jam operasional outlet serta atur buka dan tutup outlet</p>
+      <div className="schedule-grid">
+        <strong>Hari</strong>
+        <strong>Jam Buka</strong>
+        <strong>Jam Tutup</strong>
+        <strong>Shift</strong>
+        {scheduleDays.map((day) => (
+          <React.Fragment key={day}>
+            <div className="schedule-day">
+              <span>{day}</span>
+              <Toggle />
+            </div>
+            <div className="time-input"><Clock3 size={15} /> 00:00</div>
+            <div className="time-input"><Clock3 size={15} /> 23:59</div>
+            <div className="shift-cell">
+              <label className="check-line"><input type="checkbox" defaultChecked /> 24 Jam</label>
+              <button type="button"><Plus size={16} /></button>
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ManagerModal({ outlet, onClose, onSave }) {
+  const [values, setValues] = useState({
+    name: '',
+    employeeNo: 'SO260001',
+    phone: '',
+    position: '',
+    outlet,
+    pin: '123456',
+    access: '',
+    email: '',
+  })
+  const [errors, setErrors] = useState({})
+  const setField = (field, value) => {
+    setValues((current) => ({ ...current, [field]: value }))
+    setErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+  const save = () => {
+    const nextErrors = {}
+    if (!values.name.trim()) nextErrors.name = 'Nama wajib diisi.'
+    if (!values.access.trim()) nextErrors.access = 'Hak akses wajib dipilih.'
+    if (!values.email.trim()) nextErrors.email = 'Email wajib diisi.'
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length) {
+      toast.error(Object.values(nextErrors)[0])
+      return
+    }
+    onSave(values)
+  }
+  return (
+    <div className="modal-scrim">
+      <div className="manager-modal">
+        <header>
+          <h2>Tambah Manager Outlet</h2>
+          <button type="button" onClick={onClose}><X size={22} /></button>
+        </header>
+        <div className="manager-grid">
+          <label className={cn(errors.name && 'has-error')}>Nama*<input value={values.name} onChange={(event) => setField('name', event.target.value)} placeholder="Contoh: Adi" />{errors.name ? <span>{errors.name}</span> : null}</label>
+          <label>Nomor Induk Pegawai<input value={values.employeeNo} onChange={(event) => setField('employeeNo', event.target.value)} /></label>
+          <label>No Telepon<input value={values.phone} onChange={(event) => setField('phone', event.target.value)} placeholder="Contoh: 081222333444" /></label>
+          <label>Posisi<input value={values.position} onChange={(event) => setField('position', event.target.value)} placeholder="Contoh: Kasir" /></label>
+          <label>Outlet<input value={values.outlet} readOnly /></label>
+          <label>PIN<div className="pin-field"><input type="password" maxLength={6} value={values.pin} onChange={(event) => setField('pin', event.target.value)} /><HelpCircle size={17} /></div><small>Default PIN: 123456</small></label>
+          <label className={cn(errors.access && 'has-error')}>Hak Akses*<SelectInput placeholder="Pilih" value={values.access} options={accessRoleOptions} onChange={(value) => setField('access', value)} />{errors.access ? <span>{errors.access}</span> : null}</label>
+          <label className={cn(errors.email && 'has-error')}>Email*<input value={values.email} onChange={(event) => setField('email', event.target.value)} placeholder="Contoh: adi@gmail.com" />{errors.email ? <span>{errors.email}</span> : null}</label>
+        </div>
+        <footer>
+          <button type="button" onClick={onClose}>Batal</button>
+          <Button onClick={save}>Simpan</Button>
+        </footer>
+      </div>
+    </div>
+  )
+}
+
+function SimpleSetupFlow({ type, onClose, outlets, onOutletCreated }) {
+  const isEmployee = type === 'employee'
+  const title = isEmployee ? 'Tambah Akses Karyawan' : 'Lengkapi Data Outlet'
+  const fields = isEmployee
+    ? ['Nama*', 'Nomor Induk Pegawai*', 'Hak Akses*', 'Outlet*', 'PIN*']
+    : ['Nama Outlet*', 'Alamat Outlet*', 'Kota*', 'Nomor Telepon*', 'Jam Operasional*']
+  const [values, setValues] = useState(isEmployee ? { 'Nomor Induk Pegawai*': 'SO260001', 'Hak Akses*': 'Kasir', 'Outlet*': outlets[0] || '', 'PIN*': '123456' } : {})
+  const [errors, setErrors] = useState({})
+  const simpleRefs = useRef({})
+  const setSimpleField = (field, value) => {
+    setValues((current) => ({ ...current, [field]: value }))
+    setErrors((current) => {
+      if (!current[field]) return current
+      const next = { ...current }
+      delete next[field]
+      return next
+    })
+  }
+  const validateSimple = () => {
+    const nextErrors = {}
+    fields.forEach((field) => {
+      if (field.includes('*') && !String(values[field] || '').trim()) {
+        nextErrors[field] = `${field.replace('*', '')} wajib diisi.`
+      }
+    })
+    setErrors(nextErrors)
+    const first = Object.keys(nextErrors)[0]
+    if (first) {
+      simpleRefs.current[first]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      toast.error(nextErrors[first])
+      return false
+    }
+    if (!isEmployee) {
+      onOutletCreated?.(values['Nama Outlet*'])
+    }
+    toast.success(`${title} berhasil divalidasi dan siap disimpan`)
+    return true
+  }
+  const renderEmployeeForm = () => (
+    <section className="flow-card employee-card">
+      <FormRow label="Foto Karyawan">
+        <div className="photo-row employee-photo">
+          <UploadBox />
+        </div>
+      </FormRow>
+      <FormRow refNode={(node) => { if (node) simpleRefs.current['Nama*'] = node }} label="Nama*" error={errors['Nama*']}>
+        <input value={values['Nama*'] || ''} onChange={(event) => setSimpleField('Nama*', event.target.value)} placeholder="Contoh: Budi" />
+      </FormRow>
+      <FormRow refNode={(node) => { if (node) simpleRefs.current['Nomor Induk Pegawai*'] = node }} label="Nomor Induk Pegawai*" error={errors['Nomor Induk Pegawai*']}>
+        <input value={values['Nomor Induk Pegawai*'] || 'SO260001'} onChange={(event) => setSimpleField('Nomor Induk Pegawai*', event.target.value)} placeholder="SO260001" />
+      </FormRow>
+      <FormRow refNode={(node) => { if (node) simpleRefs.current['Hak Akses*'] = node }} label="Hak Akses*" error={errors['Hak Akses*']}>
+        <SelectInput placeholder="Pilih" value={values['Hak Akses*']} options={accessRoleOptions} onChange={(value) => setSimpleField('Hak Akses*', value)} />
+      </FormRow>
+      <FormRow label={<span className="label-inline">Akses Karyawan <Info size={16} /></span>}>
+        <div className="inline-control">
+          <Toggle checked />
+          <span>Akses Karyawan Aktif</span>
+        </div>
+      </FormRow>
+      <div className="flow-divider" />
+      <FormRow label="Telepon">
+        <input value={values.Telepon || ''} onChange={(event) => setSimpleField('Telepon', event.target.value)} placeholder="Contoh: 081111111111" />
+      </FormRow>
+      <FormRow label="Email">
+        <input value={values.Email || ''} onChange={(event) => setSimpleField('Email', event.target.value)} placeholder="Contoh: emailsaya@gmail.com" />
+      </FormRow>
+      <FormRow label="Posisi">
+        <input value={values.Posisi || ''} onChange={(event) => setSimpleField('Posisi', event.target.value)} placeholder="Contoh: Manager" />
+      </FormRow>
+      <FormRow refNode={(node) => { if (node) simpleRefs.current['Outlet*'] = node }} label="Outlet*" error={errors['Outlet*']}>
+        <SelectInput placeholder="Pilih" value={values['Outlet*']} options={outlets} onChange={(value) => setSimpleField('Outlet*', value)} />
+      </FormRow>
+      <FormRow refNode={(node) => { if (node) simpleRefs.current['PIN*'] = node }} label="PIN*" error={errors['PIN*']}>
+        <div className="pin-field">
+          <input type="password" maxLength={6} value={values['PIN*'] || '123456'} onChange={(event) => setSimpleField('PIN*', event.target.value)} placeholder="Maksimal 6 digit" />
+          <HelpCircle size={17} />
+        </div>
+        <small>Default: 123456 (Maksimal 6 digit)</small>
+      </FormRow>
+    </section>
+  )
+  return (
+    <div className="setup-flow">
+      <FlowHeader title={title} onClose={onClose} />
+      <div className="flow-body simple-flow">
+        <main className="flow-main">
+          {isEmployee ? renderEmployeeForm() : (
+          <section className="flow-card outlet-card">
+            <h2>{title}</h2>
+            {fields.map((field) => (
+              <FormRow key={field} refNode={(node) => { if (node) simpleRefs.current[field] = node }} label={field} error={errors[field]}>
+                {field.includes('Alamat') ? (
+                  <textarea value={values[field] || ''} onChange={(event) => setSimpleField(field, event.target.value)} placeholder={`Masukkan ${field.replace('*', '').toLowerCase()}`} />
+                ) : (
+                  <input value={values[field] || ''} onChange={(event) => setSimpleField(field, event.target.value)} placeholder={`Masukkan ${field.replace('*', '').toLowerCase()}`} />
+                )}
+              </FormRow>
+            ))}
+            <FeaturePanel title="Pengaturan Operasional" text="Atur multi-outlet, pajak, service charge, dan integrasi pembayaran outlet.">
+              <div className="two-col">
+                <input placeholder="Pajak default" />
+                <input placeholder="Service charge" />
+              </div>
+            </FeaturePanel>
+          </section>
+          )}
+        </main>
+      </div>
+      <FlowFooter simple={isEmployee} onCancel={onClose} onBack={onClose} onNext={validateSimple} onSave={validateSimple} />
+    </div>
+  )
+}
+
+function FlowHeader({ title, onClose }) {
+  return (
+    <header className="flow-header">
+      <button onClick={onClose} aria-label="Tutup">
+        <X size={21} />
+      </button>
+      <strong>{title}</strong>
+      <Brand />
+    </header>
+  )
+}
+
+function FlowFooter({ onCancel, onBack, onNext, onSave, simple }) {
+  return (
+    <footer className="flow-footer">
+      <button onClick={onCancel}>Batal</button>
+      <div>
+        {!simple ? <button onClick={onBack}>Kembali</button> : null}
+        {!simple ? <button onClick={onNext}>Selanjutnya</button> : null}
+        <Button onClick={onSave || (() => toast.success('Data berhasil disimpan'))}>Simpan</Button>
+      </div>
+    </footer>
+  )
+}
+
+function FormRow({ label, children, refNode, guideKey, currentKey, hint, wide, error }) {
+  return (
+    <div ref={refNode} className={cn('form-row', wide && 'wide', error && 'has-error', guideKey === currentKey && 'guided-target')}>
+      <label>
+        {label}
+        {hint ? <small>{hint}</small> : null}
+      </label>
+      <div className="form-control">
+        {children}
+        {error ? <p className="field-error">{error}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+function UploadBox() {
+  const [fileInfo, setFileInfo] = useState(null)
+  const [preview, setPreview] = useState('')
+
+  useEffect(() => {
+    if (!fileInfo?.file || !fileInfo.file.type.startsWith('image/')) {
+      setPreview('')
+      return undefined
+    }
+    const nextPreview = URL.createObjectURL(fileInfo.file)
+    setPreview(nextPreview)
+    return () => URL.revokeObjectURL(nextPreview)
+  }, [fileInfo])
+
+  const handleFile = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setFileInfo({ file, name: file.name })
+    toast.success(`Foto dipilih: ${file.name}`)
+  }
+
+  return (
+    <label className={cn('upload-box', fileInfo && 'has-file')}>
+      <input type="file" accept="image/png,image/jpeg,image/jpg" onChange={handleFile} />
+      {preview ? <img src={preview} alt="Preview foto karyawan" /> : <Upload size={18} />}
+      <span>{fileInfo?.name || 'Pilih atau letakkan berkas di sini'}</span>
+    </label>
+  )
+}
+
+function SelectInput({ placeholder, value, options = [], onChange, onClick }) {
+  const [open, setOpen] = useState(false)
+  const hasOptions = options.length > 0
+  const handleSelect = (option) => {
+    onChange?.(option)
+    setOpen(false)
+  }
+
+  return (
+    <div className="select-wrap">
+      <button
+        type="button"
+        className={cn('flow-select', open && 'open')}
+        onClick={() => {
+          if (hasOptions) setOpen((current) => !current)
+          else onClick?.()
+        }}
+      >
+        <span>{value || placeholder}</span>
+        <ChevronDown size={16} />
+      </button>
+      {open ? (
+        <div className="select-menu">
+          {options.map((option) => (
+            <button key={option} type="button" className={cn(option === value && 'selected')} onClick={() => handleSelect(option)}>
+              {option}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function Toggle({ checked }) {
+  return <span className={cn('toggle', checked && 'on')}>{checked ? 'ON' : 'OFF'}</span>
+}
+
+function FeaturePanel({ title, text, children }) {
+  return (
+    <div className="feature-panel">
+      {title ? <strong>{title}</strong> : null}
+      <p>{text}</p>
+      {children ? <div className="feature-content">{children}</div> : null}
+    </div>
+  )
+}
+
+function TourSpotlight({ rect }) {
+  if (!rect) return <div className="tour-dim plain" />
+  return (
+    <>
+      <div className="tour-dim top" style={{ height: rect.top }} />
+      <div className="tour-dim left" style={{ top: rect.top, width: rect.left, height: rect.height }} />
+      <div className="tour-dim right" style={{ top: rect.top, left: rect.left + rect.width, height: rect.height }} />
+      <div className="tour-dim bottom" style={{ top: rect.top + rect.height }} />
+      <div className="tour-ring" style={rect} />
+    </>
+  )
+}
+
+function GuideBubble({ step, rect, onSkip, onNext }) {
+  const top = rect ? Math.min(window.innerHeight - 190, Math.max(86, rect.top + rect.height / 2 - 78)) : 180
+  const left = rect ? Math.max(18, Math.min(window.innerWidth - 330, rect.left - 330)) : 240
+  return (
+    <div className="guide-bubble" style={{ top, left }}>
+      <h3>{step.title}</h3>
+      <p>{step.body}</p>
+      <div className="guide-actions">
+        <button onClick={onSkip}>Lewati</button>
+        <button onClick={onNext}>Lanjut <span>({step.count})</span></button>
+      </div>
+    </div>
+  )
+}
+
+function GuideDone({ onRepeat, onClose }) {
+  return (
+    <div className="guide-done">
+      <button className="guide-done-close" onClick={onClose} aria-label="Tutup panduan">
+        <X size={20} />
+      </button>
+      <h3>Panduan Selesai!</h3>
+      <p>Anda telah menyelesaikan panduan pembuatan produk. Sudah siap untuk menambahkan produk anda sendiri?</p>
+      <div>
+        <button onClick={onRepeat}>Ulangi Panduan</button>
+        <Button onClick={onClose}>Oke</Button>
+      </div>
+    </div>
+  )
+}
+
+function TrialBar() {
+  return (
+    <div className="trial-bar">
+      <span>Masa Aktif akun trial tersisa 13 hari Segera beli langganan sebelum masa trial berakhir untuk mendapatkan diskon berlangganan hingga 35%</span>
+      <Button variant="danger" onClick={() => toast.success('Paket perpanjangan dibuka')}>
+        Perpanjang
+      </Button>
+    </div>
+  )
+}
+
+function App() {
+  const [activeTab, setActiveTab] = useState('Penjualan')
+  const [activePage, setActivePage] = useState('Menu Favorit')
+  const [openGroup, setOpenGroup] = useState('Menu Favorit')
+  const [isOpen, setIsOpen] = useState(false)
+  const [activeFlow, setActiveFlow] = useState(null)
+  const [outlets, setOutlets] = useState(defaultOutlets)
+  const [activeOutlet, setActiveOutlet] = useState(defaultOutlets[0])
+  const isDashboard = activePage === 'Dashboard' || activePage === 'Menu Favorit'
+  const addOutlet = (name) => {
+    const cleanName = String(name || '').trim()
+    if (!cleanName) return
+    setOutlets((current) => (current.includes(cleanName) ? current : [cleanName, ...current]))
+    setActiveOutlet(cleanName)
+  }
+
+  if (activeFlow) {
+    return (
+      <>
+        <SetupFlow type={activeFlow} outlets={outlets} onOutletCreated={addOutlet} onClose={() => setActiveFlow(null)} />
+        <Toaster richColors position="top-right" />
+      </>
+    )
+  }
+
+  return (
+    <div className="app-shell">
+      <Sidebar
+        activePage={activePage}
+        openGroup={openGroup}
+        setOpenGroup={setOpenGroup}
+        setActivePage={setActivePage}
+        isOpen={isOpen}
+        setIsOpen={setIsOpen}
+        activeOutlet={activeOutlet}
+      />
+      <div className="main-shell">
+        <Topbar activeTab={activeTab} setActiveTab={setActiveTab} setIsOpen={setIsOpen} />
+        {activeTab !== 'Penjualan' ? (
+          <TopModulePage activeTab={activeTab} onStartFlow={setActiveFlow} />
+        ) : isDashboard ? (
+          <SalesDashboard activeTab={activeTab} onStartFlow={setActiveFlow} />
+        ) : (
+          <ModulePage activePage={activePage} onStartFlow={setActiveFlow} />
+        )}
+        <TrialBar />
+      </div>
+      <Toaster richColors position="top-right" />
+    </div>
+  )
+}
+
+createRoot(document.getElementById('app')).render(<App />)
