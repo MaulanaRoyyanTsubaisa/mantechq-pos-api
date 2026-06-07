@@ -45,11 +45,21 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import {
+  clearStoredSession,
+  createProduct,
+  createSale,
+  getPosData,
+  getStoredSession,
+  signInWithEmail,
+} from './lib/api.js'
+import capitalVisual from './assets/capital-visual.png'
 import './style.css'
 
 const sidebarGroups = [
   { label: 'Menu Favorit', icon: Star, children: [] },
   { label: 'Dashboard', icon: LayoutDashboard, children: [] },
+  { label: 'Transaksi Baru', icon: CircleDollarSign, children: [] },
   {
     label: 'Laporan',
     icon: ClipboardList,
@@ -152,6 +162,7 @@ const serialInputOptions = ['Input manual', 'Scan barcode', 'Auto generate']
 const groupOptions = ['Menu Utama', 'Minuman', 'Paket Promo', 'Produk Retail']
 const extraOptions = ['Saus Sambal', 'Topping Keju', 'Gula', 'Es Batu', 'Level Pedas']
 const recipeOptions = ['Resep Salad', 'Resep Kopi Susu', 'Resep Nasi Goreng', 'Resep Teh Lemon']
+const paymentMethodOptions = ['Tunai', 'QRIS', 'Transfer', 'Kartu Debit', 'Kartu Kredit']
 const provinceOptions = ['Jawa Tengah', 'DKI Jakarta', 'Jawa Barat', 'Jawa Timur', 'Banten']
 const cityOptions = ['Kab. Tegal', 'Jakarta Selatan', 'Bandung', 'Surabaya', 'Tangerang']
 const socialOptions = ['Instagram', 'Facebook', 'TikTok', 'Website']
@@ -726,6 +737,173 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ')
 }
 
+function formatRupiah(value) {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0))
+}
+
+function formatQty(value) {
+  return Number(value || 0).toLocaleString('id-ID')
+}
+
+function shortId(value) {
+  return value ? String(value).slice(0, 8) : '-'
+}
+
+function membershipOutletLabel(membership) {
+  return `Outlet ${shortId(membership?.outlet_id || membership?.org_id)}`
+}
+
+function parseCurrencyInput(value) {
+  const normalized = String(value || '').replace(/[^\d]/g, '')
+  return Number(normalized || 0)
+}
+
+function parseQuantityInput(value) {
+  const normalized = String(value || '').replace(',', '.').replace(/[^\d.]/g, '')
+  const parsed = Number(normalized || 0)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function mapStockToProductRows(stockItems) {
+  return stockItems.map((item) => [
+    item.item_name,
+    item.sku,
+    item.category_name || '-',
+    formatRupiah(0),
+    formatRupiah(0),
+    formatRupiah(item.sell_price),
+    item.is_active ? 'Tampil di Menu' : 'Tidak Tampil di Menu',
+    '',
+  ])
+}
+
+function mapStockToBarcodeRows(stockItems) {
+  return stockItems.map((item) => [
+    item.item_name,
+    item.sku,
+    item.barcode || '-',
+    item.category_name || '-',
+    item.is_active ? 'Tampil di Menu' : 'Tidak Tampil di Menu',
+    `${formatQty(item.qty_on_hand)} ${item.unit || 'Pcs'}`,
+    '',
+  ])
+}
+
+function mapStockToInventoryRows(stockItems) {
+  return stockItems.map((item) => [
+    item.item_name,
+    item.sku,
+    `${formatQty(item.qty_on_hand)} ${item.unit || 'Pcs'}`,
+    `${formatQty(item.qty_minimum)} ${item.unit || 'Pcs'}`,
+    item.is_active ? 'Aktif' : 'Nonaktif',
+  ])
+}
+
+function mapSalesDetailRows(details) {
+  return details.map((row) => [
+    row.m_stran?.tran_no || shortId(row.stran_id),
+    row.m_stran?.tran_date ? new Date(row.m_stran.tran_date).toLocaleDateString('id-ID') : '-',
+    row.item_name,
+    formatQty(row.qty),
+    formatRupiah(row.price),
+    formatRupiah(row.discount),
+    formatRupiah(row.total),
+  ])
+}
+
+function buildSalesSummary(posData) {
+  const sales = posData.sales || []
+  const details = posData.salesDetails || []
+  const paidSales = sales.filter((sale) => sale.payment_status === 'paid')
+  const grandTotal = sales.reduce((sum, sale) => sum + Number(sale.grand_total || 0), 0)
+  const paidTotal = paidSales.reduce((sum, sale) => sum + Number(sale.paid_total || 0), 0)
+  const productQty = details.reduce((sum, row) => sum + Number(row.qty || 0), 0)
+
+  return {
+    grandTotal,
+    paidTotal,
+    unpaidTotal: Math.max(grandTotal - paidTotal, 0),
+    transactionCount: sales.length,
+    paidCount: paidSales.length,
+    productQty,
+    averageTransaction: sales.length ? grandTotal / sales.length : 0,
+    averageProduct: sales.length ? productQty / sales.length : 0,
+  }
+}
+
+function buildDashboardChartData(posData, period) {
+  const sales = posData.sales || []
+  const labels = period === 'Bulan'
+    ? ['M1', 'M2', 'M3', 'M4']
+    : period === 'Mingguan'
+      ? ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
+      : ['08', '10', '12', '14', '16', '18', '20']
+  const buckets = labels.map((label) => ({ label, current: 0, previous: 0 }))
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+
+  sales.forEach((sale) => {
+    const date = new Date(sale.m_stran?.tran_date || sale.created_at)
+    if (Number.isNaN(date.getTime())) return
+    const value = Number(sale.grand_total || 0)
+    if (!value) return
+
+    if (period === 'Bulan') {
+      if (date.getMonth() !== currentMonth || date.getFullYear() !== currentYear) return
+      const index = Math.min(Math.floor((date.getDate() - 1) / 7), 3)
+      buckets[index].current += value
+      return
+    }
+
+    if (period === 'Mingguan') {
+      const index = (date.getDay() + 6) % 7
+      buckets[index].current += value
+      return
+    }
+
+    const hour = date.getHours()
+    const index = Math.min(Math.max(Math.floor((hour - 8) / 2), 0), buckets.length - 1)
+    buckets[index].current += value
+  })
+
+  const maxValue = Math.max(...buckets.map((item) => item.current), 0)
+  return {
+    buckets,
+    maxValue,
+    pointCount: buckets.filter((item) => item.current > 0).length,
+    total: buckets.reduce((sum, item) => sum + item.current, 0),
+  }
+}
+
+function buildChartPath(buckets, maxValue) {
+  if (!buckets.length || !maxValue || buckets.filter((item) => item.current > 0).length < 2) return ''
+  const width = 100
+  const height = 100
+  return buckets.map((item, index) => {
+    const x = buckets.length === 1 ? 50 : (index / (buckets.length - 1)) * width
+    const y = height - ((item.current / maxValue) * 76 + 10)
+    return `${index ? 'L' : 'M'} ${x.toFixed(2)} ${y.toFixed(2)}`
+  }).join(' ')
+}
+
+function getRowsForPage(page, posData) {
+  const stockItems = posData.stockItems || []
+  const salesDetails = posData.salesDetails || []
+
+  if (page === 'Daftar Produk') return mapStockToProductRows(stockItems)
+  if (page === 'Cetak Barcode') return mapStockToBarcodeRows(stockItems)
+  if (['Kelola Stok', 'Daftar Bahan Baku', 'Lap. Ringkasan Persediaan', 'Lap. Detail Persediaan'].includes(page)) {
+    return mapStockToInventoryRows(stockItems)
+  }
+  if (page === 'Detail Penjualan') return mapSalesDetailRows(salesDetails)
+  return []
+}
+
 function itemLabel(item) {
   return typeof item === 'string' ? item : item.label
 }
@@ -746,10 +924,13 @@ function Brand() {
   return (
     <div className="brand" aria-label="TripleSys PoS">
       <span className="brand-mark">
-        <Store size={21} />
+        <span className="brand-mark-glow" />
+        <CircleDollarSign size={18} />
       </span>
-      <span>TripleSys</span>
-      <strong>PoS</strong>
+      <span className="brand-word">
+        <span>TripleSys</span>
+        <strong>POS</strong>
+      </span>
     </div>
   )
 }
@@ -864,7 +1045,7 @@ function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, s
   )
 }
 
-function Topbar({ activeTab, setActiveTab, setIsOpen }) {
+function Topbar({ activeTab, setActiveTab, setIsOpen, onSignOut }) {
   const [showMore, setShowMore] = useState(false)
   return (
     <header className="topbar">
@@ -925,7 +1106,7 @@ function Topbar({ activeTab, setActiveTab, setIsOpen }) {
           <strong>Software House</strong>
           <small>royyan</small>
         </button>
-        <Button variant="ghost" aria-label="Menu akun">
+        <Button variant="ghost" aria-label="Keluar akun" onClick={onSignOut}>
           <MoreVertical size={19} />
         </Button>
       </div>
@@ -937,13 +1118,13 @@ function CapitalBanner({ compact }) {
   return (
     <section className={cn('capital-banner', compact && 'compact')}>
       <div className="capital-visual">
-        <strong>m Capital</strong>
-        <span>Powered by GOtyme</span>
+        <img src={capitalVisual} alt="Ilustrasi modal bisnis POS" />
       </div>
       <div>
-        <h2>SAATNYA BISNIS BERJALAN LEBIH LANCAR</h2>
-        <p>Operasional bisnis lancar dengan modal hingga 280jt*</p>
-        <small>Ajukan Sekarang</small>
+        <small>TripleSys Capital</small>
+        <h2>Modal usaha lebih siap, operasional tetap jalan.</h2>
+        <p>Akses pembiayaan hingga Rp 280 juta untuk stok, outlet, dan kebutuhan bisnis harian.</p>
+        <span>Ajukan Sekarang</span>
       </div>
       <button aria-label="Sembunyikan banner"><ChevronDown size={18} /></button>
     </section>
@@ -982,8 +1163,48 @@ function Onboarding({ onStartFlow }) {
   )
 }
 
-function SalesDashboard({ activeTab, onStartFlow }) {
+function MenuFavoritePage({ onStartFlow, posData }) {
+  const summary = buildSalesSummary(posData)
+  const dynamicCards = {
+    'Kontrol Fraud': posData.sales.filter((sale) => sale.m_stran?.status === 'void').length ? `${posData.sales.filter((sale) => sale.m_stran?.status === 'void').length} transaksi void` : 'Belum Ada Transaksi',
+    'Metode Pembayaran': summary.paidCount ? `${summary.paidCount} transaksi terbayar` : 'Belum Ada Pembayaran',
+    'Jenis Order': summary.transactionCount ? `${summary.transactionCount} transaksi sales` : 'Belum Ada Transaksi',
+    'Penjualan per Kategori': summary.productQty ? `${formatQty(summary.productQty)} produk terjual` : 'Belum Ada Transaksi',
+    'Produk Terlaris': posData.salesDetails[0]?.item_name || 'Belum Ada Transaksi',
+    'Komisi per Kasir': 'Belum Ada Data Komisi',
+    'Penjualan per Kasir': summary.grandTotal ? formatRupiah(summary.grandTotal) : 'Belum Ada Transaksi',
+    'Stok Terendah': posData.stockItems.length ? `${posData.stockItems.filter((item) => Number(item.qty_on_hand) <= Number(item.qty_minimum)).length} item perlu dicek` : 'Belum Ada Transaksi',
+  }
+
+  return (
+    <main className="content menu-favorite-page">
+      <Onboarding onStartFlow={onStartFlow} />
+
+      <section className="favorite-report-stack" aria-label="Menu Favorit">
+        {reportCards.map(([title, empty, Icon]) => (
+          <article className="favorite-report-card" key={title}>
+            <button className="favorite-report-head" onClick={() => toast.info(`Membuka detail ${title}`)}>
+              <span>
+                <Icon size={20} />
+                {title}
+              </span>
+              <ChevronDown size={15} />
+            </button>
+            <div className="favorite-report-empty">
+              <p>{dynamicCards[title] || empty}</p>
+            </div>
+          </article>
+        ))}
+      </section>
+    </main>
+  )
+}
+
+function SalesDashboard({ activeTab, onStartFlow, posData }) {
   const [period, setPeriod] = useState('Harian')
+  const summary = buildSalesSummary(posData)
+  const chartData = buildDashboardChartData(posData, period)
+  const chartPath = buildChartPath(chartData.buckets, chartData.maxValue)
   const heading = activeTab === 'Penjualan' ? 'Dashboard Penjualan' : `Dashboard ${activeTab}`
   return (
     <main className="content">
@@ -992,7 +1213,7 @@ function SalesDashboard({ activeTab, onStartFlow }) {
         <div className="title-row">
           <div>
             <h1>{heading}</h1>
-            <p>Diperbarui 06 Juni 2026, 08:09:46</p>
+            <p>Diperbarui dari PostgreSQL, {new Date().toLocaleString('id-ID')}</p>
           </div>
           <div className="title-icons">
             <HelpCircle size={19} />
@@ -1022,40 +1243,77 @@ function SalesDashboard({ activeTab, onStartFlow }) {
         <div className="summary">
           <div className="revenue">
             <span>Total Penjualan</span>
-            <strong>Rp 0</strong>
-            <p>Akumulasi dari Awal Bulan Rp 0</p>
-            <p>Proyeksi Bulan Ini Rp 0</p>
+            <strong>{formatRupiah(summary.grandTotal)}</strong>
+            <p>Akumulasi dari Awal Bulan {formatRupiah(summary.grandTotal)}</p>
+            <p>Proyeksi Bulan Ini {formatRupiah(summary.grandTotal)}</p>
           </div>
           <div className="paid">
-            <Metric label="Penjualan Belum Dibayar" value="Rp 0" />
-            <Metric label="Penjualan Terbayar" value="Rp 0" />
+            <Metric label="Penjualan Belum Dibayar" value={formatRupiah(summary.unpaidTotal)} />
+            <Metric label="Penjualan Terbayar" value={formatRupiah(summary.paidTotal)} />
           </div>
           <div className="metric-grid">
-            <Metric label="Transaksi" value="0" />
-            <Metric label="Penjualan per Transaksi" value="Rp 0" />
-            <Metric label="Produk Terjual" value="0" />
-            <Metric label="Produk per Transaksi" value="0" />
+            <Metric label="Transaksi" value={formatQty(summary.transactionCount)} />
+            <Metric label="Penjualan per Transaksi" value={formatRupiah(summary.averageTransaction)} />
+            <Metric label="Produk Terjual" value={formatQty(summary.productQty)} />
+            <Metric label="Produk per Transaksi" value={formatQty(summary.averageProduct)} />
           </div>
         </div>
 
         <div className="chart-block">
           <div className="chart-head">
-            <strong>Penjualan</strong>
-            <span>06 Juni 2026</span>
+            <div>
+              <strong>Tren Penjualan</strong>
+              <span>{period === 'Bulan' ? 'Bulan berjalan' : period === 'Mingguan' ? 'Minggu berjalan' : 'Hari ini'}</span>
+            </div>
+            <strong>{formatRupiah(chartData.total)}</strong>
           </div>
-          <div className="chart">
+          <div className={cn('chart', chartData.pointCount < 2 && 'sparse-chart')} aria-label="Grafik tren penjualan">
             <div className="chart-grid" />
-            <div className="axis-label top">1</div>
-            <div className="axis-label mid">0.5</div>
-            <div className="axis-label bottom">0</div>
-            <div className="zero-line" />
+            <div className="chart-y-axis">
+              <span>{formatRupiah(chartData.maxValue)}</span>
+              <span>{formatRupiah(chartData.maxValue / 2)}</span>
+              <span>Rp 0</span>
+            </div>
+            <div className="chart-bars" style={{ '--chart-columns': chartData.buckets.length }}>
+              {chartData.buckets.map((item) => {
+                const maxHeight = chartData.pointCount < 2 ? 68 : 82
+                const height = chartData.maxValue ? Math.max((item.current / chartData.maxValue) * maxHeight, item.current ? 9 : 0) : 0
+                return (
+                  <div className={cn('chart-bar-group', item.current > 0 && 'has-value')} key={item.label}>
+                    <span className="chart-bar-value">{item.current ? formatRupiah(item.current) : ''}</span>
+                    <i style={{ '--bar-height': `${height}%` }} />
+                    <small>{item.label}</small>
+                  </div>
+                )
+              })}
+            </div>
+            {chartPath ? (
+              <svg className="chart-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                  <linearGradient id="salesLineGradient" x1="0" x2="1" y1="0" y2="0">
+                    <stop offset="0%" stopColor="#06b98f" />
+                    <stop offset="100%" stopColor="#8de65a" />
+                  </linearGradient>
+                </defs>
+                <path d={chartPath} />
+              </svg>
+            ) : null}
+            {!chartData.total ? (
+              <div className="chart-empty-state">
+                <ChartColumn size={34} />
+                <strong>Belum ada penjualan</strong>
+                <p>Transaksi yang tersimpan akan otomatis muncul di grafik ini.</p>
+              </div>
+            ) : null}
             <div className="legend">
               <span>
-                <i className="muted-dot" /> Periode Sebelumnya
+                <i className="muted-dot" /> Penjualan
               </span>
-              <span>
-                <i /> Total Penjualan
-              </span>
+              {chartPath ? (
+                <span>
+                  <i /> Tren penjualan
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
@@ -1200,9 +1458,12 @@ function EmptyModuleState({ type }) {
   )
 }
 
-function ModulePage({ activePage, onStartFlow }) {
+function ModulePage({ activePage, onStartFlow, posData }) {
+  if (activePage === 'Transaksi Baru') {
+    return <TransactionPage posData={posData} />
+  }
   if (activePage === 'Ringkasan Penjualan') {
-    return <SalesSummaryReportPage />
+    return <SalesSummaryReportPage posData={posData} />
   }
   if (activePage === 'Detail Penjualan') {
     return <SalesDetailReportPage />
@@ -1217,9 +1478,13 @@ function ModulePage({ activePage, onStartFlow }) {
     return <MajooGenericReportPage config={reportPageConfigs[activePage]} />
   }
   if (productPageConfigs[activePage]) {
-    return <ProductDirectoryPage config={productPageConfigs[activePage]} onStartFlow={onStartFlow} />
+    return <ProductDirectoryPage config={productPageConfigs[activePage]} onStartFlow={onStartFlow} posData={posData} />
   }
 
+  return <GenericModulePage activePage={activePage} onStartFlow={onStartFlow} posData={posData} />
+}
+
+function GenericModulePage({ activePage, onStartFlow, posData }) {
   const parent = useMemo(
     () => sidebarGroups.find((group) => group.label === activePage || flattenItems(group.children).includes(activePage)),
     [activePage],
@@ -1237,6 +1502,8 @@ function ModulePage({ activePage, onStartFlow }) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Semua Status')
   const controls = blueprint.controls || (blueprint.type === 'report' ? 'date-status' : 'status-tabs')
+  const rows = getRowsForPage(activePage, posData)
+  const filteredRows = rows.filter((row) => row.join(' ').toLowerCase().includes(query.toLowerCase()))
   const actionIcon = (action) => {
     if (action.toLowerCase().includes('impor')) return Truck
     if (action.toLowerCase().includes('ekspor')) return FileText
@@ -1318,7 +1585,22 @@ function ModulePage({ activePage, onStartFlow }) {
               <span key={column}>{column}</span>
             ))}
           </div>
-          {blueprint.rows.length ? null : <EmptyModuleState type={blueprint.type} />}
+          {filteredRows.length ? (
+            <div className="module-table-body">
+              {filteredRows.map((row, rowIndex) => (
+                <div className="module-table-row" style={{ gridTemplateColumns: `44px repeat(${blueprint.columns.length}, minmax(130px, 1fr))` }} key={`${activePage}-${rowIndex}`}>
+                  <span className="check-col">
+                    <input type="checkbox" aria-label={`Pilih baris ${rowIndex + 1}`} />
+                  </span>
+                  {blueprint.columns.map((column, index) => (
+                    <span key={`${column}-${index}`}>{row[index] || '-'}</span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyModuleState type={blueprint.type} />
+          )}
         </div>
       </section>
     </main>
@@ -1391,7 +1673,37 @@ const summaryBreakdowns = [
   },
 ]
 
-function SalesSummaryReportPage() {
+function SalesSummaryReportPage({ posData }) {
+  const summary = buildSalesSummary(posData)
+  const liveMetricCards = [
+    ['Total Transaksi', formatQty(summary.transactionCount), 'green'],
+    ['Total Penjualan Kotor', formatRupiah(summary.grandTotal), 'yellow'],
+    ['Total Penjualan Bersih', formatRupiah(summary.grandTotal), 'blue'],
+    ['Total Produk Terjual', formatQty(summary.productQty), 'purple'],
+  ]
+  const liveBreakdowns = summaryBreakdowns.map((section) => {
+    if (section.title === 'Penjualan Bersih') {
+      return {
+        ...section,
+        rows: [
+          ['Total Penjualan', formatRupiah(summary.grandTotal)],
+          ['Pengembalian', '( Rp 0 )'],
+        ],
+        total: ['TOTAL PENJUALAN BERSIH', formatRupiah(summary.grandTotal)],
+      }
+    }
+    if (section.title === 'Ringkasan Penjualan') {
+      return {
+        ...section,
+        rows: [
+          ['Penjualan Kotor', formatRupiah(summary.grandTotal)],
+          ['Diskon', '( Rp 0 )'],
+        ],
+        total: ['TOTAL RINGKASAN PENJUALAN', formatRupiah(summary.grandTotal)],
+      }
+    }
+    return section
+  })
   const [range, setRange] = useState({
     label: '01 Jun 2026 - 30 Jun 2026',
     display: '01 Juni 2026 - 30 Juni 2026',
@@ -1443,14 +1755,14 @@ function SalesSummaryReportPage() {
         <div className="report-updated">Terakhir Diperbarui: {lastUpdated}</div>
 
         <div className="summary-metrics">
-          {summaryMetricCards.map(([label, value, tone]) => (
+          {liveMetricCards.map(([label, value, tone]) => (
             <ReportMetricCard key={label} label={label} value={value} tone={tone} />
           ))}
         </div>
 
         <h2>Rincian Ringkasan Penjualan</h2>
         <div className="summary-breakdown-grid">
-          {summaryBreakdowns.map((section) => (
+          {liveBreakdowns.map((section) => (
             <ReportBreakdownTable key={section.title} {...section} />
           ))}
         </div>
@@ -2438,11 +2750,17 @@ function GenericReportTable({ columns }) {
   )
 }
 
-function ProductDirectoryPage({ config, onStartFlow }) {
+function ProductDirectoryPage({ config, onStartFlow, posData }) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Semua')
   const [favorite, setFavorite] = useState(false)
-  const rows = config.rows || []
+  const liveRows = config.title === 'Daftar Produk' ? mapStockToProductRows(posData.stockItems || []) : config.rows || []
+  const rows = liveRows.filter((row) => {
+    const matchesQuery = row.join(' ').toLowerCase().includes(query.toLowerCase())
+    const statusText = row.join(' ')
+    const matchesStatus = status === 'Semua' || statusText.includes(status)
+    return matchesQuery && matchesStatus
+  })
 
   const runAction = (action) => {
     if (action.toLowerCase().includes('impor')) toast.success(`${action} dibuka`)
@@ -2538,7 +2856,7 @@ function ProductDirectoryPage({ config, onStartFlow }) {
           <div>
             <span>Tampilkan:</span>
             <button>10 <ChevronDown size={14} /></button>
-            <span>{config.pagination || 'Ditampilkan 0 - 0 dari 0 data'}</span>
+            <span>{rows.length ? `Ditampilkan 1 - ${Math.min(rows.length, 10)} dari ${rows.length} data` : config.pagination || 'Ditampilkan 0 - 0 dari 0 data'}</span>
           </div>
           <nav aria-label="Pagination">
             <button><ChevronLeft size={17} /> Sebelumnya</button>
@@ -2546,6 +2864,277 @@ function ProductDirectoryPage({ config, onStartFlow }) {
             <button>Selanjutnya <ChevronRight size={17} /></button>
           </nav>
         </footer>
+      </section>
+    </main>
+  )
+}
+
+function TransactionPage({ posData, session }) {
+  const outletOptions = posData.memberships.map(membershipOutletLabel)
+  const firstOutlet = outletOptions[0] || ''
+  const [selectedOutlet, setSelectedOutlet] = useState(firstOutlet)
+  const [query, setQuery] = useState('')
+  const [cart, setCart] = useState([])
+  const [paymentMethod, setPaymentMethod] = useState(paymentMethodOptions[0])
+  const [paymentStatus, setPaymentStatus] = useState('paid')
+  const [discountTotal, setDiscountTotal] = useState('0')
+  const [taxTotal, setTaxTotal] = useState('0')
+  const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (selectedOutlet || !firstOutlet) return
+    setSelectedOutlet(firstOutlet)
+  }, [firstOutlet, selectedOutlet])
+
+  const membership = posData.memberships.find((item) => membershipOutletLabel(item) === selectedOutlet) || posData.memberships[0]
+  const outletStock = (posData.stockItems || []).filter((item) => item.outlet_id === membership?.outlet_id && item.is_active)
+  const filteredStock = outletStock.filter((item) => {
+    const text = `${item.item_name} ${item.sku} ${item.category_name || ''}`.toLowerCase()
+    return text.includes(query.toLowerCase())
+  })
+  const subtotal = cart.reduce((sum, item) => sum + Math.max((item.qty * item.price) - item.discount, 0), 0)
+  const discountValue = parseCurrencyInput(discountTotal)
+  const taxValue = parseCurrencyInput(taxTotal)
+  const grandTotal = Math.max(subtotal - discountValue + taxValue, 0)
+
+  const addToCart = (item) => {
+    const stockQty = Number(item.qty_on_hand || 0)
+    if (stockQty <= 0) {
+      toast.error('Stok produk ini kosong. Tambahkan stok dulu sebelum dijual.')
+      return
+    }
+
+    setCart((current) => {
+      const existing = current.find((row) => row.id === item.id)
+      if (existing) {
+        if (existing.qty + 1 > stockQty) {
+          toast.error('Qty melebihi stok tersedia.')
+          return current
+        }
+        return current.map((row) => (row.id === item.id ? { ...row, qty: row.qty + 1 } : row))
+      }
+      return [
+        ...current,
+        {
+          id: item.id,
+          sku: item.sku,
+          item_name: item.item_name,
+          unit: item.unit || 'Pcs',
+          stock: stockQty,
+          qty: 1,
+          price: Number(item.sell_price || 0),
+          discount: 0,
+        },
+      ]
+    })
+  }
+
+  const updateCartItem = (id, field, value) => {
+    setCart((current) => current.map((item) => {
+      if (item.id !== id) return item
+      const parsed = field === 'qty' ? Number(value || 0) : parseCurrencyInput(value)
+      const nextValue = field === 'qty' ? Math.min(Math.max(parsed, 1), item.stock) : Math.max(parsed, 0)
+      return { ...item, [field]: nextValue }
+    }))
+  }
+
+  const removeCartItem = (id) => {
+    setCart((current) => current.filter((item) => item.id !== id))
+  }
+
+  const resetTransaction = () => {
+    setCart([])
+    setDiscountTotal('0')
+    setTaxTotal('0')
+    setNote('')
+    setPaymentMethod(paymentMethodOptions[0])
+    setPaymentStatus('paid')
+  }
+
+  const saveTransaction = async () => {
+    if (!membership?.org_id || !membership?.outlet_id) {
+      toast.error('Outlet belum valid untuk transaksi.')
+      return
+    }
+    if (!cart.length) {
+      toast.error('Pilih minimal satu produk.')
+      return
+    }
+    const invalidStock = cart.find((item) => item.qty > item.stock)
+    if (invalidStock) {
+      toast.error(`Qty ${invalidStock.item_name} melebihi stok tersedia.`)
+      return
+    }
+
+    setSaving(true)
+    let saved
+    try {
+      saved = await createSale({
+        orgId: membership.org_id,
+        outletId: membership.outlet_id,
+        userId: session?.user?.id,
+        note: [paymentMethod ? `Metode bayar: ${paymentMethod}` : '', note.trim()].filter(Boolean).join(' | '),
+        discountTotal: discountValue,
+        taxTotal: taxValue,
+        paidTotal: paymentStatus === 'paid' ? grandTotal : 0,
+        paymentStatus,
+        items: cart.map((item) => ({
+          st_mast_id: item.id,
+          qty: item.qty,
+          price: item.price,
+          discount: item.discount,
+        })),
+      })
+    } catch (error) {
+      toast.error(error.message || 'Transaksi gagal disimpan.')
+      setSaving(false)
+      return
+    }
+    setSaving(false)
+
+    toast.success(`Transaksi ${saved?.tran_no || ''} tersimpan`)
+    resetTransaction()
+    await posData.refresh()
+  }
+
+  return (
+    <main className="content transaction-page">
+      <section className="panel transaction-panel">
+        <header className="transaction-head">
+          <div>
+            <h1>Transaksi Baru</h1>
+            <p>Pilih produk dari stok outlet, hitung total, lalu simpan ke PostgreSQL.</p>
+          </div>
+        </header>
+
+        <div className="transaction-meta">
+          <label>
+            <span>Outlet</span>
+            <select value={selectedOutlet} onChange={(event) => { setSelectedOutlet(event.target.value); setCart([]) }}>
+              {outletOptions.map((outlet) => <option key={outlet}>{outlet}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Metode Bayar</span>
+            <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+              {paymentMethodOptions.map((method) => <option key={method}>{method}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select value={paymentStatus} onChange={(event) => setPaymentStatus(event.target.value)}>
+              <option value="paid">Lunas</option>
+              <option value="unpaid">Belum Dibayar</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="transaction-layout">
+          <section className="product-picker-panel" aria-label="Pilih produk">
+            <div className="transaction-search">
+              <Search size={17} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari produk atau SKU" />
+            </div>
+            <div className="transaction-product-list">
+              {filteredStock.length ? filteredStock.map((item) => {
+                const stockQty = Number(item.qty_on_hand || 0)
+                return (
+                  <button key={item.id} className="transaction-product" onClick={() => addToCart(item)} disabled={stockQty <= 0}>
+                    <span>
+                      <strong>{item.item_name}</strong>
+                      <small>{item.sku} - {item.category_name || 'Tanpa kategori'}</small>
+                    </span>
+                    <span>
+                      <strong>{formatRupiah(item.sell_price)}</strong>
+                      <small>Stok {formatQty(stockQty)} {item.unit || 'Pcs'}</small>
+                    </span>
+                  </button>
+                )
+              }) : (
+                <div className="transaction-empty">
+                  <Package size={38} />
+                  <strong>Produk belum tersedia</strong>
+                  <p>Tambahkan produk dan stok pada outlet ini sebelum membuat transaksi.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="cart-panel" aria-label="Keranjang transaksi">
+            <div className="cart-title-row">
+              <h2>Keranjang</h2>
+              <span>{cart.length} item</span>
+            </div>
+
+            {cart.length ? (
+              <div className="cart-lines">
+                {cart.map((item) => {
+                  const lineTotal = Math.max((item.qty * item.price) - item.discount, 0)
+                  return (
+                    <article className="cart-line" key={item.id}>
+                      <div className="cart-line-main">
+                        <div>
+                          <strong>{item.item_name}</strong>
+                          <small>{formatRupiah(item.price)} / {item.unit} - stok {formatQty(item.stock)}</small>
+                        </div>
+                        <strong>{formatRupiah(lineTotal)}</strong>
+                      </div>
+                      <div className="cart-line-controls">
+                        <label>
+                          Qty
+                          <input type="number" min="1" max={item.stock} value={item.qty} onChange={(event) => updateCartItem(item.id, 'qty', event.target.value)} />
+                        </label>
+                        <button className="row-more" onClick={() => removeCartItem(item.id)} aria-label={`Hapus ${item.item_name}`}>
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="transaction-empty cart-empty">
+                <ShoppingBag size={42} />
+                <strong>Belum ada item</strong>
+                <p>Pilih produk di sisi kiri untuk mulai transaksi.</p>
+              </div>
+            )}
+
+            <div className="transaction-summary-box">
+              <label>
+                Diskon Transaksi
+                <input value={discountTotal} onChange={(event) => setDiscountTotal(event.target.value)} />
+              </label>
+              <label>
+                Pajak
+                <input value={taxTotal} onChange={(event) => setTaxTotal(event.target.value)} />
+              </label>
+              <label className="summary-note">
+                Catatan
+                <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Opsional" />
+              </label>
+              <div className="summary-total-row">
+                <span>Subtotal</span>
+                <strong>{formatRupiah(subtotal)}</strong>
+              </div>
+              <div className="summary-total-row">
+                <span>Total</span>
+                <strong>{formatRupiah(grandTotal)}</strong>
+              </div>
+              <div className="cart-actions">
+                <Button variant="outline" onClick={resetTransaction} disabled={saving || !cart.length}>
+                  <Trash2 size={16} />
+                  Reset
+                </Button>
+                <Button onClick={saveTransaction} disabled={saving || !cart.length}>
+                  <CircleDollarSign size={17} />
+                  {saving ? 'Menyimpan...' : 'Simpan Transaksi'}
+                </Button>
+              </div>
+            </div>
+          </section>
+        </div>
       </section>
     </main>
   )
@@ -2622,8 +3211,8 @@ const productGuideSteps = [
   },
 ]
 
-function SetupFlow({ type, onClose, outlets, onOutletCreated }) {
-  if (type === 'product') return <ProductSetupFlow onClose={onClose} outlets={outlets} />
+function SetupFlow({ type, onClose, outlets, onOutletCreated, posData, session }) {
+  if (type === 'product') return <ProductSetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} />
   if (type === 'category') return <CategorySetupFlow onClose={onClose} outlets={outlets} />
   if (type === 'outlet') return <OutletDetailFlow onClose={onClose} onOutletSaved={onOutletCreated} outlets={outlets} />
   return <SimpleSetupFlow type={type} onClose={onClose} outlets={outlets} onOutletCreated={onOutletCreated} />
@@ -2717,19 +3306,23 @@ function CategorySetupFlow({ onClose, outlets }) {
   )
 }
 
-function ProductSetupFlow({ onClose, outlets }) {
+function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved }) {
+  const outletOptions = memberships.length ? memberships.map(membershipOutletLabel) : outlets
+  const defaultMembership = memberships.find((item) => item.outlet_id) || memberships[0]
   const [activeSection, setActiveSection] = useState('Informasi Produk')
   const [guideStep, setGuideStep] = useState(0)
   const [guideDone, setGuideDone] = useState(false)
   const [guideRect, setGuideRect] = useState(null)
+  const [saving, setSaving] = useState(false)
   const [values, setValues] = useState({
-    outlet: outlets[0] || '',
+    outlet: defaultMembership ? membershipOutletLabel(defaultMembership) : outlets[0] || '',
     productName: '',
     category: '',
     unit: '',
     sku: '',
     minPurchase: '1',
     sellPrice: '',
+    qtyOnHand: '0',
     length: '1',
     width: '1',
     height: '1',
@@ -2797,7 +3390,7 @@ function ProductSetupFlow({ onClose, outlets }) {
     goSection(next)
   }
 
-  const validateProduct = () => {
+  const validateProduct = async () => {
     const nextErrors = {}
     if (!values.outlet) nextErrors.outlet = 'Daftar outlet wajib dipilih.'
     if (!values.productName.trim()) nextErrors.productName = 'Nama produk wajib diisi.'
@@ -2826,7 +3419,39 @@ function ProductSetupFlow({ onClose, outlets }) {
       toast.error(nextErrors[firstField])
       return false
     }
-    toast.success('Produk berhasil divalidasi dan siap disimpan')
+    const membership = memberships.find((item) => membershipOutletLabel(item) === values.outlet) || defaultMembership
+    if (!membership?.org_id || !membership?.outlet_id) {
+      toast.error('Outlet belum valid. Pastikan user punya outlet_id di pos_team_members.')
+      return false
+    }
+
+    setSaving(true)
+    try {
+      await createProduct({
+        orgId: membership.org_id,
+        outletId: membership.outlet_id,
+        sku: values.sku.trim(),
+        itemName: values.productName.trim(),
+        categoryName: values.category,
+        unit: values.unit,
+        sellPrice: parseCurrencyInput(values.sellPrice),
+        qtyOnHand: parseQuantityInput(values.qtyOnHand),
+        qtyMinimum: 0,
+        createdBy: session?.user?.id,
+      })
+    } catch (error) {
+      const message = error.code === '23505'
+        ? 'SKU sudah dipakai di outlet ini.'
+        : error.message
+      toast.error(message)
+      setSaving(false)
+      return false
+    }
+    setSaving(false)
+
+    toast.success('Produk berhasil disimpan ke PostgreSQL')
+    await onSaved?.()
+    onClose()
     return true
   }
 
@@ -2851,7 +3476,7 @@ function ProductSetupFlow({ onClose, outlets }) {
           <section ref={register('section-Informasi Produk')} className="flow-card">
             <h2>Informasi Produk</h2>
             <FormRow refNode={register('outlet')} guideKey="outlet" currentKey={currentGuide?.key} label="Daftar Outlet*" error={errors.outlet} wide>
-              <SelectInput placeholder="Pilih" value={values.outlet} options={outlets} onChange={(value) => setField('outlet', value)} />
+              <SelectInput placeholder="Pilih" value={values.outlet} options={outletOptions} onChange={(value) => setField('outlet', value)} />
             </FormRow>
             <FormRow refNode={register('identity')} guideKey="identity" currentKey={currentGuide?.key} label="Nama Produk*" hint={`${values.productName.length}/255`} error={errors.productName}>
               <textarea value={values.productName} onChange={(event) => setField('productName', event.target.value)} placeholder="Contoh: nasi padang" />
@@ -2886,7 +3511,7 @@ function ProductSetupFlow({ onClose, outlets }) {
               <div className="inline-control">
                 <Toggle /> <span>Aktifkan Monitor Persediaan</span>
               </div>
-              <input placeholder="0" />
+              <input value={values.qtyOnHand} onChange={(event) => setField('qtyOnHand', event.target.value)} placeholder="Stok awal" />
             </FormRow>
             <FormRow label="Serial Number">
               <FeaturePanel title="Serial Number" text="Kasir wajib memilih manual serial number saat penjualan. Nomor seri bisa dicatat per produk untuk pelacakan stok.">
@@ -3022,7 +3647,7 @@ function ProductSetupFlow({ onClose, outlets }) {
 
       {currentGuide ? <GuideBubble step={currentGuide} rect={guideRect} onSkip={() => { setGuideStep(null); setGuideRect(null) }} onNext={nextGuide} /> : null}
       {guideDone ? <GuideDone onRepeat={() => setGuideStep(0)} onClose={() => setGuideDone(false)} /> : null}
-      <FlowFooter onCancel={onClose} onBack={() => goSection(productSections[Math.max(sectionIndex - 1, 0)])} onNext={nextSection} onSave={validateProduct} />
+      <FlowFooter onCancel={onClose} onBack={() => goSection(productSections[Math.max(sectionIndex - 1, 0)])} onNext={nextSection} onSave={validateProduct} saving={saving} />
     </div>
   )
 }
@@ -3444,14 +4069,14 @@ function FlowHeader({ title, onClose }) {
   )
 }
 
-function FlowFooter({ onCancel, onBack, onNext, onSave, simple }) {
+function FlowFooter({ onCancel, onBack, onNext, onSave, simple, saving }) {
   return (
     <footer className="flow-footer">
       <button onClick={onCancel}>Batal</button>
       <div>
         {!simple ? <button onClick={onBack}>Kembali</button> : null}
         {!simple ? <button onClick={onNext}>Selanjutnya</button> : null}
-        <Button onClick={onSave || (() => toast.success('Data berhasil disimpan'))}>Simpan</Button>
+        <Button disabled={saving} onClick={onSave || (() => toast.success('Data berhasil disimpan'))}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
       </div>
     </footer>
   )
@@ -3597,7 +4222,7 @@ function GuideDone({ onRepeat, onClose }) {
 function TrialBar() {
   return (
     <div className="trial-bar">
-      <span>Masa Aktif akun trial tersisa 13 hari Segera beli langganan sebelum masa trial berakhir untuk mendapatkan diskon berlangganan hingga 35%</span>
+      <span>Masa Aktif akun trial tersisa 14 hari Segera beli langganan sebelum masa trial berakhir untuk mendapatkan diskon berlangganan hingga 35%</span>
       <Button variant="danger" onClick={() => toast.success('Paket perpanjangan dibuka')}>
         Perpanjang
       </Button>
@@ -3605,7 +4230,164 @@ function TrialBar() {
   )
 }
 
+function AuthPage({ onAuthenticated }) {
+  const [mode, setMode] = useState('signin')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const submit = async (event) => {
+    event.preventDefault()
+    setLoading(true)
+    try {
+      const session = await signInWithEmail(email)
+      onAuthenticated(session)
+      toast.success(mode === 'signup' ? 'Akun dev dibuat' : 'Login berhasil')
+    } catch (error) {
+      toast.error(error.message || 'Login gagal')
+    } finally {
+      setLoading(false)
+      return
+    }
+  }
+
+  return (
+    <main className="auth-page">
+      <section className="auth-card">
+        <Brand />
+        <div>
+          <h1>{mode === 'signup' ? 'Buat akses POS' : 'Masuk ke POS'}</h1>
+          <p>Gunakan akun dev POS lokal yang terhubung ke PostgreSQL.</p>
+        </div>
+        <form onSubmit={submit}>
+          <label>
+            Email
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nama@domain.com" required />
+          </label>
+          <label>
+            Password
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Minimal 6 karakter" minLength={6} required />
+          </label>
+          <Button disabled={loading}>{loading ? 'Memproses...' : mode === 'signup' ? 'Daftar' : 'Masuk'}</Button>
+        </form>
+        <button className="auth-switch" onClick={() => setMode((value) => (value === 'signup' ? 'signin' : 'signup'))}>
+          {mode === 'signup' ? 'Sudah punya akun? Masuk' : 'Belum punya akun? Daftar'}
+        </button>
+      </section>
+      <Toaster richColors position="top-right" />
+    </main>
+  )
+}
+
+function NoMembershipPage({ session, onSignOut }) {
+  return (
+    <main className="auth-page">
+      <section className="auth-card membership-card">
+        <Brand />
+        <h1>Akses belum aktif</h1>
+        <p>
+          Akun <strong>{session.user.email}</strong> sudah login, tapi belum terdaftar di <code>pos_team_members</code>.
+        </p>
+        <p>Admin perlu menambahkan user ini ke organization/outlet sebelum data POS bisa tampil.</p>
+        <code>{session.user.id}</code>
+        <Button variant="outline" onClick={onSignOut}>
+          Keluar
+        </Button>
+      </section>
+      <Toaster richColors position="top-right" />
+    </main>
+  )
+}
+
+function DataErrorPage({ error, onRetry, onSignOut }) {
+  return (
+    <main className="auth-page">
+      <section className="auth-card membership-card">
+        <Brand />
+        <h1>Data PostgreSQL gagal dimuat</h1>
+        <p>{error}</p>
+        <Button onClick={onRetry}>Coba Lagi</Button>
+        <Button variant="outline" onClick={onSignOut}>
+          Keluar
+        </Button>
+      </section>
+      <Toaster richColors position="top-right" />
+    </main>
+  )
+}
+
+function LoadingApp() {
+  return (
+    <main className="auth-page">
+      <section className="auth-card membership-card">
+        <Brand />
+        <h1>Memuat POS</h1>
+        <p>Menghubungkan ke PostgreSQL...</p>
+      </section>
+    </main>
+  )
+}
+
+function useApiSession() {
+  const [session, setSessionState] = useState(() => getStoredSession())
+  const [loading, setLoading] = useState(false)
+
+  const setSession = (nextSession) => {
+    setSessionState(nextSession)
+  }
+
+  const signOut = () => {
+    clearStoredSession()
+    setSessionState(null)
+    toast.success('Berhasil keluar')
+  }
+
+  return { session, loading, setSession, signOut }
+}
+
+function usePostgresPosData(session) {
+  const [state, setState] = useState({
+    loading: true,
+    error: '',
+    memberships: [],
+    stockItems: [],
+    sales: [],
+    salesDetails: [],
+    stockMutations: [],
+  })
+
+  const refresh = async () => {
+    if (!session?.user?.id) return
+    setState((current) => ({ ...current, loading: true, error: '' }))
+    let data
+    try {
+      data = await getPosData(session.user.id)
+    } catch (error) {
+      setState((current) => ({ ...current, loading: false, error: error.message }))
+      toast.error(error.message)
+      return
+    }
+
+    setState({
+      loading: false,
+      error: '',
+      memberships: data.memberships || [],
+      stockItems: data.stockItems || [],
+      sales: data.sales || [],
+      salesDetails: data.salesDetails || [],
+      stockMutations: data.stockMutations || [],
+    })
+  }
+
+  useEffect(() => {
+    refresh()
+  }, [session?.user?.id])
+
+  return { ...state, refresh }
+}
+
 function App() {
+  const { session, loading: sessionLoading, setSession, signOut } = useApiSession()
   const [activeTab, setActiveTab] = useState('Penjualan')
   const [activePage, setActivePage] = useState('Menu Favorit')
   const [openGroup, setOpenGroup] = useState('Menu Favorit')
@@ -3613,7 +4395,9 @@ function App() {
   const [activeFlow, setActiveFlow] = useState(null)
   const [outlets, setOutlets] = useState(defaultOutlets)
   const [activeOutlet, setActiveOutlet] = useState(defaultOutlets[0])
-  const isDashboard = activePage === 'Dashboard' || activePage === 'Menu Favorit'
+  const posData = usePostgresPosData(session)
+  const isFavorite = activePage === 'Menu Favorit'
+  const isDashboard = activePage === 'Dashboard'
   const addOutlet = (name) => {
     const cleanName = String(name || '').trim()
     if (!cleanName) return
@@ -3621,10 +4405,23 @@ function App() {
     setActiveOutlet(cleanName)
   }
 
+  useEffect(() => {
+    if (!posData.memberships.length) return
+    const nextOutlets = ['Semua Outlet', ...posData.memberships.map((item) => `Outlet ${shortId(item.outlet_id || item.org_id)}`)]
+    setOutlets(nextOutlets)
+    setActiveOutlet(nextOutlets[1] || nextOutlets[0])
+  }, [posData.memberships])
+
+  if (sessionLoading) return <LoadingApp />
+  if (!session) return <AuthPage onAuthenticated={setSession} />
+  if (posData.loading) return <LoadingApp />
+  if (posData.error) return <DataErrorPage error={posData.error} onRetry={posData.refresh} onSignOut={signOut} />
+  if (!posData.memberships.length) return <NoMembershipPage session={session} onSignOut={signOut} />
+
   if (activeFlow) {
     return (
       <>
-        <SetupFlow type={activeFlow} outlets={outlets} onOutletCreated={addOutlet} onClose={() => setActiveFlow(null)} />
+        <SetupFlow type={activeFlow} outlets={outlets} onOutletCreated={addOutlet} onClose={() => setActiveFlow(null)} posData={posData} session={session} />
         <Toaster richColors position="top-right" />
       </>
     )
@@ -3642,13 +4439,15 @@ function App() {
         activeOutlet={activeOutlet}
       />
       <div className="main-shell">
-        <Topbar activeTab={activeTab} setActiveTab={setActiveTab} setIsOpen={setIsOpen} />
+        <Topbar activeTab={activeTab} setActiveTab={setActiveTab} setIsOpen={setIsOpen} onSignOut={signOut} />
         {activeTab !== 'Penjualan' ? (
           <TopModulePage activeTab={activeTab} onStartFlow={setActiveFlow} />
+        ) : isFavorite ? (
+          <MenuFavoritePage onStartFlow={setActiveFlow} posData={posData} />
         ) : isDashboard ? (
-          <SalesDashboard activeTab={activeTab} onStartFlow={setActiveFlow} />
+          <SalesDashboard activeTab={activeTab} onStartFlow={setActiveFlow} posData={posData} />
         ) : (
-          <ModulePage activePage={activePage} onStartFlow={setActiveFlow} />
+          <ModulePage activePage={activePage} onStartFlow={setActiveFlow} posData={posData} />
         )}
         <TrialBar />
       </div>
