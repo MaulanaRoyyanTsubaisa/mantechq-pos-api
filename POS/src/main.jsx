@@ -53,6 +53,7 @@ import {
   getStoredSession,
   signInWithEmail,
 } from './lib/api.js'
+import { PosApp } from './features/pos/PosApp.jsx'
 import capitalVisual from './assets/capital-visual.png'
 import './style.css'
 
@@ -935,7 +936,7 @@ function Brand() {
   )
 }
 
-function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, setIsOpen, activeOutlet }) {
+function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, setIsOpen, activeOutlet, setIsPosMode }) {
   const [openNested, setOpenNested] = useState('Laporan Penjualan')
   const choose = (group, child) => {
     const nextPage = child || group.label
@@ -964,6 +965,15 @@ function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, s
           </span>
           <PanelLeftClose size={18} />
         </button>
+
+        <div style={{ padding: '0 16px', marginBottom: '16px' }}>
+          <button 
+            onClick={() => setIsPosMode(true)}
+            style={{ width: '100%', background: '#08a88c', color: '#fff', padding: '12px', borderRadius: '8px', border: 'none', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}
+          >
+            <ShoppingBag size={18} /> Buka PoS Kasir
+          </button>
+        </div>
 
         <nav className="side-nav" aria-label="Navigasi utama">
           {sidebarGroups.map((group) => {
@@ -4388,6 +4398,7 @@ function usePostgresPosData(session) {
 
 function App() {
   const { session, loading: sessionLoading, setSession, signOut } = useApiSession()
+  const [isPosMode, setIsPosMode] = useState(false)
   const [activeTab, setActiveTab] = useState('Penjualan')
   const [activePage, setActivePage] = useState('Menu Favorit')
   const [openGroup, setOpenGroup] = useState('Menu Favorit')
@@ -4427,6 +4438,15 @@ function App() {
     )
   }
 
+  if (isPosMode) {
+    return (
+      <>
+        <PosApp posData={posData} onClose={() => setIsPosMode(false)} />
+        <Toaster richColors position="top-right" />
+      </>
+    )
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -4437,6 +4457,7 @@ function App() {
         isOpen={isOpen}
         setIsOpen={setIsOpen}
         activeOutlet={activeOutlet}
+        setIsPosMode={setIsPosMode}
       />
       <div className="main-shell">
         <Topbar activeTab={activeTab} setActiveTab={setActiveTab} setIsOpen={setIsOpen} onSignOut={signOut} />
