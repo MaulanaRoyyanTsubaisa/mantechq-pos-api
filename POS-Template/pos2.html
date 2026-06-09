@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>KasirVerse - POS Modern Fresh</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Font Awesome 6 -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style2.css" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              "fresh-mint": "#2dd4bf",
+              "fresh-peach": "#fdba74",
+              "fresh-lavender": "#c4b5fd",
+              "fresh-rose": "#fda4af",
+              "fresh-sky": "#7dd3fc",
+            },
+          },
+        },
+      };
+    </script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body
+    class="font-['Plus_Jakarta_Sans'] bg-gradient-to-br from-[#e0f2fe] via-[#fce7f3] to-[#fef3c7]"
+  >
+    <div class="min-h-screen p-5">
+      <!-- Header Floating -->
+      <div class="max-w-7xl mx-auto mb-6">
+        <div
+          class="bg-white/30 backdrop-blur-xl rounded-2xl shadow-lg border border-white/40 px-6 py-4 flex flex-wrap justify-between items-center gap-3"
+        >
+          <div class="flex items-center gap-4">
+            <div
+              class="w-12 h-12 rounded-2xl bg-gradient-to-br from-fresh-mint to-fresh-sky flex items-center justify-center shadow-lg rotate-6"
+            >
+              <i class="fas fa-crown text-white text-xl -rotate-6"></i>
+            </div>
+            <div>
+              <h1
+                class="text-2xl font-black bg-gradient-to-r from-fresh-mint via-fresh-sky to-fresh-lavender bg-clip-text text-transparent"
+              >
+                KasirVerse
+              </h1>
+              <p class="text-xs text-gray-500 font-medium">
+                Next-Gen POS System
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div
+              class="bg-white/50 backdrop-blur rounded-full px-4 py-2 flex items-center gap-2 shadow-sm"
+            >
+              <i class="fas fa-store text-fresh-mint text-sm"></i>
+              <span class="text-sm font-semibold text-gray-700">FreshMart</span>
+              <div class="w-1 h-1 bg-gray-300 rounded-full"></div>
+              <i class="fas fa-calendar-alt text-gray-400 text-xs"></i>
+              <span class="text-xs text-gray-500" id="dateTime"></span>
+            </div>
+            <button
+              id="resetBtn"
+              class="group relative px-4 py-2 rounded-full bg-gradient-to-r from-rose-400 to-orange-400 text-white text-sm font-semibold shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-2 overflow-hidden"
+            >
+              <i
+                class="fas fa-sync-alt text-xs group-hover:rotate-180 transition-transform duration-500"
+              ></i>
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content - Layout Asimetris Fresh -->
+      <div class="max-w-7xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- LEFT: KERANJANG - ukuran lebih kecil dan unik -->
+          <div class="lg:col-span-4 order-2 lg:order-1">
+            <div class="sticky top-5">
+              <div
+                class="bg-white/40 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden"
+              >
+                <!-- Cart Header with wave effect -->
+                <div
+                  class="relative bg-gradient-to-r from-fresh-lavender to-fresh-mint px-5 py-5 overflow-hidden"
+                >
+                  <div
+                    class="absolute -top-10 -right-10 w-32 h-32 bg-white/20 rounded-full blur-2xl"
+                  ></div>
+                  <div class="relative flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                      <div
+                        class="w-12 h-12 bg-white/30 rounded-2xl flex items-center justify-center backdrop-blur"
+                      >
+                        <i class="fas fa-bag-shopping text-white text-2xl"></i>
+                      </div>
+                      <div>
+                        <h2 class="text-white font-bold text-xl">Cart</h2>
+                        <p class="text-white/80 text-xs">Your selected items</p>
+                      </div>
+                    </div>
+                    <div
+                      class="bg-white/30 backdrop-blur rounded-full px-4 py-2"
+                    >
+                      <span id="cartCount" class="text-white font-black text-xl"
+                        >0</span
+                      >
+                      <span class="text-white/80 text-xs">items</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Cart Items -->
+                <div
+                  id="cartItemsContainer"
+                  class="h-96 overflow-y-auto p-4 space-y-3 custom-scroll bg-gradient-to-b from-white/50 to-transparent"
+                >
+                  <div
+                    class="flex flex-col items-center justify-center h-full text-center"
+                  >
+                    <div
+                      class="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-3 animate-bounce"
+                    >
+                      <i class="fas fa-hand-peace text-3xl text-gray-400"></i>
+                    </div>
+                    <p class="text-gray-400 font-medium">Cart is empty</p>
+                    <p class="text-xs text-gray-300 mt-1">
+                      Tap on products to add
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Cart Footer -->
+                <div
+                  class="bg-white/60 backdrop-blur p-5 space-y-3 border-t border-white/40"
+                >
+                  <div class="flex justify-between items-end">
+                    <span class="text-gray-500 text-sm font-medium">Total</span>
+                    <div class="text-right">
+                      <span
+                        id="totalPrice"
+                        class="text-3xl font-black bg-gradient-to-r from-fresh-mint to-fresh-lavender bg-clip-text text-transparent"
+                        >Rp 0</span
+                      >
+                    </div>
+                  </div>
+                  <div class="flex gap-3">
+                    <button
+                      id="checkoutBtn"
+                      class="flex-1 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-white font-bold py-3 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
+                    >
+                      <i class="fas fa-bolt"></i> Checkout
+                    </button>
+                    <button
+                      id="clearCartBtn"
+                      class="bg-white/80 hover:bg-red-50 text-gray-500 hover:text-red-500 font-semibold py-3 px-5 rounded-2xl transition-all duration-300 border border-gray-200 shadow-sm"
+                    >
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: PRODUK - ukuran lebih besar dengan layout horizontal card -->
+          <div class="lg:col-span-8 order-1 lg:order-2">
+            <!-- Search & Add Bar - fresh design -->
+            <div class="flex flex-wrap gap-3 mb-5">
+              <div class="flex-1 relative">
+                <i
+                  class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-fresh-mint"
+                ></i>
+                <input
+                  type="text"
+                  id="searchProduct"
+                  placeholder="Search products..."
+                  class="w-full pl-11 pr-4 py-3 bg-white/60 backdrop-blur border border-white/50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-fresh-mint focus:bg-white/80 transition-all font-medium"
+                />
+              </div>
+              <button
+                id="openModalBtn"
+                class="px-6 py-3 bg-gradient-to-r from-fresh-peach to-fresh-rose rounded-2xl text-white font-bold shadow-md hover:shadow-xl transition-all duration-300 flex items-center gap-2 transform hover:-translate-y-0.5"
+              >
+                <i class="fas fa-plus-circle text-lg"></i>
+                <span>Add Product</span>
+              </button>
+            </div>
+
+            <!-- Products Grid with unique card design -->
+            <div
+              id="productsGrid"
+              class="grid grid-cols-1 sm:grid-cols-2 gap-4 auto-rows-fr"
+            >
+              <!-- Products will be injected here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL TAMBAH PRODUK - Fresh Design -->
+    <div
+      id="productModal"
+      class="fixed inset-0 bg-black/30 backdrop-blur-md flex items-center justify-center z-50 hidden transition-all duration-300"
+    >
+      <div
+        class="bg-white rounded-3xl w-full max-w-md mx-4 shadow-2xl transform transition-all scale-95 animate-fadeIn overflow-hidden"
+      >
+        <div class="bg-gradient-to-r from-fresh-mint to-fresh-sky px-6 py-5">
+          <div class="flex justify-between items-center">
+            <div class="flex items-center gap-2">
+              <div
+                class="w-10 h-10 bg-white/30 rounded-xl flex items-center justify-center"
+              >
+                <i class="fas fa-sparkle text-white text-xl"></i>
+              </div>
+              <h3 class="text-white font-bold text-xl">New Product</h3>
+            </div>
+            <button
+              id="closeModalBtn"
+              class="text-white/80 hover:text-white text-3xl leading-none"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+        <div class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2"
+              >Product Name</label
+            >
+            <input
+              type="text"
+              id="modalProductName"
+              placeholder="e.g., Avocado Juice"
+              class="w-full border-2 border-gray-100 rounded-xl px-4 py-3 focus:outline-none focus:border-fresh-mint focus:ring-2 focus:ring-fresh-mint/20 transition-all"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2"
+              >Price (Rp)</label
+            >
+            <input
+              type="number"
+              id="modalProductPrice"
+              placeholder="15000"
+              class="w-full border-2 border-gray-100 rounded-xl px-4 py-3 focus:outline-none focus:border-fresh-mint focus:ring-2 focus:ring-fresh-mint/20 transition-all"
+            />
+          </div>
+          <div class="flex gap-3 pt-3">
+            <button
+              id="confirmAddProductBtn"
+              class="flex-1 bg-gradient-to-r from-fresh-mint to-fresh-sky hover:from-fresh-sky hover:to-fresh-mint text-white font-bold py-3 rounded-xl transition-all shadow-md"
+            >
+              Add Product
+            </button>
+            <button
+              id="cancelModalBtn"
+              class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-3 rounded-xl transition-all"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/script2.js"></script>
+  </body>
+</html>

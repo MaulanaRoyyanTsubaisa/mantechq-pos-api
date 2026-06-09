@@ -630,7 +630,7 @@ function OutletDetailFlow({ onClose, onOutletSaved }) {
       <main className="outlet-detail-body">
         <div className="info-banner">
           <Info size={16} />
-          <span>Pengaturan pada nama, logo, jadwal operasional, dan alamat outlet akan tersimpan di berbagai fitur dan produk TripleSys PoS yang terintegrasi</span>
+          <span>Pengaturan pada nama, logo, jadwal operasional, dan alamat outlet akan tersimpan di berbagai fitur dan produk ManTechQ PoS yang terintegrasi</span>
         </div>
 
         <section className="flow-card outlet-detail-card">

@@ -386,7 +386,7 @@ Object.entries(crudBlueprints).forEach(([key, columns]) => {
   moduleBlueprints[key] = {
     type: 'master',
     title: key,
-    description: `Kelola ${key.toLowerCase()} untuk operasional TripleSys PoS.`,
+    description: `Kelola ${key.toLowerCase()} untuk operasional ManTechQ PoS.`,
     actions: ['Tambah', 'Import', 'Export'],
     filters: ['Outlet', 'Status'],
     columns,

@@ -64,6 +64,7 @@ import {
   downloadCSV,
 } from './moduleBlueprints.js'
 import { DaftarBahanBakuPage, PemesananStokPage, DaftarStokPage } from './InventoryPages.jsx'
+import { ProductFormModal } from './ProductFormModal.jsx'
 
 function Metric({ label, value }) {
   return (
@@ -126,7 +127,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
   const blueprint = moduleBlueprints[activePage] || {
     type: 'master',
     title: activePage,
-    description: `Kelola ${activePage.toLowerCase()} untuk operasional TripleSys PoS.`,
+    description: `Kelola ${activePage.toLowerCase()} untuk operasional ManTechQ PoS.`,
     actions: ['Tambah'],
     filters: ['Outlet', 'Status'],
     columns: ['Nama', 'Status', 'Update'],
@@ -181,7 +182,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
             <Icon size={20} />
           </span>
           <div>
-            <strong>{parent?.label || 'TripleSys PoS'}</strong>
+            <strong>{parent?.label || 'ManTechQ PoS'}</strong>
             <p>{blueprint.description}</p>
           </div>
         </div>
@@ -1399,13 +1400,31 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
     return matchesQuery && matchesStatus
   })
 
+  const [showAddModal, setShowAddModal] = useState(false)
+
   const runAction = (action) => {
-    if (action.toLowerCase().includes('impor')) toast.success(`${action} dibuka`)
-    else toast.success(`${action} disiapkan`)
+    if (action === 'Tambah Produk' || action === 'Tambah Bahan Baku') {
+      setShowAddModal(true)
+    } else if (action.toLowerCase().includes('impor')) {
+      toast.success(`${action} dibuka`)
+    } else {
+      toast.success(`${action} disiapkan`)
+    }
   }
 
   return (
     <main className="content product-page">
+      {showAddModal && (
+        <ProductFormModal 
+          posData={posData} 
+          onClose={() => setShowAddModal(false)} 
+          onSuccess={() => {
+            setShowAddModal(false)
+            // Ideally refetch data here, but page will reload or socket will update
+            window.location.reload()
+          }} 
+        />
+      )}
       <CapitalBanner compact />
       <section className="panel product-directory-card">
         <header className="product-directory-head">

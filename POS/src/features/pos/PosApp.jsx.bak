@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { ArrowLeft, Search, ShoppingCart, Minus, Plus, Trash2, CheckCircle2, ChevronRight, Store, X, Printer, MessageCircle, LogOut } from 'lucide-react'
-import QRCode from 'react-qr-code'
 import { toast } from 'sonner'
 import { membershipOutletLabel, parseCurrencyInput, formatRupiah, formatQty } from '../../shared/lib/formatters.js'
 import { createSale } from '../../shared/api/posApi.js'
@@ -198,13 +197,12 @@ export function PosApp({ posData, onClose, session }) {
       }
 
       const payload = {
-        org_id: membership.org_id,
         outlet_id: membership.outlet_id,
-        items: cart.map(c => ({ st_mast_id: c.id, qty: c.qty, price: c.price, discount: c.discount })),
-        discount_total: discountValue,
-        tax_total: taxValue,
-        paid_total: amountPaid,
-        payment_status: 'paid',
+        items: cart.map(c => ({ item_id: c.id, qty: c.qty, price: c.price, discount: c.discount })),
+        discount: discountValue,
+        tax: taxValue,
+        payment_method: finalPaymentMethod,
+        amount_paid: amountPaid,
         note: isSplit ? `Split: ${splitMethod1} (${formatRupiah(splitValue1)}) + ${splitMethod2} (${formatRupiah(splitValue2)})` : '',
       }
       
@@ -386,6 +384,7 @@ Terima kasih telah berbelanja!`
       </div>
     )
   }
+
   // --- Render Receipt ---
   if (receipt) {
     return (
@@ -680,15 +679,6 @@ Terima kasih telah berbelanja!`
                         Kembalian: <span style={{ color: '#08a88c', fontSize: 14 }}>{formatRupiah(change)}</span>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {paymentMethod === 'QRIS' && !isSplit && (
-                  <div style={{ textAlign: 'center', marginTop: 12 }}>
-                    <div style={{ width: 140, height: 140, background: '#fff', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, padding: 8 }}>
-                      <QRCode value={`QRIS: ${grandTotal}`} size={124} />
-                    </div>
-                    <p style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>Scan QRIS untuk membayar <strong>{formatRupiah(grandTotal)}</strong></p>
                   </div>
                 )}
               </>

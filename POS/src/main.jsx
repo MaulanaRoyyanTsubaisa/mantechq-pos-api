@@ -388,7 +388,7 @@ Object.entries(crudBlueprints).forEach(([key, columns]) => {
   moduleBlueprints[key] = {
     type: 'master',
     title: key,
-    description: `Kelola ${key.toLowerCase()} untuk operasional TripleSys PoS.`,
+    description: `Kelola ${key.toLowerCase()} untuk operasional ManTechQ PoS.`,
     actions: ['Tambah', 'Import', 'Export'],
     filters: ['Outlet', 'Status'],
     columns,
@@ -923,13 +923,13 @@ function Button({ className, variant = 'default', ...props }) {
 
 function Brand() {
   return (
-    <div className="brand" aria-label="TripleSys PoS">
+    <div className="brand" aria-label="ManTechQ PoS">
       <span className="brand-mark">
         <span className="brand-mark-glow" />
         <CircleDollarSign size={18} />
       </span>
       <span className="brand-word">
-        <span>TripleSys</span>
+        <span>ManTechQ</span>
         <strong>POS</strong>
       </span>
     </div>
@@ -1044,7 +1044,7 @@ function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, s
           })}
         </nav>
 
-        <button className="care-card" onClick={() => toast.info('TripleSys Care siap membantu 24 jam')}>
+        <button className="care-card" onClick={() => toast.info('ManTechQ Care siap membantu 24 jam')}>
           <span className="care-logo">
             <HelpCircle size={19} /> Care
           </span>
@@ -1131,7 +1131,7 @@ function CapitalBanner({ compact }) {
         <img src={capitalVisual} alt="Ilustrasi modal bisnis POS" />
       </div>
       <div>
-        <small>TripleSys Capital</small>
+        <small>ManTechQ Capital</small>
         <h2>Modal usaha lebih siap, operasional tetap jalan.</h2>
         <p>Akses pembiayaan hingga Rp 280 juta untuk stok, outlet, dan kebutuhan bisnis harian.</p>
         <span>Ajukan Sekarang</span>
@@ -1502,7 +1502,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
   const blueprint = moduleBlueprints[activePage] || {
     type: 'master',
     title: activePage,
-    description: `Kelola ${activePage.toLowerCase()} untuk operasional TripleSys PoS.`,
+    description: `Kelola ${activePage.toLowerCase()} untuk operasional ManTechQ PoS.`,
     actions: ['Tambah'],
     filters: ['Outlet', 'Status'],
     columns: ['Nama', 'Status', 'Update'],
@@ -1554,7 +1554,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
             <Icon size={20} />
           </span>
           <div>
-            <strong>{parent?.label || 'TripleSys PoS'}</strong>
+            <strong>{parent?.label || 'ManTechQ PoS'}</strong>
             <p>{blueprint.description}</p>
           </div>
         </div>
@@ -3752,7 +3752,7 @@ function OutletDetailFlow({ onClose, onOutletSaved }) {
       <main className="outlet-detail-body">
         <div className="info-banner">
           <Info size={16} />
-          <span>Pengaturan pada nama, logo, jadwal operasional, dan alamat outlet akan tersimpan di berbagai fitur dan produk TripleSys PoS yang terintegrasi</span>
+          <span>Pengaturan pada nama, logo, jadwal operasional, dan alamat outlet akan tersimpan di berbagai fitur dan produk ManTechQ PoS yang terintegrasi</span>
         </div>
 
         <section className="flow-card outlet-detail-card">
@@ -4266,8 +4266,8 @@ function TrialBar() {
 
 function AuthPage({ onAuthenticated }) {
   const [mode, setMode] = useState('signin')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('owner@mantechq.local')
+  const [password, setPassword] = useState('admin123')
   const [loading, setLoading] = useState(false)
 
   const submit = async (event) => {
@@ -4307,6 +4307,15 @@ function AuthPage({ onAuthenticated }) {
         <button className="auth-switch" onClick={() => setMode((value) => (value === 'signup' ? 'signin' : 'signup'))}>
           {mode === 'signup' ? 'Sudah punya akun? Masuk' : 'Belum punya akun? Daftar'}
         </button>
+
+        <div style={{ marginTop: '20px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', fontSize: '13px', color: '#475569' }}>
+          <strong style={{ display: 'block', marginBottom: '8px', color: '#0f172a' }}>Akun Demo:</strong>
+          <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <li><strong>Owner:</strong> owner@mantechq.local (Sandi: admin123)</li>
+            <li><strong>Admin:</strong> admin@mantechq.local (Sandi: admin123)</li>
+            <li><strong>Kasir:</strong> kasir@mantechq.local (Sandi: admin123)</li>
+          </ul>
+        </div>
       </section>
       <Toaster richColors position="top-right" />
     </main>

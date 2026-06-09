@@ -65,7 +65,7 @@ function CapitalBanner({ compact }) {
         <img src={capitalVisual} alt="Ilustrasi modal bisnis POS" />
       </div>
       <div>
-        <small>TripleSys Capital</small>
+        <small>ManTechQ Capital</small>
         <h2>Modal usaha lebih siap, operasional tetap jalan.</h2>
         <p>Akses pembiayaan hingga Rp 280 juta untuk stok, outlet, dan kebutuhan bisnis harian.</p>
         <span>Ajukan Sekarang</span>
