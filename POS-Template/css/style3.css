@@ -1,0 +1,154 @@
+/* Custom Scrollbar - Clean */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Product Tile */
+.product-tile {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px 12px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-align: center;
+}
+
+.product-tile:hover {
+  transform: translateY(-2px);
+  border-color: #2563eb;
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.1);
+}
+
+.product-tile:active {
+  transform: scale(0.98);
+}
+
+/* Product Icon */
+.product-icon {
+  width: 56px;
+  height: 56px;
+  background: #eff6ff;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  color: #2563eb;
+  font-size: 28px;
+  transition: all 0.2s;
+}
+
+.product-tile:hover .product-icon {
+  background: #2563eb;
+  color: white;
+  transform: scale(1.05);
+}
+
+/* Product Name */
+.product-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Product Price */
+.product-price {
+  font-weight: 700;
+  font-size: 14px;
+  color: #2563eb;
+}
+
+/* Cart Item */
+.cart-item {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px;
+  transition: all 0.15s;
+  border: 1px solid #e2e8f0;
+}
+
+.cart-item:hover {
+  background: white;
+  border-color: #2563eb30;
+}
+
+/* Quantity Button */
+.qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #64748b;
+}
+
+.qty-btn:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: white;
+}
+
+.remove-btn:hover {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #ef4444;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+/* Animation for add to cart */
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.tile-pop {
+  animation: pop 0.2s ease;
+}
+
+/* Modal backdrop */
+.modal-open {
+  overflow: hidden;
+}
+
+/* Focus ring */
+input:focus {
+  outline: none;
+  ring: 2px solid #2563eb;
+}

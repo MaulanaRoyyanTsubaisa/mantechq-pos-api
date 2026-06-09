@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>WarungKu - POS System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style4.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-[#e5e7eb] font-['Inter']">
+    <!-- LAYOUT: FULL STRETCH -->
+    <div class="flex h-screen">
+      <!-- ========== SIDEBAR KIRI (KERANJANG) ========== -->
+      <div
+        class="w-[380px] bg-white border-r border-gray-200 flex flex-col shadow-sm"
+      >
+        <!-- Header Keranjang -->
+        <div class="p-5 border-b border-gray-200 bg-white">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div
+                class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center"
+              >
+                <i class="fas fa-shopping-bag text-[#f97316] text-lg"></i>
+              </div>
+              <div>
+                <span class="font-bold text-gray-800 text-lg"
+                  >WarungKu - POS System</span
+                >
+                <p class="text-xs text-gray-400">Item yang dipilih</p>
+              </div>
+            </div>
+            <span
+              class="bg-[#f97316]/10 text-[#f97316] font-bold px-3 py-1 rounded-full text-sm"
+            >
+              <span id="cartCount">0</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Daftar Item Keranjang (Scroll) -->
+        <div
+          id="cartItemsContainer"
+          class="flex-1 overflow-y-auto p-4 space-y-2 custom-scroll"
+        >
+          <div
+            class="flex flex-col items-center justify-center h-64 text-center"
+          >
+            <div
+              class="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mb-3"
+            >
+              <i class="fas fa-receipt text-gray-300 text-3xl"></i>
+            </div>
+            <p class="text-gray-400 font-medium">Keranjang kosong</p>
+            <p class="text-gray-300 text-xs mt-1">Klik menu untuk memesan</p>
+          </div>
+        </div>
+
+        <!-- Footer Total -->
+        <div class="p-5 border-t border-gray-200 bg-white">
+          <div class="flex justify-between items-center mb-4">
+            <span class="text-gray-500 text-sm font-medium">Total</span>
+            <span id="totalPrice" class="text-2xl font-extrabold text-[#f97316]"
+              >Rp 0</span
+            >
+          </div>
+          <div class="flex gap-3">
+            <button
+              id="checkoutBtn"
+              class="flex-1 bg-[#f97316] hover:bg-[#ea580c] text-white font-bold py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-md"
+            >
+              <i class="fas fa-credit-card"></i> Bayar
+            </button>
+            <button
+              id="clearCartBtn"
+              class="w-12 bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-500 rounded-xl transition-all duration-300"
+            >
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== AREA PRODUK (FULL KANAN) ========== -->
+      <div class="flex-1 overflow-y-auto p-5 bg-[#e5e7eb]">
+        <div
+          id="productsGrid"
+          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+        >
+          <!-- Product tiles akan diisi JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== FAB (Floating Action Button) di pojok kanan bawah ========== -->
+    <div class="fixed bottom-6 right-6 z-50">
+      <button
+        id="fabMenuBtn"
+        class="w-14 h-14 bg-[#f97316] rounded-full shadow-lg flex items-center justify-center hover:bg-[#ea580c] transition-all duration-300 hover:scale-110"
+      >
+        <i class="fas fa-plus text-white text-2xl"></i>
+      </button>
+
+      <!-- Floating Menu yang muncul saat FAB diklik -->
+      <div
+        id="fabMenu"
+        class="absolute bottom-16 right-0 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden hidden"
+        style="width: 280px"
+      >
+        <div class="p-3 border-b border-gray-100 bg-gray-50">
+          <span
+            class="text-xs font-semibold text-gray-400 uppercase tracking-wider"
+            >Menu Cepat</span
+          >
+        </div>
+        <div class="p-3 space-y-2">
+          <div class="relative">
+            <i
+              class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
+            ></i>
+            <input
+              type="text"
+              id="searchProduct"
+              placeholder="Cari menu..."
+              class="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#f97316] focus:ring-1 focus:ring-[#f97316]"
+            />
+          </div>
+          <button
+            id="openModalBtn"
+            class="w-full bg-[#f97316] hover:bg-[#ea580c] text-white font-semibold py-2.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2"
+          >
+            <i class="fas fa-plus-circle"></i> Tambah Menu
+          </button>
+          <button
+            id="resetBtn"
+            class="w-full bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-600 font-semibold py-2.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-2"
+          >
+            <i class="fas fa-sync-alt"></i> Reset Data
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL TAMBAH PRODUK -->
+    <div
+      id="productModal"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 hidden"
+    >
+      <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+        <div
+          class="p-5 border-b border-gray-100 flex justify-between items-center"
+        >
+          <div class="flex items-center gap-2">
+            <div
+              class="w-8 h-8 bg-[#f97316] rounded-xl flex items-center justify-center"
+            >
+              <i class="fas fa-plus text-white text-sm"></i>
+            </div>
+            <h3 class="font-bold text-gray-800 text-lg">Tambah Menu Baru</h3>
+          </div>
+          <button
+            id="closeModalBtn"
+            class="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="p-5 space-y-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1"
+              >Nama Menu</label
+            >
+            <input
+              type="text"
+              id="modalProductName"
+              placeholder="Contoh: Es Campur"
+              class="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-[#f97316] focus:ring-1 focus:ring-[#f97316]"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1"
+              >Harga (Rp)</label
+            >
+            <input
+              type="number"
+              id="modalProductPrice"
+              placeholder="15000"
+              class="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-[#f97316] focus:ring-1 focus:ring-[#f97316]"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1"
+              >Nama File Gambar</label
+            >
+            <input
+              type="text"
+              id="modalProductImage"
+              placeholder="es_campur.jpg"
+              class="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-[#f97316] focus:ring-1 focus:ring-[#f97316]"
+            />
+            <p class="text-xs text-gray-400 mt-1">
+              Masukkan nama file gambar dari folder images/
+            </p>
+          </div>
+          <div class="flex gap-3 pt-2">
+            <button
+              id="confirmAddProductBtn"
+              class="flex-1 bg-[#f97316] hover:bg-[#ea580c] text-white font-semibold py-2.5 rounded-xl transition"
+            >
+              Tambah
+            </button>
+            <button
+              id="cancelModalBtn"
+              class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl transition"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/script4.js"></script>
+  </body>
+</html>
