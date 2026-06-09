@@ -1,4 +1,4 @@
-﻿import {
+import {
   Bell,
   Boxes,
   CalendarDays,
@@ -115,7 +115,20 @@ const sidebarGroups = [
   {
     label: 'Inventori',
     icon: Boxes,
-    children: ['Daftar Bahan Baku', 'Pembelian Stok', 'Kelola Stok'],
+    children: [
+      'Daftar Bahan Baku',
+      {
+        label: 'Pembelian Stok',
+        children: ['Permintaan Barang', 'Pemesanan Stok', 'Pengiriman Pembelian', 'Faktur Pembelian', 'Pembayaran Faktur', 'Retur'],
+      },
+      {
+        label: 'Kelola Stok',
+        children: ['Daftar Stok', 'Stok Opname', 'Stok Terbuang'],
+      },
+      'Produksi Stok',
+      'Mutasi Antar Outlet',
+      'Daftar Pemasok'
+    ],
   },
   {
     label: 'Pelanggan',

@@ -62,6 +62,7 @@ import {
   formatQty,
   buildSalesSummary,
 } from './moduleBlueprints.js'
+import { DaftarBahanBakuPage, PemesananStokPage, DaftarStokPage } from './InventoryPages.jsx'
 
 function Metric({ label, value }) {
   return (
@@ -107,6 +108,11 @@ function ModulePage({ activePage, onStartFlow, posData }) {
   if (productPageConfigs[activePage]) {
     return <ProductDirectoryPage config={productPageConfigs[activePage]} onStartFlow={onStartFlow} posData={posData} />
   }
+
+  // Inventori custom pages
+  if (activePage === 'Daftar Bahan Baku') return <DaftarBahanBakuPage />
+  if (activePage === 'Pemesanan Stok') return <PemesananStokPage />
+  if (activePage === 'Daftar Stok') return <DaftarStokPage />
 
   return <GenericModulePage activePage={activePage} onStartFlow={onStartFlow} posData={posData} />
 }
