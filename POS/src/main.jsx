@@ -4398,6 +4398,7 @@ function usePostgresPosData(session) {
 
 function App() {
   const { session, loading: sessionLoading, setSession, signOut } = useApiSession()
+  const isKasir = session?.user?.role === 'kasir' || session?.user?.email?.includes('kasir')
   const [isPosMode, setIsPosMode] = useState(false)
   const [activeTab, setActiveTab] = useState('Penjualan')
   const [activePage, setActivePage] = useState('Menu Favorit')
@@ -4423,6 +4424,12 @@ function App() {
     setActiveOutlet(nextOutlets[1] || nextOutlets[0])
   }, [posData.memberships])
 
+  useEffect(() => {
+    if (isKasir && !sessionLoading) {
+      setIsPosMode(true)
+    }
+  }, [isKasir, sessionLoading])
+
   if (sessionLoading) return <LoadingApp />
   if (!session) return <AuthPage onAuthenticated={setSession} />
   if (posData.loading) return <LoadingApp />
@@ -4441,7 +4448,7 @@ function App() {
   if (isPosMode) {
     return (
       <>
-        <PosApp posData={posData} onClose={() => setIsPosMode(false)} />
+        <PosApp posData={posData} session={session} onClose={() => setIsPosMode(false)} />
         <Toaster richColors position="top-right" />
       </>
     )
