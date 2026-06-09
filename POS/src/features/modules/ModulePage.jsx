@@ -65,6 +65,7 @@ import {
 } from './moduleBlueprints.js'
 import { DaftarBahanBakuPage, PemesananStokPage, DaftarStokPage } from './InventoryPages.jsx'
 import { ProductFormModal } from './ProductFormModal.jsx'
+import { DaftarPelangganPage } from './CustomerPages.jsx'
 
 function Metric({ label, value }) {
   return (
@@ -111,10 +112,12 @@ function ModulePage({ activePage, onStartFlow, posData }) {
     return <ProductDirectoryPage config={productPageConfigs[activePage]} onStartFlow={onStartFlow} posData={posData} />
   }
 
-  // Inventori custom pages
   if (activePage === 'Daftar Bahan Baku') return <DaftarBahanBakuPage />
   if (activePage === 'Pemesanan Stok') return <PemesananStokPage />
   if (activePage === 'Daftar Stok') return <DaftarStokPage />
+
+  // Customer custom pages
+  if (activePage === 'Daftar Pelanggan') return <DaftarPelangganPage posData={posData} onRefresh={() => window.location.reload()} />
 
   return <GenericModulePage activePage={activePage} onStartFlow={onStartFlow} posData={posData} />
 }

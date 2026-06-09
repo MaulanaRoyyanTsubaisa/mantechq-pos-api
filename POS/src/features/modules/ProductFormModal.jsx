@@ -12,6 +12,7 @@ export function ProductFormModal({ posData, onClose, onSuccess }) {
     sell_price: '',
     qty_on_hand: '',
     qty_minimum: '',
+    photo_url: '',
   })
 
   const orgId = posData?.memberships?.[0]?.org_id
@@ -39,6 +40,7 @@ export function ProductFormModal({ posData, onClose, onSuccess }) {
         sellPrice: Number(formData.sell_price),
         qtyOnHand: Number(formData.qty_on_hand),
         qtyMinimum: Number(formData.qty_minimum),
+        photoUrl: formData.photo_url,
         createdBy: posData?.user?.id
       })
       toast.success('Produk berhasil ditambahkan')
@@ -85,6 +87,10 @@ export function ProductFormModal({ posData, onClose, onSuccess }) {
               <label className="text-sm font-semibold text-gray-600">Stok Minimum</label>
               <input type="number" name="qty_minimum" value={formData.qty_minimum} onChange={handleChange} className="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-sm" placeholder="0" />
             </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-semibold text-gray-600">URL Foto Produk</label>
+            <input name="photo_url" value={formData.photo_url} onChange={handleChange} className="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-sm" placeholder="Contoh: https://example.com/foto.jpg" />
           </div>
         </form>
         <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">

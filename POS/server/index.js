@@ -149,9 +149,9 @@ app.post('/api/products', async (req, res) => {
     const result = await pool.query(
       `insert into public.st_mast (
         org_id, outlet_id, sku, item_name, category_name, unit,
-        sell_price, qty_on_hand, qty_minimum, is_active, created_by
+        sell_price, qty_on_hand, qty_minimum, is_active, created_by, photo_url
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11)
       returning *`,
       [
         product.orgId,
@@ -164,7 +164,32 @@ app.post('/api/products', async (req, res) => {
         Number(product.qtyOnHand || 0),
         Number(product.qtyMinimum || 0),
         product.createdBy || null,
+        product.photoUrl || null,
       ],
+    )
+    res.status(201).json(result.rows[0])
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.get('/api/customers', async (_req, res) => {
+  try {
+    const result = await pool.query('select * from public.m_pelanggan order by name')
+    res.json(result.rows)
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.post('/api/customers', async (req, res) => {
+  const c = req.body
+  try {
+    const result = await pool.query(
+      `insert into public.m_pelanggan (org_id, outlet_id, name, phone, email, address, points)
+       values ($1, $2, $3, $4, $5, $6, $7)
+       returning *`,
+      [c.orgId, c.outletId, c.name, c.phone, c.email, c.address, c.points || 0]
     )
     res.status(201).json(result.rows[0])
   } catch (error) {
@@ -202,7 +227,7 @@ app.get('/api/pos-data', async (req, res) => {
     const membershipUserFilter = req.query.userId ? 'and user_id = $1' : ''
     if (req.query.userId) membershipParams.push(req.query.userId)
 
-    const [memberships, stockItems, sales, salesDetails, stockMutations] = await Promise.all([
+    const [memberships, stockItems, sales, salesDetails, stockMutations, customers] = await Promise.all([
       client.query(
         `select * from public.pos_team_members
          where is_active = true ${membershipUserFilter}
@@ -232,6 +257,7 @@ app.get('/api/pos-data', async (req, res) => {
          join public.st_mast st on st.id = sm.st_mast_id
          order by sm.created_at desc`,
       ),
+      client.query('select * from public.m_pelanggan order by name'),
     ])
 
     res.json({
@@ -240,6 +266,7 @@ app.get('/api/pos-data', async (req, res) => {
       sales: sales.rows,
       salesDetails: salesDetails.rows,
       stockMutations: stockMutations.rows,
+      customers: customers.rows,
     })
   } catch (error) {
     sendPgError(res, error)

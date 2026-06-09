@@ -464,14 +464,14 @@ Terima kasih telah berbelanja!`
           
           <div className="hide-on-print" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => window.print()} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: '10px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <button onClick={() => window.print()} style={{ flex: 1, padding: '12px', background: '#fff', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: '10px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <Printer size={16} /> Cetak Struk
               </button>
-              <button onClick={handleWA} style={{ flex: 1, padding: '12px', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', borderRadius: '10px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <button onClick={handleWA} style={{ flex: 1, padding: '12px', background: '#fff', color: '#08a88c', border: '1px solid #6ee7b7', borderRadius: '10px', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <MessageCircle size={16} /> Kirim WA
               </button>
             </div>
-            <button onClick={() => setReceipt(null)} style={{ width: '100%', padding: '14px', background: '#08a88c', color: '#fff', border: 'none', borderRadius: '10px', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+            <button onClick={() => setReceipt(null)} style={{ width: '100%', padding: '14px', background: 'transparent', color: '#94a3b8', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>
               Transaksi Baru
             </button>
           </div>
@@ -548,6 +548,13 @@ Terima kasih telah berbelanja!`
             <div className="pos-grid">
               {filteredStock.map(item => (
                 <div key={item.id} className="pos-product-card" onClick={() => handleProductClick(item)}>
+                  <div className="pos-product-img-wrapper" style={{ width: '100%', height: '120px', backgroundColor: '#f1f5f9', borderRadius: '8px', marginBottom: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {item.photo_url ? (
+                      <img src={item.photo_url} alt={item.item_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <Store size={32} color="#cbd5e1" />
+                    )}
+                  </div>
                   <div className="pos-product-name">{item.item_name}</div>
                   <div className="pos-product-sku">{item.sku}</div>
                   <div className="pos-product-price">
