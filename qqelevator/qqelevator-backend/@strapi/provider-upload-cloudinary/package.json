@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "qqelevator-backend": "file:../.."
+  }
+}

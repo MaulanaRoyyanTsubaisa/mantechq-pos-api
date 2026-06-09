@@ -1,0 +1,21 @@
+{
+  "collectionName": "components_home_page_seksi_why_choose_uses",
+  "info": {
+    "displayName": "Seksi Why Choose Us"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "subtitle": {
+      "type": "blocks"
+    },
+    "benefitCards": {
+      "type": "component",
+      "component": "elements.card-fetaure",
+      "repeatable": true
+    }
+  },
+  "config": {}
+}

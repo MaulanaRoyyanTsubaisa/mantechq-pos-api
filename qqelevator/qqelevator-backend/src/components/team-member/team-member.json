@@ -1,0 +1,33 @@
+{
+  "collectionName": "components_team_member_team_members",
+  "info": {
+    "displayName": "TeamMember",
+    "icon": "user"
+  },
+  "options": {},
+  "attributes": {
+    "name": {
+      "type": "string"
+    },
+    "position": {
+      "type": "string"
+    },
+    "photo": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    },
+    "linkedin_url": {
+      "type": "string"
+    },
+    "twitter_url": {
+      "type": "string"
+    }
+  },
+  "config": {}
+}

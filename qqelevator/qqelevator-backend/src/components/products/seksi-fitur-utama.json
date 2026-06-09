@@ -1,0 +1,19 @@
+{
+  "collectionName": "components_products_seksi_fitur_utamas",
+  "info": {
+    "displayName": "Seksi Fitur Utama",
+    "icon": "code"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "daftarFitur": {
+      "type": "component",
+      "component": "products.item-fitur",
+      "repeatable": true
+    }
+  },
+  "config": {}
+}

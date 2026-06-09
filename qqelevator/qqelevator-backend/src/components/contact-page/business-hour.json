@@ -1,0 +1,17 @@
+{
+  "collectionName": "components_contact_page_business_hours",
+  "info": {
+    "displayName": "BusinessHour",
+    "icon": "clock"
+  },
+  "options": {},
+  "attributes": {
+    "days": {
+      "type": "string"
+    },
+    "hours": {
+      "type": "string"
+    }
+  },
+  "config": {}
+}

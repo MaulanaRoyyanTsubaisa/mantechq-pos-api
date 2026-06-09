@@ -1,0 +1,14 @@
+{
+  "collectionName": "components_contact_page_form_subjects",
+  "info": {
+    "displayName": "form_subjects",
+    "icon": "strikeThrough"
+  },
+  "options": {},
+  "attributes": {
+    "subject": {
+      "type": "string"
+    }
+  },
+  "config": {}
+}

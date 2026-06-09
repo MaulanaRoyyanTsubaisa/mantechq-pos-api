@@ -1,0 +1,24 @@
+{
+  "collectionName": "components_products_hero_produk_details",
+  "info": {
+    "displayName": "Hero Produk Detail"
+  },
+  "options": {},
+  "attributes": {
+    "tagline": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "subtitle": {
+      "type": "string"
+    },
+    "buttons": {
+      "type": "component",
+      "component": "elements.tombol-hero",
+      "repeatable": true
+    }
+  },
+  "config": {}
+}

@@ -1,0 +1,18 @@
+{
+  "collectionName": "components_products_seksi_aplikasis",
+  "info": {
+    "displayName": "Seksi Aplikasi"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "daftarTags": {
+      "type": "component",
+      "component": "products.tag-aplikasi",
+      "repeatable": true
+    }
+  },
+  "config": {}
+}

@@ -1,0 +1,14 @@
+{
+  "collectionName": "components_project_feature_items",
+  "info": {
+    "displayName": "feature-item",
+    "icon": "apps"
+  },
+  "options": {},
+  "attributes": {
+    "text": {
+      "type": "string"
+    }
+  },
+  "config": {}
+}

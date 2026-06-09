@@ -1,0 +1,18 @@
+{
+  "collectionName": "components_products_seksi_spek_teknis",
+  "info": {
+    "displayName": "Seksi Spek Teknis"
+  },
+  "options": {},
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "daftarSpek": {
+      "type": "component",
+      "component": "products.item-spek",
+      "repeatable": true
+    }
+  },
+  "config": {}
+}

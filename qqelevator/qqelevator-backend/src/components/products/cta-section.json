@@ -1,0 +1,21 @@
+{
+  "collectionName": "components_products_cta_sections",
+  "info": {
+    "displayName": "cta_section"
+  },
+  "options": {},
+  "attributes": {
+    "Title": {
+      "type": "string"
+    },
+    "Subtitle": {
+      "type": "text"
+    },
+    "button": {
+      "type": "component",
+      "component": "elements.tombol-hero",
+      "repeatable": true
+    }
+  },
+  "config": {}
+}

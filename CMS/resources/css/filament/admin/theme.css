@@ -1,0 +1,66 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+/* Custom styles for more compact navigation */
+.fi-sidebar {
+    @apply bg-gray-900 border-r border-gray-800;
+}
+
+.fi-sidebar-header {
+    @apply py-3 px-4;
+}
+
+.fi-sidebar-item {
+    @apply py-1.5 px-3 rounded-lg mx-2 mb-0.5;
+}
+
+.fi-sidebar-item-active {
+    @apply bg-primary-500/10 text-primary-500;
+}
+
+.fi-sidebar-item-icon {
+    @apply w-4 h-4 opacity-75;
+}
+
+.fi-sidebar-group {
+    @apply pt-2 pb-1;
+}
+
+.fi-sidebar-group-label {
+    @apply text-xs uppercase tracking-wider text-gray-400 font-medium px-3 py-1.5;
+}
+
+.fi-sidebar-item-label {
+    @apply text-sm font-medium;
+}
+
+/* Badge styling */
+.fi-badge {
+    @apply text-xs py-0.5 px-1.5 rounded-full;
+}
+
+/* Header styling */
+.fi-topbar {
+    @apply h-14 border-b border-gray-200 dark:border-gray-800;
+}
+
+.fi-logo {
+    @apply h-8 dark:brightness-200;
+}
+
+/* Navigation groups */
+.fi-sidebar-group-items {
+    @apply space-y-1;
+}
+
+/* Hover states */
+.fi-sidebar-item:hover {
+    @apply bg-gray-800/50;
+}
+
+/* Active states */
+.fi-sidebar-item-active .fi-sidebar-item-label {
+    @apply text-primary-500;
+}
+
+.fi-sidebar-item-active .fi-sidebar-item-icon {
+    @apply text-primary-500;

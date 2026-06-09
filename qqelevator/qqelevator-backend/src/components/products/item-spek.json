@@ -1,0 +1,16 @@
+{
+  "collectionName": "components_products_item_speks",
+  "info": {
+    "displayName": "Item Spek"
+  },
+  "options": {},
+  "attributes": {
+    "judulspek": {
+      "type": "string"
+    },
+    "nilaispek": {
+      "type": "string"
+    }
+  },
+  "config": {}
+}

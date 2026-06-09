@@ -1,0 +1,13 @@
+{
+  "collectionName": "components_products_fitur_produks",
+  "info": {
+    "displayName": "Fitur Produk"
+  },
+  "options": {},
+  "attributes": {
+    "feature": {
+      "type": "string"
+    }
+  },
+  "config": {}
+}

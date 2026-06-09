@@ -1,0 +1,29 @@
+{
+  "collectionName": "components_home_page_testimonials",
+  "info": {
+    "displayName": "Testimonial"
+  },
+  "options": {},
+  "attributes": {
+    "quote": {
+      "type": "text"
+    },
+    "authorName": {
+      "type": "string"
+    },
+    "authorPosition": {
+      "type": "string"
+    },
+    "image": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  },
+  "config": {}
+}

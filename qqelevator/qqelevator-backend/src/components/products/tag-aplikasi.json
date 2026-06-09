@@ -1,0 +1,13 @@
+{
+  "collectionName": "components_products_tag_aplikasis",
+  "info": {
+    "displayName": "Tag Aplikasi"
+  },
+  "options": {},
+  "attributes": {
+    "label": {
+      "type": "string"
+    }
+  },
+  "config": {}
+}

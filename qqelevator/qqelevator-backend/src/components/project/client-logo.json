@@ -1,0 +1,20 @@
+{
+  "collectionName": "components_project_client_logos",
+  "info": {
+    "displayName": "ClientLogo"
+  },
+  "options": {},
+  "attributes": {
+    "client_logos": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  },
+  "config": {}
+}

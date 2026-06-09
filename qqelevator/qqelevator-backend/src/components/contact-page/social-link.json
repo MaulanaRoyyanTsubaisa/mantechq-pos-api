@@ -1,0 +1,23 @@
+{
+  "collectionName": "components_contact_page_social_links",
+  "info": {
+    "displayName": "SocialLink",
+    "icon": "code"
+  },
+  "options": {},
+  "attributes": {
+    "platform": {
+      "type": "enumeration",
+      "enum": [
+        "Facebook",
+        "Twitter",
+        "Instagram",
+        "LinkedIn"
+      ]
+    },
+    "url": {
+      "type": "string"
+    }
+  },
+  "config": {}
+}

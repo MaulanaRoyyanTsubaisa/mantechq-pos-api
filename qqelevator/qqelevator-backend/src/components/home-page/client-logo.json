@@ -1,0 +1,21 @@
+{
+  "collectionName": "components_home_page_client_logos",
+  "info": {
+    "displayName": "Client Logo",
+    "icon": "picture"
+  },
+  "options": {},
+  "attributes": {
+    "logo": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  },
+  "config": {}
+}

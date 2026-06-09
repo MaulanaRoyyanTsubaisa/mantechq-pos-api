@@ -1,0 +1,13 @@
+{
+  "collectionName": "components_products_item_fiturs",
+  "info": {
+    "displayName": "Item Fitur"
+  },
+  "options": {},
+  "attributes": {
+    "text": {
+      "type": "string"
+    }
+  },
+  "config": {}
+}
