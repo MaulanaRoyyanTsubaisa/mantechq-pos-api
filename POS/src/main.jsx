@@ -3338,6 +3338,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
     height: '1',
     weight: '100',
     variants: [],
+    photoUrl: '',
   })
   const [variantInput, setVariantInput] = useState({ name: '', sku: '', sellPrice: '', qtyOnHand: '' })
   const [errors, setErrors] = useState({})
@@ -3449,6 +3450,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
         sellPrice: parseCurrencyInput(values.sellPrice),
         qtyOnHand: parseQuantityInput(values.qtyOnHand),
         qtyMinimum: 0,
+        photoUrl: values.photoUrl,
         createdBy: session?.user?.id,
         variants: values.variants,
       }
@@ -3500,11 +3502,15 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FormRow>
             <FormRow label="Foto Produk">
               <div className="photo-row">
-                <p>Gunakan rasio foto 1:1 dengan ukuran 10Kb dan maksimal 1Mb. Format foto .jpg, .jpeg, .png ukuran minimum 100px x 100px.</p>
-                <button className="upload-box">
-                  <Package size={20} />
-                  <span>Pilih atau letakkan berkas di sini</span>
-                </button>
+                <p>Tempelkan URL foto produk di sini.</p>
+                <input 
+                  type="text" 
+                  value={values.photoUrl} 
+                  onChange={(e) => setField('photoUrl', e.target.value)} 
+                  placeholder="Contoh: https://example.com/foto.jpg" 
+                  className="border border-gray-300 rounded px-3 py-2 mt-2 w-full max-w-sm"
+                  style={{ minHeight: '40px', borderColor: '#cbd2d9', borderRadius: '7px' }}
+                />
               </div>
             </FormRow>
             <FormRow refNode={register('category')} guideKey="category" currentKey={currentGuide?.key} label="Kategori Produk*" error={errors.category}>

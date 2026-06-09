@@ -4949,3 +4949,58 @@ button {
     width: 100%;
   }
 }
+
+@media (max-width: 899px) {
+  .flow-body {
+    grid-template-columns: 1fr;
+    padding: 24px 16px 88px;
+  }
+  .flow-sidebar {
+    position: static;
+    display: flex;
+    overflow-x: auto;
+    padding: 12px;
+    gap: 8px;
+  }
+  .flow-sidebar button {
+    white-space: nowrap;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    padding: 8px 12px;
+  }
+  .flow-sidebar button.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--brand);
+  }
+  .form-row, 
+  .employee-card .form-row, 
+  .category-form-card .form-row {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .form-row > label {
+    margin-bottom: 4px;
+  }
+  .schedule-grid,
+  .address-grid,
+  .manager-grid,
+  .radio-grid,
+  .online-balance-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .top-module-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .top-module-grid {
+    grid-template-columns: 1fr;
+  }
+  .flow-card {
+    padding: 16px;
+  }
+  .employee-card {
+    padding: 16px;
+  }
+}
