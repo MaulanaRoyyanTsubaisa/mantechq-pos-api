@@ -123,7 +123,7 @@ const sidebarGroups = [
       },
       {
         label: 'Kelola Stok',
-        children: ['Daftar Stok', 'Stok Opname', 'Stok Terbuang'],
+        children: ['Daftar Stok', 'Stok Opname', 'Stok Terbuang', 'Riwayat Stok'],
       },
       'Produksi Stok',
       'Mutasi Antar Outlet',
@@ -703,6 +703,21 @@ const productPageConfigs = {
     columns: ['NAMA JADWAL', 'PERIODE', 'PRODUK', 'HARGA BARU', 'STATUS', ''],
     rows: [],
   },
+  'Lap. Detail Persediaan': {
+    title: 'Laporan Detail Persediaan',
+    type: 'report',
+    filters: ['Semua Outlet', 'Semua Kategori', 'Semua Gudang'],
+    columns: ['PRODUK', 'SKU', 'STOK AWAL', 'STOK MASUK', 'STOK KELUAR', 'STOK AKHIR'],
+    rows: [],
+  },
+  'Riwayat Stok': {
+    title: 'Riwayat Stok (Stock Movement)',
+    type: 'report',
+    actions: ['Ekspor Data'],
+    filters: ['Semua Outlet', 'Semua Gudang', 'Semua Transaksi'],
+    columns: ['TANGGAL', 'PRODUK', 'SKU', 'REFERENSI', 'KETERANGAN', 'QTY BERUBAH', 'SISA STOK'],
+    rows: [],
+  },
   'Harga Berdasarkan Waktu': {
     title: 'Harga Berdasarkan Waktu',
     addLabel: 'Tambah Harga Waktu',
@@ -814,6 +829,18 @@ function mapSalesDetailRows(details) {
   ])
 }
 
+function mapStockMovementRows(mutations) {
+  return mutations.map((row) => [
+    new Date(row.created_at || Date.now()).toLocaleDateString('id-ID'),
+    row.item_name,
+    row.sku,
+    row.ref_id || '-',
+    row.type === 'SALE' ? 'Penjualan' : row.type === 'RESTOCK' ? 'Pembelian Stok' : 'Penyesuaian',
+    row.qty_change > 0 ? `+${formatQty(row.qty_change)}` : formatQty(row.qty_change),
+    formatQty(row.qty_after),
+  ])
+}
+
 function buildSalesSummary(posData) {
   const sales = posData.sales || []
   const details = posData.salesDetails || []
@@ -893,6 +920,7 @@ function buildChartPath(buckets, maxValue) {
 function getRowsForPage(page, posData) {
   const stockItems = posData.stockItems || []
   const salesDetails = posData.salesDetails || []
+  const stockMutations = posData.stockMutations || []
 
   if (page === 'Daftar Produk') return mapStockToProductRows(stockItems)
   if (page === 'Cetak Barcode') return mapStockToBarcodeRows(stockItems)
@@ -900,7 +928,25 @@ function getRowsForPage(page, posData) {
     return mapStockToInventoryRows(stockItems)
   }
   if (page === 'Detail Penjualan') return mapSalesDetailRows(salesDetails)
+  if (page === 'Riwayat Stok') return mapStockMovementRows(stockMutations)
   return []
+}
+
+function downloadCSV(title, columns, rows) {
+  const escapeCSV = (str) => `"${String(str).replace(/"/g, '""')}"`
+  const csvContent = [
+    columns.map(escapeCSV).join(','),
+    ...rows.map(row => row.map(escapeCSV).join(','))
+  ].join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', `${title.replace(/\s+/g, '_')}_${Date.now()}.csv`)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
 function itemLabel(item) {
@@ -949,10 +995,12 @@ export {
   mapStockToBarcodeRows,
   mapStockToInventoryRows,
   mapSalesDetailRows,
+  mapStockMovementRows,
   buildSalesSummary,
   buildDashboardChartData,
   buildChartPath,
   getRowsForPage,
+  downloadCSV,
   itemLabel,
   itemChildren,
   flattenItems,

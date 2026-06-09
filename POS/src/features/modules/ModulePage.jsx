@@ -61,6 +61,7 @@ import {
   formatRupiah,
   formatQty,
   buildSalesSummary,
+  downloadCSV,
 } from './moduleBlueprints.js'
 import { DaftarBahanBakuPage, PemesananStokPage, DaftarStokPage } from './InventoryPages.jsx'
 
@@ -161,7 +162,10 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
                   variant={action.toLowerCase().includes('tambah') ? 'default' : 'outline'}
                   onClick={() => {
                     if (action === 'Tambah Produk') onStartFlow('product')
-                    else toast.success(`${action} ${blueprint.title}`)
+                    else if (action.toLowerCase().includes('ekspor')) {
+                      downloadCSV(blueprint.title, blueprint.columns, rows)
+                      toast.success(`Berhasil mengekspor ${blueprint.title}`)
+                    } else toast.success(`${action} ${blueprint.title}`)
                   }}
                 >
                   <ActionIcon size={16} />

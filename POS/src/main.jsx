@@ -3337,7 +3337,9 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
     width: '1',
     height: '1',
     weight: '100',
+    variants: [],
   })
+  const [variantInput, setVariantInput] = useState({ name: '', sku: '', sellPrice: '', qtyOnHand: '' })
   const [errors, setErrors] = useState({})
   const refs = useRef({})
   const currentGuide = productGuideSteps[guideStep]
@@ -3437,7 +3439,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
 
     setSaving(true)
     try {
-      await createProduct({
+      const payload = {
         orgId: membership.org_id,
         outletId: membership.outlet_id,
         sku: values.sku.trim(),
@@ -3448,7 +3450,9 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
         qtyOnHand: parseQuantityInput(values.qtyOnHand),
         qtyMinimum: 0,
         createdBy: session?.user?.id,
-      })
+        variants: values.variants,
+      }
+      await createProduct(payload)
     } catch (error) {
       const message = error.code === '23505'
         ? 'SKU sudah dipakai di outlet ini.'
@@ -3599,10 +3603,30 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
           <section ref={register('section-Varian')} className="flow-card compact-flow-card">
             <h2>Varian Produk</h2>
             <FeaturePanel title="Produk Memiliki Varian" text="Tambahkan variasi ukuran, warna, rasa, atau opsi lain untuk produk ini.">
-              <div className="variant-builder">
-                <input placeholder="Nama varian, contoh: Ukuran" />
-                <input placeholder="Pilihan, contoh: S, M, L" />
-                <button>Tambah Varian</button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {values.variants.map((v, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 8, alignItems: 'center', background: '#f8fafc', padding: 8, borderRadius: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{v.name}</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>{v.sku}</div>
+                    <div style={{ fontSize: 13 }}>{formatRupiah(v.sellPrice)}</div>
+                    <div style={{ fontSize: 12 }}>Stok: {v.qtyOnHand}</div>
+                    <button style={{ color: '#e11d48', border: 'none', background: 'transparent', cursor: 'pointer' }} onClick={() => {
+                      const newVars = [...values.variants]; newVars.splice(i, 1); setField('variants', newVars);
+                    }}><Trash2 size={14}/></button>
+                  </div>
+                ))}
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+                  <input placeholder="Nama Varian (Misal: Large)" value={variantInput.name} onChange={e => setVariantInput({...variantInput, name: e.target.value})} style={{ padding: 8, borderRadius: 6, border: '1px solid #cbd5e1' }} />
+                  <input placeholder="SKU/Barcode Varian" value={variantInput.sku} onChange={e => setVariantInput({...variantInput, sku: e.target.value})} style={{ padding: 8, borderRadius: 6, border: '1px solid #cbd5e1' }} />
+                  <input placeholder="Harga Jual" value={variantInput.sellPrice} onChange={e => setVariantInput({...variantInput, sellPrice: e.target.value})} style={{ padding: 8, borderRadius: 6, border: '1px solid #cbd5e1' }} />
+                  <input placeholder="Stok" value={variantInput.qtyOnHand} onChange={e => setVariantInput({...variantInput, qtyOnHand: e.target.value})} style={{ padding: 8, borderRadius: 6, border: '1px solid #cbd5e1' }} />
+                </div>
+                <button style={{ padding: '8px 16px', background: '#08a88c', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', alignSelf: 'flex-start' }} onClick={() => {
+                  if(!variantInput.name || !variantInput.sku || !variantInput.sellPrice) return toast.error('Lengkapi form varian');
+                  setField('variants', [...values.variants, { id: 'v-'+Date.now(), name: variantInput.name, sku: variantInput.sku, sellPrice: parseCurrencyInput(variantInput.sellPrice), qtyOnHand: parseInt(variantInput.qtyOnHand) || 0 }]);
+                  setVariantInput({ name: '', sku: '', sellPrice: '', qtyOnHand: '' })
+                }}>Tambah Varian</button>
               </div>
             </FeaturePanel>
           </section>

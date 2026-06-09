@@ -31,8 +31,18 @@ export function PosApp({ posData, onClose, session }) {
   const [cashReceived, setCashReceived] = useState('')
   const [discountInput, setDiscountInput] = useState('')
   const [taxInput, setTaxInput] = useState('')
+  
+  // Split Payment State
+  const [isSplit, setIsSplit] = useState(false)
+  const [splitMethod1, setSplitMethod1] = useState('Tunai')
+  const [splitMethod2, setSplitMethod2] = useState('QRIS')
+  const [splitAmount1, setSplitAmount1] = useState('')
+
   const [saving, setSaving] = useState(false)
   const [receipt, setReceipt] = useState(null)
+  
+  // Variant Selection State
+  const [selectedProductForVariant, setSelectedProductForVariant] = useState(null)
 
   useEffect(() => {
     if (selectedOutlet || !firstOutlet) return
@@ -56,6 +66,9 @@ export function PosApp({ posData, onClose, session }) {
   
   const cashValue = parseCurrencyInput(cashReceived)
   const change = Math.max(cashValue - grandTotal, 0)
+
+  const splitValue1 = parseCurrencyInput(splitAmount1)
+  const splitValue2 = Math.max(grandTotal - splitValue1, 0)
 
   // Shift Functions
   const handleOpenShift = () => {
@@ -84,36 +97,50 @@ export function PosApp({ posData, onClose, session }) {
     toast.success(`Shift ditutup. Selisih kas: ${formatRupiah(selisih)}`)
   }
 
-  const addToCart = (item) => {
-    const stockQty = Number(item.qty_on_hand || 0)
+  const handleProductClick = (item) => {
+    if (item.variants && item.variants.length > 0) {
+      setSelectedProductForVariant(item)
+    } else {
+      addToCart(item)
+    }
+  }
+
+  const addToCart = (item, variant = null) => {
+    const stockQty = variant ? Number(variant.qty_on_hand || 0) : Number(item.qty_on_hand || 0)
+    const id = variant ? `${item.id}-${variant.id}` : item.id
+    const sku = variant ? variant.sku : item.sku
+    const price = variant ? Number(variant.sell_price || 0) : Number(item.sell_price || 0)
+    const itemName = variant ? `${item.item_name} - ${variant.name}` : item.item_name
+
     if (stockQty <= 0) {
       toast.error('Stok produk ini kosong.')
       return
     }
 
     setCart((current) => {
-      const existing = current.find((row) => row.id === item.id)
+      const existing = current.find((row) => row.id === id)
       if (existing) {
         if (existing.qty + 1 > stockQty) {
           toast.error('Kuantitas melebihi stok yang tersedia.')
           return current
         }
-        return current.map((row) => (row.id === item.id ? { ...row, qty: row.qty + 1 } : row))
+        return current.map((row) => (row.id === id ? { ...row, qty: row.qty + 1 } : row))
       }
       return [
         ...current,
         {
-          id: item.id,
-          sku: item.sku,
-          item_name: item.item_name,
+          id,
+          sku,
+          item_name: itemName,
           unit: item.unit || 'Pcs',
           stock: stockQty,
           qty: 1,
-          price: Number(item.sell_price || 0),
+          price,
           discount: 0,
         },
       ]
     })
+    setSelectedProductForVariant(null)
   }
 
   const updateCartQty = (id, delta) => {
@@ -139,26 +166,46 @@ export function PosApp({ posData, onClose, session }) {
     setTaxInput('')
     setPaymentMethod('Tunai')
     setCashReceived('')
+    setIsSplit(false)
+    setSplitAmount1('')
     setIsCartOpen(false)
   }
 
   const handleCheckout = async () => {
     if (!cart.length) return toast.error('Keranjang kosong.')
-    if (paymentMethod === 'Tunai' && cashValue < grandTotal) {
+    if (!isSplit && paymentMethod === 'Tunai' && cashValue < grandTotal) {
       return toast.error('Uang tunai kurang dari total bayar.')
+    }
+    if (isSplit && splitValue1 <= 0) {
+      return toast.error('Nominal split tidak valid.')
     }
 
     setSaving(true)
     try {
+      const finalPaymentMethod = isSplit ? `Split (${splitMethod1} & ${splitMethod2})` : paymentMethod
+      let amountPaid = grandTotal
+      if (!isSplit && paymentMethod === 'Tunai') {
+        amountPaid = cashValue
+      }
+      
+      let uangMasukShift = 0
+      if (!isSplit && paymentMethod === 'Tunai') {
+        uangMasukShift = grandTotal
+      } else if (isSplit) {
+        if (splitMethod1 === 'Tunai') uangMasukShift += splitValue1
+        if (splitMethod2 === 'Tunai') uangMasukShift += splitValue2
+      }
+
       const payload = {
         outlet_id: membership.outlet_id,
         items: cart.map(c => ({ item_id: c.id, qty: c.qty, price: c.price, discount: c.discount })),
         discount: discountValue,
         tax: taxValue,
-        payment_method: paymentMethod,
-        amount_paid: paymentMethod === 'Tunai' ? cashValue : grandTotal,
-        note: '',
+        payment_method: finalPaymentMethod,
+        amount_paid: amountPaid,
+        note: isSplit ? `Split: ${splitMethod1} (${formatRupiah(splitValue1)}) + ${splitMethod2} (${formatRupiah(splitValue2)})` : '',
       }
+      
       const data = await createSale(payload)
       toast.success('Transaksi berhasil disimpan.')
       
@@ -169,7 +216,12 @@ export function PosApp({ posData, onClose, session }) {
         subtotal,
         change: change,
         date: new Date().toLocaleString('id-ID'),
-        itemsDetail: cart
+        itemsDetail: cart,
+        isSplit,
+        splitDetail: isSplit ? [
+          { method: splitMethod1, amount: splitValue1 },
+          { method: splitMethod2, amount: splitValue2 }
+        ] : []
       }
 
       // Update shift data
@@ -177,7 +229,7 @@ export function PosApp({ posData, onClose, session }) {
         const updatedShift = {
           ...shift,
           totalPenjualan: shift.totalPenjualan + grandTotal,
-          uangMasuk: shift.uangMasuk + (paymentMethod === 'Tunai' ? grandTotal : 0)
+          uangMasuk: shift.uangMasuk + uangMasukShift
         }
         setShift(updatedShift)
         localStorage.setItem('pos_shift', JSON.stringify(updatedShift))
@@ -194,11 +246,16 @@ export function PosApp({ posData, onClose, session }) {
 
   const handleWA = () => {
     if (!receipt) return
+    let paymentText = `Metode: ${receipt.payment_method}`
+    if (receipt.isSplit) {
+      paymentText = `Metode: Split Payment\n- ${receipt.splitDetail[0].method}: ${formatRupiah(receipt.splitDetail[0].amount)}\n- ${receipt.splitDetail[1].method}: ${formatRupiah(receipt.splitDetail[1].amount)}`
+    }
+    
     const text = `*ManTechQ PoS*
 --------------------
 No: ${receipt.id}
 Tgl: ${receipt.date}
-Metode: ${receipt.payment_method}
+${paymentText}
 --------------------
 ${receipt.itemsDetail.map(i => `${i.item_name} x${i.qty} = ${formatRupiah(i.qty * i.price)}`).join('\n')}
 --------------------
@@ -210,6 +267,48 @@ Total: *${formatRupiah(receipt.total)}*
 Terima kasih telah berbelanja!`
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
+  // --- Render Variant Modal ---
+  if (selectedProductForVariant) {
+    return (
+      <div className="pos-layout pos-modal-overlay">
+        <div className="pos-modal">
+          <div className="pos-modal-header">
+            <h2>Pilih Varian</h2>
+            <p>{selectedProductForVariant.item_name}</p>
+          </div>
+          <div className="pos-modal-body" style={{ gap: 8 }}>
+            {selectedProductForVariant.variants.map(variant => {
+              const stockQty = Number(variant.qty_on_hand || 0)
+              const disabled = stockQty <= 0
+              return (
+                <button 
+                  key={variant.id} 
+                  className={`pos-product-card ${disabled ? 'disabled' : ''}`} 
+                  style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: '16px', opacity: disabled ? 0.6 : 1 }}
+                  onClick={() => !disabled && addToCart(selectedProductForVariant, variant)}
+                >
+                  <div style={{ textAlign: 'left' }}>
+                    <div className="pos-product-name">{variant.name}</div>
+                    <div className="pos-product-sku">{variant.sku}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div className="pos-product-price" style={{ marginBottom: 4 }}>{formatRupiah(variant.sell_price)}</div>
+                    <div className={`pos-product-stock ${stockQty <= 5 ? 'low' : ''}`} style={{ justifyContent: 'flex-end', margin: 0 }}>
+                      Stok: {formatQty(stockQty)}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          <div className="pos-modal-footer">
+            <button className="btn btn-outline" style={{width: '100%'}} onClick={() => setSelectedProductForVariant(null)}>Batal</button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // --- Render Shift Modals ---
@@ -331,16 +430,35 @@ Terima kasih telah berbelanja!`
             
             <div style={{ borderTop: '1px solid #f1f5f9', margin: '8px 0' }}></div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-              <span style={{ color: '#64748b' }}>Metode Bayar</span>
-              <strong style={{ color: '#0f172a' }}>{receipt.payment_method}</strong>
-            </div>
-            {receipt.payment_method === 'Tunai' && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ color: '#64748b' }}>Kembalian</span>
-                <strong style={{ color: '#08a88c' }}>{formatRupiah(receipt.change)}</strong>
-              </div>
+            {!receipt.isSplit ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ color: '#64748b' }}>Metode Bayar</span>
+                  <strong style={{ color: '#0f172a' }}>{receipt.payment_method}</strong>
+                </div>
+                {receipt.payment_method === 'Tunai' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <span style={{ color: '#64748b' }}>Kembalian</span>
+                    <strong style={{ color: '#08a88c' }}>{formatRupiah(receipt.change)}</strong>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                  <span style={{ color: '#64748b' }}>Split Payment</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ color: '#475569', paddingLeft: 8 }}>- {receipt.splitDetail[0].method}</span>
+                  <strong style={{ color: '#0f172a' }}>{formatRupiah(receipt.splitDetail[0].amount)}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span style={{ color: '#475569', paddingLeft: 8 }}>- {receipt.splitDetail[1].method}</span>
+                  <strong style={{ color: '#0f172a' }}>{formatRupiah(receipt.splitDetail[1].amount)}</strong>
+                </div>
+              </>
             )}
+
           </div>
           
           <div className="hide-on-print" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -396,9 +514,20 @@ Terima kasih telah berbelanja!`
               <Search size={18} color="#94a3b8" />
               <input 
                 type="text" 
-                placeholder="Cari nama produk atau SKU..." 
+                placeholder="Cari nama produk atau SKU (atau scan barcode)..." 
                 value={query} 
                 onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && query.trim() !== '') {
+                    const exactMatch = allStock.find(item => item.sku === query.trim() || item.barcode === query.trim())
+                    if (exactMatch) {
+                      handleProductClick(exactMatch)
+                      setQuery('')
+                    } else {
+                      toast.error('Produk dengan SKU tersebut tidak ditemukan')
+                    }
+                  }
+                }}
               />
             </div>
             <div className="pos-categories">
@@ -417,12 +546,14 @@ Terima kasih telah berbelanja!`
           <div className="pos-grid-wrap">
             <div className="pos-grid">
               {filteredStock.map(item => (
-                <div key={item.id} className="pos-product-card" onClick={() => addToCart(item)}>
+                <div key={item.id} className="pos-product-card" onClick={() => handleProductClick(item)}>
                   <div className="pos-product-name">{item.item_name}</div>
                   <div className="pos-product-sku">{item.sku}</div>
-                  <div className="pos-product-price">{formatRupiah(item.sell_price)}</div>
+                  <div className="pos-product-price">
+                    {item.variants?.length ? 'Mulai ' : ''}{formatRupiah(item.sell_price)}
+                  </div>
                   <div className={`pos-product-stock ${item.qty_on_hand <= 5 ? 'low' : ''}`}>
-                    Stok: {formatQty(item.qty_on_hand)} {item.unit || 'Pcs'}
+                    {item.variants?.length ? `${item.variants.length} Varian` : `Stok: ${formatQty(item.qty_on_hand)} ${item.unit || 'Pcs'}`}
                   </div>
                 </div>
               ))}
@@ -512,38 +643,67 @@ Terima kasih telah berbelanja!`
               <span>{formatRupiah(grandTotal)}</span>
             </div>
             
-            <div className="pos-payment-methods">
-              {['Tunai', 'QRIS', 'Transfer'].map(m => (
-                <button 
-                  key={m} 
-                  className={`pos-pay-method ${paymentMethod === m ? 'active' : ''}`}
-                  onClick={() => setPaymentMethod(m)}
-                >
-                  {m}
-                </button>
-              ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Metode Bayar</span>
+              <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: '#08a88c', fontWeight: 600 }}>
+                <input type="checkbox" checked={isSplit} onChange={e => setIsSplit(e.target.checked)} />
+                Split Payment
+              </label>
             </div>
 
-            {paymentMethod === 'Tunai' && (
-              <div style={{ marginTop: 8 }}>
-                <input 
-                  type="text" 
-                  className="pos-cash-input"
-                  placeholder="Uang Diterima (Rp)"
-                  value={cashReceived}
-                  onChange={e => setCashReceived(e.target.value)}
-                />
-                {cashValue >= grandTotal && grandTotal > 0 && (
-                  <div style={{ textAlign: 'right', fontSize: 13, color: '#64748b', marginTop: 6, fontWeight: 600 }}>
-                    Kembalian: <span style={{ color: '#08a88c', fontSize: 14 }}>{formatRupiah(change)}</span>
+            {!isSplit ? (
+              <>
+                <div className="pos-payment-methods">
+                  {['Tunai', 'QRIS', 'Transfer'].map(m => (
+                    <button 
+                      key={m} 
+                      className={`pos-pay-method ${paymentMethod === m ? 'active' : ''}`}
+                      onClick={() => setPaymentMethod(m)}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+
+                {paymentMethod === 'Tunai' && (
+                  <div style={{ marginTop: 8 }}>
+                    <input 
+                      type="text" 
+                      className="pos-cash-input"
+                      placeholder="Uang Diterima (Rp)"
+                      value={cashReceived}
+                      onChange={e => setCashReceived(e.target.value)}
+                    />
+                    {cashValue >= grandTotal && grandTotal > 0 && (
+                      <div style={{ textAlign: 'right', fontSize: 13, color: '#64748b', marginTop: 6, fontWeight: 600 }}>
+                        Kembalian: <span style={{ color: '#08a88c', fontSize: 14 }}>{formatRupiah(change)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
+              </>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4, background: '#f8fafc', padding: 8, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select className="pos-cash-input" style={{ width: '40%', padding: 8, fontSize: 13 }} value={splitMethod1} onChange={e => setSplitMethod1(e.target.value)}>
+                    <option>Tunai</option><option>QRIS</option><option>Transfer</option>
+                  </select>
+                  <input type="text" className="pos-cash-input" style={{ flex: 1, padding: 8, fontSize: 13 }} placeholder="Rp" value={splitAmount1} onChange={e => setSplitAmount1(e.target.value)} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select className="pos-cash-input" style={{ width: '40%', padding: 8, fontSize: 13 }} value={splitMethod2} onChange={e => setSplitMethod2(e.target.value)}>
+                    <option>Tunai</option><option>QRIS</option><option>Transfer</option>
+                  </select>
+                  <div className="pos-cash-input" style={{ flex: 1, padding: 8, fontSize: 13, background: '#e2e8f0', color: '#64748b' }}>
+                    {formatRupiah(splitValue2)}
+                  </div>
+                </div>
               </div>
             )}
 
             <button 
               className="pos-pay-btn" 
-              disabled={cart.length === 0 || saving || (paymentMethod === 'Tunai' && cashValue < grandTotal)}
+              disabled={cart.length === 0 || saving || (!isSplit && paymentMethod === 'Tunai' && cashValue < grandTotal) || (isSplit && splitValue1 <= 0)}
               onClick={handleCheckout}
             >
               {saving ? 'Memproses...' : 'Bayar Sekarang'}
