@@ -3334,11 +3334,15 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
     sellPrice: '',
     qtyOnHand: '0',
     length: '1',
-    width: '1',
-    height: '1',
     weight: '100',
     variants: [],
     photoUrl: '',
+    monitorPersediaan: false,
+    izinkanTidakDijual: false,
+    ubahHargaJual: false,
+    produkEkstra: true,
+    ubahDataEkstra: false,
+    resepProduk: true,
   })
   const [variantInput, setVariantInput] = useState({ name: '', sku: '', sellPrice: '', qtyOnHand: '' })
   const [errors, setErrors] = useState({})
@@ -3529,9 +3533,11 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FormRow>
             <FormRow refNode={register('stock')} guideKey="stock" currentKey={currentGuide?.key} label="Monitor Persediaan">
               <div className="inline-control">
-                <Toggle /> <span>Aktifkan Monitor Persediaan</span>
+                <Toggle checked={values.monitorPersediaan} onClick={() => setField('monitorPersediaan', !values.monitorPersediaan)} /> <span>Aktifkan Monitor Persediaan</span>
               </div>
-              <input value={values.qtyOnHand} onChange={(event) => setField('qtyOnHand', event.target.value)} placeholder="Stok awal" />
+              {values.monitorPersediaan && (
+                <input value={values.qtyOnHand} onChange={(event) => setField('qtyOnHand', event.target.value)} placeholder="Stok awal" />
+              )}
             </FormRow>
             <FormRow label="Serial Number">
               <FeaturePanel title="Serial Number" text="Kasir wajib memilih manual serial number saat penjualan. Nomor seri bisa dicatat per produk untuk pelacakan stok.">
@@ -3557,7 +3563,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FormRow>
             <FormRow label="Izinkan Ubah Produk Tidak Dijual">
               <div className="inline-control">
-                <Toggle /> <span>Izinkan kasir mengubah produk menjadi tidak tersedia/tidak dapat dijual di POS/Order Online</span>
+                <Toggle checked={values.izinkanTidakDijual} onClick={() => setField('izinkanTidakDijual', !values.izinkanTidakDijual)} /> <span>Izinkan kasir mengubah produk menjadi tidak tersedia/tidak dapat dijual di POS/Order Online</span>
               </div>
             </FormRow>
           </section>
@@ -3591,9 +3597,11 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FormRow>
             <FormRow label="Ubah Harga Jual">
               <div className="inline-control">
-                <Toggle /> <span>Izinkan kasir untuk mengubah harga jual</span>
+                <Toggle checked={values.ubahHargaJual} onClick={() => setField('ubahHargaJual', !values.ubahHargaJual)} /> <span>Izinkan kasir untuk mengubah harga jual</span>
               </div>
-              <input value="Maks.    0%" readOnly />
+              {values.ubahHargaJual && (
+                <input value="Maks.    0%" readOnly />
+              )}
             </FormRow>
             <FormRow label="Harga Grosir">
               <FeaturePanel title="Harga Grosir" text="Berikan harga bertingkat untuk pelanggan yang membeli dalam jumlah tertentu.">
@@ -3641,22 +3649,28 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             <h2>Ekstra</h2>
             <FormRow label="Produk Memiliki Ekstra">
               <div className="inline-control">
-                <Toggle checked /> <HelpCircle size={16} />
+                <Toggle checked={values.produkEkstra} onClick={() => setField('produkEkstra', !values.produkEkstra)} /> <HelpCircle size={16} />
               </div>
             </FormRow>
-            <FormRow label="Ubah Data Ekstra">
-              <div className="inline-control">
-                <Toggle /> <HelpCircle size={16} />
-              </div>
-            </FormRow>
-            <FormRow label="Atur Ekstra">
-              <SelectInput placeholder="Pilih Ekstra" options={extraOptions} />
-              <div className="tier-row">
-                <input placeholder="Nama ekstra, contoh: Sambal" />
-                <input placeholder="Harga ekstra" />
-                <button>Tambah Ekstra</button>
-              </div>
-            </FormRow>
+            {values.produkEkstra && (
+              <>
+                <FormRow label="Ubah Data Ekstra">
+                  <div className="inline-control">
+                    <Toggle checked={values.ubahDataEkstra} onClick={() => setField('ubahDataEkstra', !values.ubahDataEkstra)} /> <HelpCircle size={16} />
+                  </div>
+                </FormRow>
+                {values.ubahDataEkstra && (
+                  <FormRow label="Atur Ekstra">
+                    <SelectInput placeholder="Pilih Ekstra" options={extraOptions} />
+                    <div className="tier-row">
+                      <input placeholder="Nama ekstra, contoh: Sambal" />
+                      <input placeholder="Harga ekstra" />
+                      <button>Tambah Ekstra</button>
+                    </div>
+                  </FormRow>
+                )}
+              </>
+            )}
           </section>
 
           <section ref={register('section-Resep')} className="flow-card compact-flow-card">
@@ -3666,12 +3680,14 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FeaturePanel>
             <FormRow label="Resep Produk">
               <div className="inline-control">
-                <Toggle checked /> <span>Aktifkan untuk menambahkan resep pada produk</span>
+                <Toggle checked={values.resepProduk} onClick={() => setField('resepProduk', !values.resepProduk)} /> <span>Aktifkan untuk menambahkan resep pada produk</span>
               </div>
             </FormRow>
-            <FormRow label="Atur Bahan Baku">
-              <button className="outline-wide">Tambah Bahan Baku</button>
-            </FormRow>
+            {values.resepProduk && (
+              <FormRow label="Atur Bahan Baku">
+                <button className="outline-wide">Tambah Bahan Baku</button>
+              </FormRow>
+            )}
           </section>
 
           <section ref={register('section-majoo Order')} className="flow-card compact-flow-card">
@@ -4201,8 +4217,8 @@ function SelectInput({ placeholder, value, options = [], onChange, onClick }) {
   )
 }
 
-function Toggle({ checked }) {
-  return <span className={cn('toggle', checked && 'on')}>{checked ? 'ON' : 'OFF'}</span>
+function Toggle({ checked, onClick }) {
+  return <button type="button" onClick={onClick} className={cn('toggle', checked && 'on')}>{checked ? 'ON' : 'OFF'}</button>
 }
 
 function FeaturePanel({ title, text, children }) {
