@@ -89,8 +89,25 @@ export function ProductFormModal({ posData, onClose, onSuccess }) {
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-semibold text-gray-600">URL Foto Produk</label>
-            <input name="photo_url" value={formData.photo_url} onChange={handleChange} className="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-sm" placeholder="Contoh: https://example.com/foto.jpg" />
+            <label className="text-sm font-semibold text-gray-600">Foto Produk</label>
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setFormData(prev => ({ ...prev, photo_url: reader.result }));
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }} 
+              className="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-sm" 
+            />
+            {formData.photo_url && formData.photo_url.startsWith('data:image') && (
+              <img src={formData.photo_url} alt="Preview" className="mt-2 h-24 object-contain rounded border" />
+            )}
           </div>
         </form>
         <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">

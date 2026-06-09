@@ -3506,15 +3506,26 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FormRow>
             <FormRow label="Foto Produk">
               <div className="photo-row">
-                <p>Tempelkan URL foto produk di sini.</p>
+                <p>Pilih foto produk dari perangkat Anda.</p>
                 <input 
-                  type="text" 
-                  value={values.photoUrl} 
-                  onChange={(e) => setField('photoUrl', e.target.value)} 
-                  placeholder="Contoh: https://example.com/foto.jpg" 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setField('photoUrl', reader.result);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }} 
                   className="border border-gray-300 rounded px-3 py-2 mt-2 w-full max-w-sm"
                   style={{ minHeight: '40px', borderColor: '#cbd2d9', borderRadius: '7px' }}
                 />
+                {values.photoUrl && values.photoUrl.startsWith('data:image') && (
+                  <img src={values.photoUrl} alt="Preview" className="mt-2 h-24 object-contain rounded border" />
+                )}
               </div>
             </FormRow>
             <FormRow refNode={register('category')} guideKey="category" currentKey={currentGuide?.key} label="Kategori Produk*" error={errors.category}>
