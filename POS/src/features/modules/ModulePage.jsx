@@ -1451,7 +1451,15 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
               </Button>
             ))}
             {config.addLabel ? (
-              <Button onClick={() => (config.addFlow ? onStartFlow(config.addFlow) : toast.success(config.addLabel))}>
+              <Button onClick={() => {
+                if (config.addLabel === 'Tambah Produk' || config.addLabel === 'Tambah Bahan Baku') {
+                  setShowAddModal(true)
+                } else if (config.addFlow) {
+                  onStartFlow(config.addFlow)
+                } else {
+                  toast.success(config.addLabel)
+                }
+              }}>
                 <Plus size={18} />
                 {config.addLabel}
               </Button>
