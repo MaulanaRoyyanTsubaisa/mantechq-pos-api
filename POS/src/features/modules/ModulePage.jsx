@@ -1570,6 +1570,8 @@ function TransactionPage({ posData, session }) {
   const [discountTotal, setDiscountTotal] = useState('0')
   const [taxTotal, setTaxTotal] = useState('0')
   const [note, setNote] = useState('')
+  const [orderType, setOrderType] = useState('Dine-in')
+  const [tableNumber, setTableNumber] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -1684,7 +1686,12 @@ function TransactionPage({ posData, session }) {
         orgId: membership.org_id,
         outletId: membership.outlet_id,
         userId: session?.user?.id,
-        note: [paymentMethod ? `Metode bayar: ${paymentMethod}` : '', note.trim()].filter(Boolean).join(' | '),
+        note: [
+          `Tipe: ${orderType}`,
+          orderType === 'Dine-in' && tableNumber ? `Meja: ${tableNumber}` : '',
+          paymentMethod ? `Metode bayar: ${paymentMethod}` : '', 
+          note.trim()
+        ].filter(Boolean).join(' | '),
         discountTotal: discountValue,
         taxTotal: taxValue,
         paidTotal: paymentStatus === 'paid' ? grandTotal : 0,
@@ -1738,6 +1745,20 @@ function TransactionPage({ posData, session }) {
               <option value="unpaid">Belum Dibayar</option>
             </select>
           </label>
+          <label>
+            <span>Tipe Pesanan</span>
+            <select value={orderType} onChange={(event) => setOrderType(event.target.value)}>
+              <option value="Dine-in">Dine-in (Makan di Tempat)</option>
+              <option value="Takeaway">Takeaway (Bungkus)</option>
+              <option value="Delivery">Delivery (Antar)</option>
+            </select>
+          </label>
+          {orderType === 'Dine-in' && (
+            <label>
+              <span>Nomor Meja</span>
+              <input value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="Contoh: 12" style={{ padding: '6px 12px', border: '1px solid #ccc', borderRadius: 6 }} />
+            </label>
+          )}
         </div>
 
         <div className="transaction-layout">
