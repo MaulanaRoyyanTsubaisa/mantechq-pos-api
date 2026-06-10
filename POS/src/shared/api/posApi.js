@@ -57,12 +57,6 @@ export function createSale(sale) {
   })
 }
 
-export function createCustomer(customer) {
-  return apiRequest('/customers', {
-    method: 'POST',
-    body: JSON.stringify(customer),
-  })
-}
 export function getShift(orgId, outletId, userId) {
   const query = new URLSearchParams({ orgId, outletId, userId }).toString()
   return apiRequest(`/shifts/current?${query}`)
@@ -73,4 +67,41 @@ export function updateShift(payload) {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+}
+
+// Suppliers
+export function getSuppliers(orgId) {
+  return apiRequest(`/suppliers?orgId=${encodeURIComponent(orgId)}`)
+}
+export function createSupplier(payload) {
+  return apiRequest('/suppliers', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+// Purchase Orders
+export function getPurchaseOrders(orgId, outletId) {
+  const query = new URLSearchParams({ orgId, outletId: outletId || '' }).toString()
+  return apiRequest(`/purchase-orders?${query}`)
+}
+export function createPurchaseOrder(payload) {
+  return apiRequest('/purchase-orders', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+// Customers
+export function getCustomers(orgId) {
+  return apiRequest(`/customers?orgId=${encodeURIComponent(orgId)}`)
+}
+export function createCustomer(customer) {
+  return apiRequest('/customers', {
+    method: 'POST',
+    body: JSON.stringify(customer),
+  })
+}
+
+// Stock Opname
+export function getStockOpnames(orgId, outletId) {
+  const query = new URLSearchParams({ orgId, outletId: outletId || '' }).toString()
+  return apiRequest(`/stock-opname?${query}`)
+}
+export function createStockOpname(payload) {
+  return apiRequest('/stock-opname', { method: 'POST', body: JSON.stringify(payload) })
 }

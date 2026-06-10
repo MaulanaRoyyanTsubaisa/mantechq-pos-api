@@ -63,7 +63,7 @@ import {
   buildSalesSummary,
   downloadCSV,
 } from './moduleBlueprints.js'
-import { DaftarBahanBakuPage, PemesananStokPage, DaftarStokPage } from './InventoryPages.jsx'
+import { DaftarBahanBakuPage, PemesananStokPage, DaftarStokPage, DaftarPemasokPage, KelolaStokPage } from './InventoryPages.jsx'
 import { ProductFormModal } from './ProductFormModal.jsx'
 import { DaftarPelangganPage } from './CustomerPages.jsx'
 
@@ -115,6 +115,8 @@ function ModulePage({ activePage, onStartFlow, posData }) {
   if (activePage === 'Daftar Bahan Baku') return <DaftarBahanBakuPage />
   if (activePage === 'Pemesanan Stok') return <PemesananStokPage />
   if (activePage === 'Daftar Stok') return <DaftarStokPage />
+  if (activePage === 'Daftar Pemasok') return <DaftarPemasokPage />
+  if (activePage === 'Kelola Stok') return <KelolaStokPage />
 
   // Customer custom pages
   if (activePage === 'Daftar Pelanggan') return <DaftarPelangganPage posData={posData} onRefresh={() => window.location.reload()} />
@@ -1568,6 +1570,8 @@ function TransactionPage({ posData, session }) {
   const [discountTotal, setDiscountTotal] = useState('0')
   const [taxTotal, setTaxTotal] = useState('0')
   const [note, setNote] = useState('')
+  const [orderType, setOrderType] = useState('Dine-in')
+  const [tableNumber, setTableNumber] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -1640,6 +1644,26 @@ function TransactionPage({ posData, session }) {
     setPaymentStatus('paid')
   }
 
+  const holdOrder = () => {
+    if (!cart.length) return toast.error('Keranjang kosong')
+    const holdData = { cart, discountTotal, taxTotal, note }
+    const existingHolds = JSON.parse(localStorage.getItem('pos_held_orders') || '[]')
+    existingHolds.push({ id: Date.now(), label: `Hold ${new Date().toLocaleTimeString('id-ID')}`, data: holdData })
+    localStorage.setItem('pos_held_orders', JSON.stringify(existingHolds))
+    toast.success('Pesanan berhasil disimpan')
+    resetTransaction()
+  }
+
+  const loadHoldOrder = (hold) => {
+    setCart(hold.data.cart || [])
+    setDiscountTotal(hold.data.discountTotal || '0')
+    setTaxTotal(hold.data.taxTotal || '0')
+    setNote(hold.data.note || '')
+    const existingHolds = JSON.parse(localStorage.getItem('pos_held_orders') || '[]')
+    localStorage.setItem('pos_held_orders', JSON.stringify(existingHolds.filter(h => h.id !== hold.id)))
+    toast.success('Pesanan dilanjutkan')
+  }
+
   const saveTransaction = async () => {
     if (!membership?.org_id || !membership?.outlet_id) {
       toast.error('Outlet belum valid untuk transaksi.')
@@ -1662,7 +1686,12 @@ function TransactionPage({ posData, session }) {
         orgId: membership.org_id,
         outletId: membership.outlet_id,
         userId: session?.user?.id,
-        note: [paymentMethod ? `Metode bayar: ${paymentMethod}` : '', note.trim()].filter(Boolean).join(' | '),
+        note: [
+          `Tipe: ${orderType}`,
+          orderType === 'Dine-in' && tableNumber ? `Meja: ${tableNumber}` : '',
+          paymentMethod ? `Metode bayar: ${paymentMethod}` : '', 
+          note.trim()
+        ].filter(Boolean).join(' | '),
         discountTotal: discountValue,
         taxTotal: taxValue,
         paidTotal: paymentStatus === 'paid' ? grandTotal : 0,
@@ -1716,6 +1745,20 @@ function TransactionPage({ posData, session }) {
               <option value="unpaid">Belum Dibayar</option>
             </select>
           </label>
+          <label>
+            <span>Tipe Pesanan</span>
+            <select value={orderType} onChange={(event) => setOrderType(event.target.value)}>
+              <option value="Dine-in">Dine-in (Makan di Tempat)</option>
+              <option value="Takeaway">Takeaway (Bungkus)</option>
+              <option value="Delivery">Delivery (Antar)</option>
+            </select>
+          </label>
+          {orderType === 'Dine-in' && (
+            <label>
+              <span>Nomor Meja</span>
+              <input value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="Contoh: 12" style={{ padding: '6px 12px', border: '1px solid #ccc', borderRadius: 6 }} />
+            </label>
+          )}
         </div>
 
         <div className="transaction-layout">
@@ -1812,12 +1855,28 @@ function TransactionPage({ posData, session }) {
               </div>
               <div className="cart-actions">
                 <Button variant="outline" onClick={resetTransaction} disabled={saving || !cart.length}>
-                  <Trash2 size={16} />
-                  Reset
+                  <Trash2 size={16} /> Reset
+                </Button>
+                <Button variant="outline" onClick={holdOrder} disabled={saving || !cart.length}>
+                  <Clock3 size={16} /> Simpan
                 </Button>
                 <Button onClick={saveTransaction} disabled={saving || !cart.length}>
                   <CircleDollarSign size={17} />
-                  {saving ? 'Menyimpan...' : 'Simpan Transaksi'}
+                  {saving ? 'Menyimpan...' : 'Bayar'}
+                </Button>
+              </div>
+              <div className="cart-actions mt-2">
+                <Button 
+                  variant="outline" 
+                  style={{ width: '100%' }} 
+                  onClick={() => {
+                    const existingHolds = JSON.parse(localStorage.getItem('pos_held_orders') || '[]')
+                    if (!existingHolds.length) return toast.info('Tidak ada pesanan tersimpan')
+                    const hold = existingHolds[existingHolds.length - 1]
+                    loadHoldOrder(hold)
+                  }}
+                >
+                  <ClipboardList size={16} /> Lanjutkan Pesanan Terakhir ({JSON.parse(localStorage.getItem('pos_held_orders') || '[]').length})
                 </Button>
               </div>
             </div>
