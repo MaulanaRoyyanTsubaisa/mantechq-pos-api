@@ -53,6 +53,7 @@ import {
   getStoredSession,
   signInWithEmail,
 } from './lib/api.js'
+import { PosApp } from './features/pos/PosApp.jsx'
 import capitalVisual from './assets/capital-visual.png'
 import './style.css'
 
@@ -387,7 +388,7 @@ Object.entries(crudBlueprints).forEach(([key, columns]) => {
   moduleBlueprints[key] = {
     type: 'master',
     title: key,
-    description: `Kelola ${key.toLowerCase()} untuk operasional TripleSys PoS.`,
+    description: `Kelola ${key.toLowerCase()} untuk operasional ManTechQ PoS.`,
     actions: ['Tambah', 'Import', 'Export'],
     filters: ['Outlet', 'Status'],
     columns,
@@ -922,20 +923,20 @@ function Button({ className, variant = 'default', ...props }) {
 
 function Brand() {
   return (
-    <div className="brand" aria-label="TripleSys PoS">
+    <div className="brand" aria-label="ManTechQ PoS">
       <span className="brand-mark">
         <span className="brand-mark-glow" />
         <CircleDollarSign size={18} />
       </span>
       <span className="brand-word">
-        <span>TripleSys</span>
+        <span>ManTechQ</span>
         <strong>POS</strong>
       </span>
     </div>
   )
 }
 
-function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, setIsOpen, activeOutlet }) {
+function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, setIsOpen, activeOutlet, setIsPosMode }) {
   const [openNested, setOpenNested] = useState('Laporan Penjualan')
   const choose = (group, child) => {
     const nextPage = child || group.label
@@ -964,6 +965,15 @@ function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, s
           </span>
           <PanelLeftClose size={18} />
         </button>
+
+        <div style={{ padding: '0 16px', marginBottom: '16px' }}>
+          <button 
+            onClick={() => setIsPosMode(true)}
+            style={{ width: '100%', background: '#08a88c', color: '#fff', padding: '12px', borderRadius: '8px', border: 'none', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer' }}
+          >
+            <ShoppingBag size={18} /> Buka PoS Kasir
+          </button>
+        </div>
 
         <nav className="side-nav" aria-label="Navigasi utama">
           {sidebarGroups.map((group) => {
@@ -1034,7 +1044,7 @@ function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, s
           })}
         </nav>
 
-        <button className="care-card" onClick={() => toast.info('TripleSys Care siap membantu 24 jam')}>
+        <button className="care-card" onClick={() => toast.info('ManTechQ Care siap membantu 24 jam')}>
           <span className="care-logo">
             <HelpCircle size={19} /> Care
           </span>
@@ -1121,7 +1131,7 @@ function CapitalBanner({ compact }) {
         <img src={capitalVisual} alt="Ilustrasi modal bisnis POS" />
       </div>
       <div>
-        <small>TripleSys Capital</small>
+        <small>ManTechQ Capital</small>
         <h2>Modal usaha lebih siap, operasional tetap jalan.</h2>
         <p>Akses pembiayaan hingga Rp 280 juta untuk stok, outlet, dan kebutuhan bisnis harian.</p>
         <span>Ajukan Sekarang</span>
@@ -1492,7 +1502,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
   const blueprint = moduleBlueprints[activePage] || {
     type: 'master',
     title: activePage,
-    description: `Kelola ${activePage.toLowerCase()} untuk operasional TripleSys PoS.`,
+    description: `Kelola ${activePage.toLowerCase()} untuk operasional ManTechQ PoS.`,
     actions: ['Tambah'],
     filters: ['Outlet', 'Status'],
     columns: ['Nama', 'Status', 'Update'],
@@ -1544,7 +1554,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
             <Icon size={20} />
           </span>
           <div>
-            <strong>{parent?.label || 'TripleSys PoS'}</strong>
+            <strong>{parent?.label || 'ManTechQ PoS'}</strong>
             <p>{blueprint.description}</p>
           </div>
         </div>
@@ -3324,10 +3334,17 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
     sellPrice: '',
     qtyOnHand: '0',
     length: '1',
-    width: '1',
-    height: '1',
     weight: '100',
+    variants: [],
+    photoUrl: '',
+    monitorPersediaan: false,
+    izinkanTidakDijual: false,
+    ubahHargaJual: false,
+    produkEkstra: true,
+    ubahDataEkstra: false,
+    resepProduk: true,
   })
+  const [variantInput, setVariantInput] = useState({ name: '', sku: '', sellPrice: '', qtyOnHand: '' })
   const [errors, setErrors] = useState({})
   const refs = useRef({})
   const currentGuide = productGuideSteps[guideStep]
@@ -3427,7 +3444,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
 
     setSaving(true)
     try {
-      await createProduct({
+      const payload = {
         orgId: membership.org_id,
         outletId: membership.outlet_id,
         sku: values.sku.trim(),
@@ -3437,8 +3454,11 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
         sellPrice: parseCurrencyInput(values.sellPrice),
         qtyOnHand: parseQuantityInput(values.qtyOnHand),
         qtyMinimum: 0,
+        photoUrl: values.photoUrl,
         createdBy: session?.user?.id,
-      })
+        variants: values.variants,
+      }
+      await createProduct(payload)
     } catch (error) {
       const message = error.code === '23505'
         ? 'SKU sudah dipakai di outlet ini.'
@@ -3486,11 +3506,26 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FormRow>
             <FormRow label="Foto Produk">
               <div className="photo-row">
-                <p>Gunakan rasio foto 1:1 dengan ukuran 10Kb dan maksimal 1Mb. Format foto .jpg, .jpeg, .png ukuran minimum 100px x 100px.</p>
-                <button className="upload-box">
-                  <Package size={20} />
-                  <span>Pilih atau letakkan berkas di sini</span>
-                </button>
+                <p>Pilih foto produk dari perangkat Anda.</p>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setField('photoUrl', reader.result);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }} 
+                  className="border border-gray-300 rounded px-3 py-2 mt-2 w-full max-w-sm"
+                  style={{ minHeight: '40px', borderColor: '#cbd2d9', borderRadius: '7px' }}
+                />
+                {values.photoUrl && values.photoUrl.startsWith('data:image') && (
+                  <img src={values.photoUrl} alt="Preview" className="mt-2 h-24 object-contain rounded border" />
+                )}
               </div>
             </FormRow>
             <FormRow refNode={register('category')} guideKey="category" currentKey={currentGuide?.key} label="Kategori Produk*" error={errors.category}>
@@ -3509,9 +3544,11 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FormRow>
             <FormRow refNode={register('stock')} guideKey="stock" currentKey={currentGuide?.key} label="Monitor Persediaan">
               <div className="inline-control">
-                <Toggle /> <span>Aktifkan Monitor Persediaan</span>
+                <Toggle checked={values.monitorPersediaan} onClick={() => setField('monitorPersediaan', !values.monitorPersediaan)} /> <span>Aktifkan Monitor Persediaan</span>
               </div>
-              <input value={values.qtyOnHand} onChange={(event) => setField('qtyOnHand', event.target.value)} placeholder="Stok awal" />
+              {values.monitorPersediaan && (
+                <input value={values.qtyOnHand} onChange={(event) => setField('qtyOnHand', event.target.value)} placeholder="Stok awal" />
+              )}
             </FormRow>
             <FormRow label="Serial Number">
               <FeaturePanel title="Serial Number" text="Kasir wajib memilih manual serial number saat penjualan. Nomor seri bisa dicatat per produk untuk pelacakan stok.">
@@ -3537,7 +3574,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FormRow>
             <FormRow label="Izinkan Ubah Produk Tidak Dijual">
               <div className="inline-control">
-                <Toggle /> <span>Izinkan kasir mengubah produk menjadi tidak tersedia/tidak dapat dijual di POS/Order Online</span>
+                <Toggle checked={values.izinkanTidakDijual} onClick={() => setField('izinkanTidakDijual', !values.izinkanTidakDijual)} /> <span>Izinkan kasir mengubah produk menjadi tidak tersedia/tidak dapat dijual di POS/Order Online</span>
               </div>
             </FormRow>
           </section>
@@ -3571,9 +3608,11 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FormRow>
             <FormRow label="Ubah Harga Jual">
               <div className="inline-control">
-                <Toggle /> <span>Izinkan kasir untuk mengubah harga jual</span>
+                <Toggle checked={values.ubahHargaJual} onClick={() => setField('ubahHargaJual', !values.ubahHargaJual)} /> <span>Izinkan kasir untuk mengubah harga jual</span>
               </div>
-              <input value="Maks.    0%" readOnly />
+              {values.ubahHargaJual && (
+                <input value="Maks.    0%" readOnly />
+              )}
             </FormRow>
             <FormRow label="Harga Grosir">
               <FeaturePanel title="Harga Grosir" text="Berikan harga bertingkat untuk pelanggan yang membeli dalam jumlah tertentu.">
@@ -3589,10 +3628,30 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
           <section ref={register('section-Varian')} className="flow-card compact-flow-card">
             <h2>Varian Produk</h2>
             <FeaturePanel title="Produk Memiliki Varian" text="Tambahkan variasi ukuran, warna, rasa, atau opsi lain untuk produk ini.">
-              <div className="variant-builder">
-                <input placeholder="Nama varian, contoh: Ukuran" />
-                <input placeholder="Pilihan, contoh: S, M, L" />
-                <button>Tambah Varian</button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {values.variants.map((v, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 8, alignItems: 'center', background: '#f8fafc', padding: 8, borderRadius: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{v.name}</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>{v.sku}</div>
+                    <div style={{ fontSize: 13 }}>{formatRupiah(v.sellPrice)}</div>
+                    <div style={{ fontSize: 12 }}>Stok: {v.qtyOnHand}</div>
+                    <button style={{ color: '#e11d48', border: 'none', background: 'transparent', cursor: 'pointer' }} onClick={() => {
+                      const newVars = [...values.variants]; newVars.splice(i, 1); setField('variants', newVars);
+                    }}><Trash2 size={14}/></button>
+                  </div>
+                ))}
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+                  <input placeholder="Nama Varian (Misal: Large)" value={variantInput.name} onChange={e => setVariantInput({...variantInput, name: e.target.value})} style={{ padding: 8, borderRadius: 6, border: '1px solid #cbd5e1' }} />
+                  <input placeholder="SKU/Barcode Varian" value={variantInput.sku} onChange={e => setVariantInput({...variantInput, sku: e.target.value})} style={{ padding: 8, borderRadius: 6, border: '1px solid #cbd5e1' }} />
+                  <input placeholder="Harga Jual" value={variantInput.sellPrice} onChange={e => setVariantInput({...variantInput, sellPrice: e.target.value})} style={{ padding: 8, borderRadius: 6, border: '1px solid #cbd5e1' }} />
+                  <input placeholder="Stok" value={variantInput.qtyOnHand} onChange={e => setVariantInput({...variantInput, qtyOnHand: e.target.value})} style={{ padding: 8, borderRadius: 6, border: '1px solid #cbd5e1' }} />
+                </div>
+                <button style={{ padding: '8px 16px', background: '#08a88c', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', alignSelf: 'flex-start' }} onClick={() => {
+                  if(!variantInput.name || !variantInput.sku || !variantInput.sellPrice) return toast.error('Lengkapi form varian');
+                  setField('variants', [...values.variants, { id: 'v-'+Date.now(), name: variantInput.name, sku: variantInput.sku, sellPrice: parseCurrencyInput(variantInput.sellPrice), qtyOnHand: parseInt(variantInput.qtyOnHand) || 0 }]);
+                  setVariantInput({ name: '', sku: '', sellPrice: '', qtyOnHand: '' })
+                }}>Tambah Varian</button>
               </div>
             </FeaturePanel>
           </section>
@@ -3601,22 +3660,28 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             <h2>Ekstra</h2>
             <FormRow label="Produk Memiliki Ekstra">
               <div className="inline-control">
-                <Toggle checked /> <HelpCircle size={16} />
+                <Toggle checked={values.produkEkstra} onClick={() => setField('produkEkstra', !values.produkEkstra)} /> <HelpCircle size={16} />
               </div>
             </FormRow>
-            <FormRow label="Ubah Data Ekstra">
-              <div className="inline-control">
-                <Toggle /> <HelpCircle size={16} />
-              </div>
-            </FormRow>
-            <FormRow label="Atur Ekstra">
-              <SelectInput placeholder="Pilih Ekstra" options={extraOptions} />
-              <div className="tier-row">
-                <input placeholder="Nama ekstra, contoh: Sambal" />
-                <input placeholder="Harga ekstra" />
-                <button>Tambah Ekstra</button>
-              </div>
-            </FormRow>
+            {values.produkEkstra && (
+              <>
+                <FormRow label="Ubah Data Ekstra">
+                  <div className="inline-control">
+                    <Toggle checked={values.ubahDataEkstra} onClick={() => setField('ubahDataEkstra', !values.ubahDataEkstra)} /> <HelpCircle size={16} />
+                  </div>
+                </FormRow>
+                {values.ubahDataEkstra && (
+                  <FormRow label="Atur Ekstra">
+                    <SelectInput placeholder="Pilih Ekstra" options={extraOptions} />
+                    <div className="tier-row">
+                      <input placeholder="Nama ekstra, contoh: Sambal" />
+                      <input placeholder="Harga ekstra" />
+                      <button>Tambah Ekstra</button>
+                    </div>
+                  </FormRow>
+                )}
+              </>
+            )}
           </section>
 
           <section ref={register('section-Resep')} className="flow-card compact-flow-card">
@@ -3626,12 +3691,14 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FeaturePanel>
             <FormRow label="Resep Produk">
               <div className="inline-control">
-                <Toggle checked /> <span>Aktifkan untuk menambahkan resep pada produk</span>
+                <Toggle checked={values.resepProduk} onClick={() => setField('resepProduk', !values.resepProduk)} /> <span>Aktifkan untuk menambahkan resep pada produk</span>
               </div>
             </FormRow>
-            <FormRow label="Atur Bahan Baku">
-              <button className="outline-wide">Tambah Bahan Baku</button>
-            </FormRow>
+            {values.resepProduk && (
+              <FormRow label="Atur Bahan Baku">
+                <button className="outline-wide">Tambah Bahan Baku</button>
+              </FormRow>
+            )}
           </section>
 
           <section ref={register('section-majoo Order')} className="flow-card compact-flow-card">
@@ -3718,7 +3785,7 @@ function OutletDetailFlow({ onClose, onOutletSaved }) {
       <main className="outlet-detail-body">
         <div className="info-banner">
           <Info size={16} />
-          <span>Pengaturan pada nama, logo, jadwal operasional, dan alamat outlet akan tersimpan di berbagai fitur dan produk TripleSys PoS yang terintegrasi</span>
+          <span>Pengaturan pada nama, logo, jadwal operasional, dan alamat outlet akan tersimpan di berbagai fitur dan produk ManTechQ PoS yang terintegrasi</span>
         </div>
 
         <section className="flow-card outlet-detail-card">
@@ -4161,8 +4228,8 @@ function SelectInput({ placeholder, value, options = [], onChange, onClick }) {
   )
 }
 
-function Toggle({ checked }) {
-  return <span className={cn('toggle', checked && 'on')}>{checked ? 'ON' : 'OFF'}</span>
+function Toggle({ checked, onClick }) {
+  return <button type="button" onClick={onClick} className={cn('toggle', checked && 'on')}>{checked ? 'ON' : 'OFF'}</button>
 }
 
 function FeaturePanel({ title, text, children }) {
@@ -4232,8 +4299,8 @@ function TrialBar() {
 
 function AuthPage({ onAuthenticated }) {
   const [mode, setMode] = useState('signin')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('owner@mantechq.local')
+  const [password, setPassword] = useState('admin123')
   const [loading, setLoading] = useState(false)
 
   const submit = async (event) => {
@@ -4273,6 +4340,15 @@ function AuthPage({ onAuthenticated }) {
         <button className="auth-switch" onClick={() => setMode((value) => (value === 'signup' ? 'signin' : 'signup'))}>
           {mode === 'signup' ? 'Sudah punya akun? Masuk' : 'Belum punya akun? Daftar'}
         </button>
+
+        <div style={{ marginTop: '20px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', fontSize: '13px', color: '#475569' }}>
+          <strong style={{ display: 'block', marginBottom: '8px', color: '#0f172a' }}>Akun Demo:</strong>
+          <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <li><strong>Owner:</strong> owner@mantechq.local (Sandi: admin123)</li>
+            <li><strong>Admin:</strong> admin@mantechq.local (Sandi: admin123)</li>
+            <li><strong>Kasir:</strong> kasir@mantechq.local (Sandi: admin123)</li>
+          </ul>
+        </div>
       </section>
       <Toaster richColors position="top-right" />
     </main>
@@ -4388,6 +4464,8 @@ function usePostgresPosData(session) {
 
 function App() {
   const { session, loading: sessionLoading, setSession, signOut } = useApiSession()
+  const isKasir = session?.user?.role === 'kasir' || session?.user?.email?.includes('kasir')
+  const [isPosMode, setIsPosMode] = useState(false)
   const [activeTab, setActiveTab] = useState('Penjualan')
   const [activePage, setActivePage] = useState('Menu Favorit')
   const [openGroup, setOpenGroup] = useState('Menu Favorit')
@@ -4412,6 +4490,12 @@ function App() {
     setActiveOutlet(nextOutlets[1] || nextOutlets[0])
   }, [posData.memberships])
 
+  useEffect(() => {
+    if (isKasir && !sessionLoading) {
+      setIsPosMode(true)
+    }
+  }, [isKasir, sessionLoading])
+
   if (sessionLoading) return <LoadingApp />
   if (!session) return <AuthPage onAuthenticated={setSession} />
   if (posData.loading) return <LoadingApp />
@@ -4427,6 +4511,15 @@ function App() {
     )
   }
 
+  if (isPosMode) {
+    return (
+      <>
+        <PosApp posData={posData} session={session} onClose={() => setIsPosMode(false)} />
+        <Toaster richColors position="top-right" />
+      </>
+    )
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -4437,6 +4530,7 @@ function App() {
         isOpen={isOpen}
         setIsOpen={setIsOpen}
         activeOutlet={activeOutlet}
+        setIsPosMode={setIsPosMode}
       />
       <div className="main-shell">
         <Topbar activeTab={activeTab} setActiveTab={setActiveTab} setIsOpen={setIsOpen} onSignOut={signOut} />

@@ -23,6 +23,12 @@ export function parseCurrencyInput(value) {
   return Number(normalized || 0)
 }
 
+export function formatCurrencyInput(value) {
+  const num = parseCurrencyInput(value)
+  if (!num) return ''
+  return new Intl.NumberFormat('id-ID').format(num)
+}
+
 export function parseQuantityInput(value) {
   const normalized = String(value || '').replace(',', '.').replace(/[^\d.]/g, '')
   const parsed = Number(normalized || 0)

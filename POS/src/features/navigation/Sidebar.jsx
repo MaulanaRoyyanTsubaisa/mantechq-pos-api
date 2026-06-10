@@ -25,6 +25,7 @@ import {
   Menu,
   Megaphone,
   MoreVertical,
+  LogOut,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
@@ -152,7 +153,7 @@ function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, s
           })}
         </nav>
 
-        <button className="care-card" onClick={() => toast.info('TripleSys Care siap membantu 24 jam')}>
+        <button className="care-card" onClick={() => toast.info('ManTechQ Care siap membantu 24 jam')}>
           <span className="care-logo">
             <HelpCircle size={19} /> Care
           </span>
@@ -225,7 +226,7 @@ function Topbar({ activeTab, setActiveTab, setIsOpen, onSignOut }) {
           <small>royyan</small>
         </button>
         <Button variant="ghost" aria-label="Keluar akun" onClick={onSignOut}>
-          <MoreVertical size={19} />
+          <LogOut size={19} color="#e11d48" />
         </Button>
       </div>
     </header>

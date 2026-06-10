@@ -28,3 +28,10 @@ export function createSale(sale) {
     body: JSON.stringify(sale),
   })
 }
+
+export function createCustomer(customer) {
+  return apiRequest('/customers', {
+    method: 'POST',
+    body: JSON.stringify(customer),
+  })
+}

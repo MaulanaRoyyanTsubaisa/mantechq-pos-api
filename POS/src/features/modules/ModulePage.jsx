@@ -61,8 +61,11 @@ import {
   formatRupiah,
   formatQty,
   buildSalesSummary,
+  downloadCSV,
 } from './moduleBlueprints.js'
 import { DaftarBahanBakuPage, PemesananStokPage, DaftarStokPage } from './InventoryPages.jsx'
+import { ProductFormModal } from './ProductFormModal.jsx'
+import { DaftarPelangganPage } from './CustomerPages.jsx'
 
 function Metric({ label, value }) {
   return (
@@ -109,10 +112,12 @@ function ModulePage({ activePage, onStartFlow, posData }) {
     return <ProductDirectoryPage config={productPageConfigs[activePage]} onStartFlow={onStartFlow} posData={posData} />
   }
 
-  // Inventori custom pages
   if (activePage === 'Daftar Bahan Baku') return <DaftarBahanBakuPage />
   if (activePage === 'Pemesanan Stok') return <PemesananStokPage />
   if (activePage === 'Daftar Stok') return <DaftarStokPage />
+
+  // Customer custom pages
+  if (activePage === 'Daftar Pelanggan') return <DaftarPelangganPage posData={posData} onRefresh={() => window.location.reload()} />
 
   return <GenericModulePage activePage={activePage} onStartFlow={onStartFlow} posData={posData} />
 }
@@ -125,7 +130,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
   const blueprint = moduleBlueprints[activePage] || {
     type: 'master',
     title: activePage,
-    description: `Kelola ${activePage.toLowerCase()} untuk operasional TripleSys PoS.`,
+    description: `Kelola ${activePage.toLowerCase()} untuk operasional ManTechQ PoS.`,
     actions: ['Tambah'],
     filters: ['Outlet', 'Status'],
     columns: ['Nama', 'Status', 'Update'],
@@ -161,7 +166,10 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
                   variant={action.toLowerCase().includes('tambah') ? 'default' : 'outline'}
                   onClick={() => {
                     if (action === 'Tambah Produk') onStartFlow('product')
-                    else toast.success(`${action} ${blueprint.title}`)
+                    else if (action.toLowerCase().includes('ekspor')) {
+                      downloadCSV(blueprint.title, blueprint.columns, rows)
+                      toast.success(`Berhasil mengekspor ${blueprint.title}`)
+                    } else toast.success(`${action} ${blueprint.title}`)
                   }}
                 >
                   <ActionIcon size={16} />
@@ -177,7 +185,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
             <Icon size={20} />
           </span>
           <div>
-            <strong>{parent?.label || 'TripleSys PoS'}</strong>
+            <strong>{parent?.label || 'ManTechQ PoS'}</strong>
             <p>{blueprint.description}</p>
           </div>
         </div>
@@ -1395,13 +1403,31 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
     return matchesQuery && matchesStatus
   })
 
+  const [showAddModal, setShowAddModal] = useState(false)
+
   const runAction = (action) => {
-    if (action.toLowerCase().includes('impor')) toast.success(`${action} dibuka`)
-    else toast.success(`${action} disiapkan`)
+    if (action === 'Tambah Produk' || action === 'Tambah Bahan Baku') {
+      setShowAddModal(true)
+    } else if (action.toLowerCase().includes('impor')) {
+      toast.success(`${action} dibuka`)
+    } else {
+      toast.success(`${action} disiapkan`)
+    }
   }
 
   return (
     <main className="content product-page">
+      {showAddModal && (
+        <ProductFormModal 
+          posData={posData} 
+          onClose={() => setShowAddModal(false)} 
+          onSuccess={() => {
+            setShowAddModal(false)
+            // Ideally refetch data here, but page will reload or socket will update
+            window.location.reload()
+          }} 
+        />
+      )}
       <CapitalBanner compact />
       <section className="panel product-directory-card">
         <header className="product-directory-head">
@@ -1425,7 +1451,15 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
               </Button>
             ))}
             {config.addLabel ? (
-              <Button onClick={() => (config.addFlow ? onStartFlow(config.addFlow) : toast.success(config.addLabel))}>
+              <Button onClick={() => {
+                if (config.addLabel === 'Tambah Produk' || config.addLabel === 'Tambah Bahan Baku') {
+                  setShowAddModal(true)
+                } else if (config.addFlow) {
+                  onStartFlow(config.addFlow)
+                } else {
+                  toast.success(config.addLabel)
+                }
+              }}>
                 <Plus size={18} />
                 {config.addLabel}
               </Button>
