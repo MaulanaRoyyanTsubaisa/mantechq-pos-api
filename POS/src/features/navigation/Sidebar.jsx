@@ -70,14 +70,18 @@ function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, s
           </Button>
         </div>
 
-        <button className="outlet-switch" onClick={() => toast.info(`Outlet aktif: ${activeOutlet}`)}>
-          <Store size={30} />
-          <span>
-            <small>Outlet</small>
-            {activeOutlet}
-          </span>
-          <PanelLeftClose size={18} />
-        </button>
+        <div className="outlet-switch">
+          <button type="button" className="outlet-btn" onClick={() => toast.info(`Outlet aktif: ${activeOutlet}`)}>
+            <Store size={30} />
+            <span>
+              <small>Outlet</small>
+              {activeOutlet}
+            </span>
+          </button>
+          <button type="button" className="sidebar-collapse-btn" onClick={() => setIsOpen((v) => !v)} aria-label="Toggle menu">
+            <PanelLeftClose size={18} />
+          </button>
+        </div>
 
         <nav className="side-nav" aria-label="Navigasi utama">
           {sidebarGroups.map((group) => {

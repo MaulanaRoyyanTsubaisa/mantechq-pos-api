@@ -200,24 +200,35 @@ button {
 }
 
 .outlet-switch {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 11px;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   width: 100%;
   min-height: 88px;
   padding: 16px 20px 15px 22px;
-  border: 0;
   background: #08c7a0;
   color: #fff;
+}
+
+.outlet-btn {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: transparent;
+  border: 0;
+  color: #fff;
   text-align: left;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .outlet-switch:hover {
   background: #10b99a;
 }
 
-.outlet-switch span {
+.outlet-btn span {
   display: grid;
   gap: 3px;
   font-size: 17px;
@@ -226,9 +237,27 @@ button {
   min-width: 0;
 }
 
-.outlet-switch small {
+.outlet-btn small {
   font-size: 12px;
   font-weight: 800;
+}
+
+.sidebar-collapse-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #08a88c;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.sidebar-collapse-btn:hover {
+  background: #fff;
 }
 
 .outlet-switch > svg:last-child {
@@ -2465,15 +2494,16 @@ button {
 
 .radio-card {
   display: flex;
-  min-height: 40px;
+  min-height: 36px;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px;
+  gap: 8px;
+  padding: 0 10px;
   border: 1px solid #cfd5dc;
   border-radius: 6px;
   background: #fff;
   color: #26313b;
   font-weight: 650;
+  font-size: 13px;
 }
 
 .radio-card.checked {
@@ -3866,20 +3896,27 @@ button {
   top: calc(100% + 8px);
   left: 0;
   z-index: 40;
-  display: grid;
-  grid-template-columns: 160px 280px 280px 210px;
-  width: min(930px, calc(100vw - 340px));
-  border-radius: 8px;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
   background: #fff;
-  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-wrap: wrap;
+  overflow: hidden;
+  z-index: 100;
+  width: auto;
+  max-width: 90vw;
 }
 
 .date-presets {
-  display: grid;
-  align-content: start;
-  gap: 2px;
-  padding: 14px 8px;
-  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 200px;
+  border-right: 1px solid #eee;
+  background: #f8fafc;
 }
 
 .date-presets button {
