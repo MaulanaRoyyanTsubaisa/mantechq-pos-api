@@ -52,7 +52,7 @@ import { SelectInput } from '../../shared/ui/SelectInput.jsx'
 import { Toggle } from '../../shared/ui/Toggle.jsx'
 import { FeaturePanel } from '../../shared/ui/FeaturePanel.jsx'
 import { cn } from '../../shared/lib/cn.js'
-import { createProduct } from '../../shared/api/posApi.js'
+import { createProduct, uploadProductPhoto } from '../../shared/api/posApi.js'
 import { formatRupiah, formatQty, membershipOutletLabel, parseCurrencyInput, parseQuantityInput } from '../../shared/lib/formatters.js'
 import {
   accessRoleOptions,
@@ -239,6 +239,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
     width: '1',
     height: '1',
     weight: '100',
+    photoUrl: '',
   })
   const [errors, setErrors] = useState({})
   const refs = useRef({})
@@ -349,6 +350,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
         sellPrice: parseCurrencyInput(values.sellPrice),
         qtyOnHand: parseQuantityInput(values.qtyOnHand),
         qtyMinimum: 0,
+        photoUrl: values.photoUrl,
         createdBy: session?.user?.id,
       })
     } catch (error) {
@@ -399,10 +401,33 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             <FormRow label="Foto Produk">
               <div className="photo-row">
                 <p>Gunakan rasio foto 1:1 dengan ukuran 10Kb dan maksimal 1Mb. Format foto .jpg, .jpeg, .png ukuran minimum 100px x 100px.</p>
-                <button className="upload-box">
-                  <Package size={20} />
-                  <span>Pilih atau letakkan berkas di sini</span>
-                </button>
+                <div className="flex gap-4 items-start mt-2">
+                  <label className="upload-box" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: '2px dashed #cbd5e1', borderRadius: '8px', background: '#f8fafc', color: '#64748b' }}>
+                    <Package size={20} />
+                    <span>Pilih atau letakkan berkas di sini</span>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          try {
+                            toast.loading('Mengunggah foto...', { id: 'upload-toast' })
+                            const res = await uploadProductPhoto(file)
+                            setField('photoUrl', res.url)
+                            toast.success('Foto berhasil diunggah', { id: 'upload-toast' })
+                          } catch (err) {
+                            toast.error('Gagal mengunggah foto', { id: 'upload-toast' })
+                          }
+                        }
+                      }} 
+                    />
+                  </label>
+                  {values.photoUrl && (
+                    <img src={values.photoUrl} alt="Preview" style={{ height: '90px', width: '90px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                  )}
+                </div>
               </div>
             </FormRow>
             <FormRow refNode={register('category')} guideKey="category" currentKey={currentGuide?.key} label="Kategori Produk*" error={errors.category}>
@@ -897,7 +922,33 @@ function SimpleSetupFlow({ type, onClose, outlets, onOutletCreated }) {
     <section className="flow-card employee-card">
       <FormRow label="Foto Karyawan">
         <div className="photo-row employee-photo">
-          <UploadBox />
+          <div className="flex gap-4 items-start mt-2">
+            <label className="upload-box" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: '2px dashed #cbd5e1', borderRadius: '8px', background: '#f8fafc', color: '#64748b' }}>
+              <Users size={20} />
+              <span>Unggah Foto Karyawan</span>
+              <input 
+                type="file" 
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    try {
+                      toast.loading('Mengunggah foto...', { id: 'upload-toast' })
+                      const res = await uploadProductPhoto(file)
+                      setSimpleField('FotoURL', res.url)
+                      toast.success('Foto berhasil diunggah', { id: 'upload-toast' })
+                    } catch (err) {
+                      toast.error('Gagal mengunggah foto', { id: 'upload-toast' })
+                    }
+                  }
+                }} 
+              />
+            </label>
+            {values['FotoURL'] && (
+              <img src={values['FotoURL']} alt="Preview" style={{ height: '90px', width: '90px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+            )}
+          </div>
         </div>
       </FormRow>
       <FormRow refNode={(node) => { if (node) simpleRefs.current['Nama*'] = node }} label="Nama*" error={errors['Nama*']}>

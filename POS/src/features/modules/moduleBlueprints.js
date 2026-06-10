@@ -791,7 +791,7 @@ function mapStockToProductRows(stockItems) {
     formatRupiah(0),
     formatRupiah(item.sell_price),
     item.is_active ? 'Tampil di Menu' : 'Tidak Tampil di Menu',
-    '',
+    { id: item.id, orgId: item.org_id, item },
   ])
 }
 

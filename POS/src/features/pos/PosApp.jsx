@@ -3,7 +3,7 @@ import { ArrowLeft, Search, ShoppingCart, Minus, Plus, Trash2, CheckCircle2, Che
 import QRCode from 'react-qr-code'
 import { toast } from 'sonner'
 import { membershipOutletLabel, parseCurrencyInput, formatRupiah, formatQty } from '../../shared/lib/formatters.js'
-import { createSale } from '../../shared/api/posApi.js'
+import { createSale, getShift, updateShift } from '../../shared/api/posApi.js'
 import './pos.css'
 
 export function PosApp({ posData, onClose, session }) {
@@ -12,12 +12,7 @@ export function PosApp({ posData, onClose, session }) {
   const [selectedOutlet, setSelectedOutlet] = useState(firstOutlet)
 
   // Shift State
-  const [shift, setShift] = useState(() => {
-    try {
-      const stored = localStorage.getItem('pos_shift')
-      return stored ? JSON.parse(stored) : null
-    } catch { return null }
-  })
+  const [shift, setShift] = useState(null)
   const [isClosingShift, setIsClosingShift] = useState(false)
   const [modalAwal, setModalAwal] = useState('')
   const [kasAktual, setKasAktual] = useState('')
@@ -45,12 +40,29 @@ export function PosApp({ posData, onClose, session }) {
   // Variant Selection State
   const [selectedProductForVariant, setSelectedProductForVariant] = useState(null)
 
+  const membership = posData?.memberships?.find((item) => membershipOutletLabel(item) === selectedOutlet) || posData?.memberships?.[0]
+
   useEffect(() => {
     if (selectedOutlet || !firstOutlet) return
     setSelectedOutlet(firstOutlet)
   }, [firstOutlet, selectedOutlet])
 
-  const membership = posData?.memberships?.find((item) => membershipOutletLabel(item) === selectedOutlet) || posData?.memberships?.[0]
+  useEffect(() => {
+    if (!membership || !session?.user?.id) return
+    getShift(membership.org_id, membership.outlet_id, session.user.id).then(res => {
+      if (res) {
+        setShift({
+          id: res.id,
+          kasir: res.cashier_name,
+          waktuBuka: res.start_time,
+          modalAwal: Number(res.opening_amount) || 0,
+          totalPenjualan: 0,
+          uangMasuk: 0
+        })
+      }
+    }).catch(err => console.error(err))
+  }, [membership, session])
+
   const allStock = (posData?.stockItems || []).filter((item) => item.outlet_id === membership?.outlet_id && item.is_active)
   const categories = ['Semua', ...new Set(allStock.map(item => item.category_name).filter(Boolean))]
 
@@ -72,30 +84,57 @@ export function PosApp({ posData, onClose, session }) {
   const splitValue2 = Math.max(grandTotal - splitValue1, 0)
 
   // Shift Functions
-  const handleOpenShift = () => {
+  const handleOpenShift = async () => {
     const modal = parseCurrencyInput(modalAwal)
     if (modal < 0) return toast.error('Modal awal tidak valid')
-    const newShift = {
-      id: 'SHIFT-' + Date.now(),
-      kasir: session?.user?.name || 'Kasir 1',
-      waktuBuka: new Date().toISOString(),
-      modalAwal: modal,
-      totalPenjualan: 0,
-      uangMasuk: 0
+    setSaving(true)
+    try {
+      const res = await updateShift({
+        orgId: membership.org_id,
+        outletId: membership.outlet_id,
+        userId: session?.user?.id,
+        cashierName: session?.user?.full_name || 'Kasir',
+        action: 'open',
+        openingAmount: modal
+      })
+      setShift({
+        id: res.id,
+        kasir: res.cashier_name,
+        waktuBuka: res.start_time,
+        modalAwal: Number(res.opening_amount) || 0,
+        totalPenjualan: 0,
+        uangMasuk: 0
+      })
+      toast.success('Shift berhasil dibuka')
+    } catch (err) {
+      toast.error('Gagal membuka shift')
+    } finally {
+      setSaving(false)
     }
-    setShift(newShift)
-    localStorage.setItem('pos_shift', JSON.stringify(newShift))
-    toast.success('Shift berhasil dibuka')
   }
 
-  const handleCloseShift = () => {
+  const handleCloseShift = async () => {
     const aktual = parseCurrencyInput(kasAktual)
     const expected = shift.modalAwal + shift.uangMasuk
     const selisih = aktual - expected
-    localStorage.removeItem('pos_shift')
-    setShift(null)
-    setIsClosingShift(false)
-    toast.success(`Shift ditutup. Selisih kas: ${formatRupiah(selisih)}`)
+    setSaving(true)
+    try {
+      await updateShift({
+        orgId: membership.org_id,
+        outletId: membership.outlet_id,
+        userId: session?.user?.id,
+        action: 'close',
+        closingAmount: aktual,
+        expectedAmount: expected
+      })
+      setShift(null)
+      setIsClosingShift(false)
+      toast.success(`Shift ditutup. Selisih kas: ${formatRupiah(selisih)}`)
+    } catch (err) {
+      toast.error('Gagal menutup shift')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleProductClick = (item) => {
@@ -205,7 +244,8 @@ export function PosApp({ posData, onClose, session }) {
         tax_total: taxValue,
         paid_total: amountPaid,
         payment_status: 'paid',
-        note: isSplit ? `Split: ${splitMethod1} (${formatRupiah(splitValue1)}) + ${splitMethod2} (${formatRupiah(splitValue2)})` : '',
+        note: isSplit ? `Split: ${splitMethod1} (${formatRupiah(splitValue1)}) + ${splitMethod2} (${formatRupiah(splitValue2)})` : `Pembayaran: ${paymentMethod}`,
+        userId: session?.user?.id,
       }
       
       const data = await createSale(payload)
@@ -234,7 +274,6 @@ export function PosApp({ posData, onClose, session }) {
           uangMasuk: shift.uangMasuk + uangMasukShift
         }
         setShift(updatedShift)
-        localStorage.setItem('pos_shift', JSON.stringify(updatedShift))
       }
 
       setReceipt(receiptData)
