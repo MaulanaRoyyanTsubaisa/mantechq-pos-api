@@ -329,33 +329,32 @@ app.get('/api/stock', async (_req, res) => {
 })
 
 app.get('/api/pos-data', async (req, res) => {
-  const client = await pool.connect()
   try {
     const membershipParams = []
     const membershipUserFilter = req.query.userId ? 'and user_id = $1' : ''
     if (req.query.userId) membershipParams.push(req.query.userId)
 
     const [memberships, stockItems, sales, salesDetails, stockMutations, customers, shifts] = await Promise.all([
-      client.query(
+      pool.query(
         `select * from public.pos_team_members
          where is_active = true ${membershipUserFilter}
          order by created_at`,
         membershipParams,
       ),
-      client.query('select * from public.st_mast order by item_name'),
-      client.query(
+      pool.query('select * from public.st_mast order by item_name'),
+      pool.query(
         `select t.*, row_to_json(s.*) as m_stran
          from public.m_tran t
          join public.m_stran s on s.id = t.stran_id
          order by t.created_at desc`,
       ),
-      client.query(
+      pool.query(
         `select d.*, row_to_json(s.*) as m_stran
          from public.m_tran_d d
          join public.m_stran s on s.id = d.stran_id
          order by d.created_at desc`,
       ),
-      client.query(
+      pool.query(
         `select sm.*, json_build_object(
           'item_name', st.item_name,
           'sku', st.sku,
@@ -365,8 +364,8 @@ app.get('/api/pos-data', async (req, res) => {
          join public.st_mast st on st.id = sm.st_mast_id
          order by sm.created_at desc`,
       ),
-      client.query('select * from public.m_pelanggan order by name'),
-      client.query(
+      pool.query('select * from public.m_pelanggan order by name'),
+      pool.query(
         `select * from public.pos_shifts
          ${req.query.userId ? 'where user_id = $1' : ''}
          order by created_at desc`,
@@ -385,8 +384,6 @@ app.get('/api/pos-data', async (req, res) => {
     })
   } catch (error) {
     sendPgError(res, error)
-  } finally {
-    client.release()
   }
 })
 
