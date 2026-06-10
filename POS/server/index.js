@@ -6,8 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import multer from 'multer'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const rootDir = path.resolve(__dirname, '..')
+const rootDir = process.cwd()
 
 function loadEnvFile(filename) {
   const fullPath = path.join(rootDir, filename)
@@ -46,7 +45,7 @@ app.use(cors())
 app.use(express.json({ limit: '1mb' }))
 
 // Create uploads directory
-const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads')
+const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(process.cwd(), 'server', 'uploads')
 try {
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true })
