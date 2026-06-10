@@ -44,7 +44,10 @@ import {
   Upload,
   Users,
   X,
+  Printer,
+  ScanBarcode,
 } from 'lucide-react'
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import {
   clearStoredSession,
   createProduct,
@@ -55,6 +58,7 @@ import {
 } from './lib/api.js'
 import { deleteProduct } from './shared/api/posApi.js'
 import { PosApp } from './features/pos/PosApp.jsx'
+import { ProductFormModal } from './features/modules/ProductFormModal.jsx'
 import capitalVisual from './assets/capital-visual.png'
 import './style.css'
 
@@ -824,10 +828,16 @@ function buildSalesSummary(posData) {
   const grandTotal = sales.reduce((sum, sale) => sum + Number(sale.grand_total || 0), 0)
   const paidTotal = paidSales.reduce((sum, sale) => sum + Number(sale.paid_total || 0), 0)
   const productQty = details.reduce((sum, row) => sum + Number(row.qty || 0), 0)
+  const discountTotal = sales.reduce((sum, sale) => sum + Number(sale.discount_total || 0), 0)
+  const taxTotal = sales.reduce((sum, sale) => sum + Number(sale.tax_total || 0), 0)
+  const subTotal = grandTotal - taxTotal + discountTotal
 
   return {
     grandTotal,
     paidTotal,
+    discountTotal,
+    taxTotal,
+    subTotal,
     unpaidTotal: Math.max(grandTotal - paidTotal, 0),
     transactionCount: sales.length,
     paidCount: paidSales.length,
@@ -843,7 +853,7 @@ function buildDashboardChartData(posData, period) {
     ? ['M1', 'M2', 'M3', 'M4']
     : period === 'Mingguan'
       ? ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
-      : ['08', '10', '12', '14', '16', '18', '20']
+      : ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00']
   const buckets = labels.map((label) => ({ label, current: 0, previous: 0 }))
   const now = new Date()
   const currentMonth = now.getMonth()
@@ -869,7 +879,7 @@ function buildDashboardChartData(posData, period) {
     }
 
     const hour = date.getHours()
-    const index = Math.min(Math.max(Math.floor((hour - 8) / 2), 0), buckets.length - 1)
+    const index = Math.min(Math.max(Math.floor(hour / 2), 0), buckets.length - 1)
     buckets[index].current += value
   })
 
@@ -883,12 +893,13 @@ function buildDashboardChartData(posData, period) {
 }
 
 function buildChartPath(buckets, maxValue) {
-  if (!buckets.length || !maxValue || buckets.filter((item) => item.current > 0).length < 2) return ''
+  if (!buckets.length) return ''
+  const max = maxValue || 1
   const width = 100
   const height = 100
   return buckets.map((item, index) => {
     const x = buckets.length === 1 ? 50 : (index / (buckets.length - 1)) * width
-    const y = height - ((item.current / maxValue) * 76 + 10)
+    const y = height - ((item.current / max) * 76 + 10)
     return `${index ? 'L' : 'M'} ${x.toFixed(2)} ${y.toFixed(2)}`
   }).join(' ')
 }
@@ -1278,53 +1289,46 @@ function SalesDashboard({ activeTab, onStartFlow, posData }) {
             </div>
             <strong>{formatRupiah(chartData.total)}</strong>
           </div>
-          <div className={cn('chart', chartData.pointCount < 2 && 'sparse-chart')} aria-label="Grafik tren penjualan">
-            <div className="chart-grid" />
-            <div className="chart-y-axis">
-              <span>{formatRupiah(chartData.maxValue)}</span>
-              <span>{formatRupiah(chartData.maxValue / 2)}</span>
-              <span>Rp 0</span>
-            </div>
-            <div className="chart-bars" style={{ '--chart-columns': chartData.buckets.length }}>
-              {chartData.buckets.map((item) => {
-                const maxHeight = chartData.pointCount < 2 ? 68 : 82
-                const height = chartData.maxValue ? Math.max((item.current / chartData.maxValue) * maxHeight, item.current ? 9 : 0) : 0
-                return (
-                  <div className={cn('chart-bar-group', item.current > 0 && 'has-value')} key={item.label}>
-                    <span className="chart-bar-value">{item.current ? formatRupiah(item.current) : ''}</span>
-                    <i style={{ '--bar-height': `${height}%` }} />
-                    <small>{item.label}</small>
-                  </div>
-                )
-              })}
-            </div>
-            {chartPath ? (
-              <svg className="chart-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <defs>
-                  <linearGradient id="salesLineGradient" x1="0" x2="1" y1="0" y2="0">
-                    <stop offset="0%" stopColor="#06b98f" />
-                    <stop offset="100%" stopColor="#8de65a" />
-                  </linearGradient>
-                </defs>
-                <path d={chartPath} />
-              </svg>
-            ) : null}
-            {!chartData.total ? (
-              <div className="chart-empty-state">
-                <ChartColumn size={34} />
-                <strong>Belum ada penjualan</strong>
-                <p>Transaksi yang tersimpan akan otomatis muncul di grafik ini.</p>
-              </div>
-            ) : null}
+          <div className="chart" aria-label="Grafik tren penjualan">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData.buckets} margin={{ top: 20, right: 20, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                <XAxis 
+                  dataKey="label" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: '#666' }} 
+                  dy={10} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tickFormatter={(value) => value > 0 ? `Rp ${(value / 1000).toLocaleString('id-ID')}rb` : 'Rp 0'} 
+                  tick={{ fontSize: 11, fill: '#666' }}
+                  width={80}
+                />
+                <Tooltip 
+                  formatter={(value) => [formatRupiah(value), 'Penjualan']} 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="current" 
+                  stroke="#06b98f" 
+                  strokeWidth={3} 
+                  dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#06b98f' }} 
+                  activeDot={{ r: 6, strokeWidth: 0, fill: '#06b98f' }} 
+                  animationDuration={1000}
+                />
+              </LineChart>
+            </ResponsiveContainer>
             <div className="legend">
               <span>
                 <i className="muted-dot" /> Penjualan
               </span>
-              {chartPath ? (
-                <span>
-                  <i /> Tren penjualan
-                </span>
-              ) : null}
+              <span>
+                <i /> Tren penjualan
+              </span>
             </div>
           </div>
         </div>
@@ -1477,7 +1481,7 @@ function ModulePage({ activePage, onStartFlow, posData }) {
     return <SalesSummaryReportPage posData={posData} />
   }
   if (activePage === 'Detail Penjualan') {
-    return <SalesDetailReportPage />
+    return <SalesDetailReportPage posData={posData} />
   }
   if (activePage === 'Penjualan Per Periode') {
     return <SalesPeriodReportPage />
@@ -1486,7 +1490,10 @@ function ModulePage({ activePage, onStartFlow, posData }) {
     return <SalesOutletReportPage />
   }
   if (reportPageConfigs[activePage]) {
-    return <MajooGenericReportPage config={reportPageConfigs[activePage]} />
+    return <MajooGenericReportPage config={reportPageConfigs[activePage]} posData={posData} />
+  }
+  if (activePage === 'Cetak Barcode') {
+    return <BarcodePrintView posData={posData} />
   }
   if (productPageConfigs[activePage]) {
     return <ProductDirectoryPage config={productPageConfigs[activePage]} onStartFlow={onStartFlow} posData={posData} />
@@ -1513,7 +1520,8 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Semua Status')
   const controls = blueprint.controls || (blueprint.type === 'report' ? 'date-status' : 'status-tabs')
-  const rows = getRowsForPage(activePage, posData)
+  const apiRows = getRowsForPage(activePage, posData)
+  const rows = apiRows.length > 0 ? apiRows : (blueprint.rows || [])
   const filteredRows = rows.filter((row) => row.join(' ').toLowerCase().includes(query.toLowerCase()))
   const actionIcon = (action) => {
     if (action.toLowerCase().includes('impor')) return Truck
@@ -1618,6 +1626,47 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
   )
 }
 
+function BarcodePrintView({ posData }) {
+  const stockItems = posData?.stockItems || []
+  return (
+    <main className="content">
+      <CapitalBanner compact />
+      <section className="panel module-page">
+        <div className="majoo-page-head">
+          <div className="majoo-title">
+            <h1>Cetak Barcode</h1>
+            <p>Pilih dan cetak barcode untuk label produk di toko fisik Anda.</p>
+          </div>
+          <div className="top-actions">
+            <Button onClick={() => window.print()}><Printer size={16} /> Cetak (A4)</Button>
+          </div>
+        </div>
+        <div style={{ padding: 24, background: '#f8fafc', borderBottom: '1px solid var(--line)' }}>
+          <div style={{ background: '#fff', border: '1px dashed #cbd5e1', padding: 32, borderRadius: 12, minHeight: 600 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '24px 16px' }}>
+              {stockItems.map((item, idx) => (
+                <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.item_name}</div>
+                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>{formatRupiah(item.price || item.sell_price || 0)}</div>
+                  <div style={{ width: '100%', height: 48, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', letterSpacing: 2, fontSize: 14, color: '#0f172a', border: '1px solid #e2e8f0', backgroundImage: 'repeating-linear-gradient(90deg, #1e293b, #1e293b 2px, transparent 2px, transparent 4px, #1e293b 4px, #1e293b 5px, transparent 5px, transparent 8px)', backgroundSize: '100% 70%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>{item.sku || `BRC-${String(item.id || idx).padStart(4, '0')}`}</div>
+                </div>
+              ))}
+              {stockItems.length === 0 && (
+                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 60, color: '#94a3b8' }}>
+                  <ScanBarcode size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+                  <p>Tidak ada produk untuk dicetak.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  )
+}
+
 const summaryMetricCards = [
   ['Total Pendapatan', 'Rp 0', 'green'],
   ['Biaya Promosi', 'Rp 0', 'yellow'],
@@ -1693,6 +1742,34 @@ function SalesSummaryReportPage({ posData }) {
     ['Total Produk Terjual', formatQty(summary.productQty), 'purple'],
   ]
   const liveBreakdowns = summaryBreakdowns.map((section) => {
+    if (section.title === 'Pendapatan') {
+      return {
+        ...section,
+        rows: [
+          ['Penjualan Kotor', formatRupiah(summary.subTotal)],
+          ['Ongkos Kirim', 'Rp 0'],
+          ['Biaya Pelayanan', 'Rp 0'],
+          ['Biaya Pelayanan MDR', 'Rp 0'],
+          ['Pembulatan', 'Rp 0'],
+          ['Pajak', formatRupiah(summary.taxTotal)],
+          ['Asuransi', 'Rp 0'],
+          ['Platform', 'Rp 0'],
+          ['Lainnya', 'Rp 0'],
+        ],
+        total: ['TOTAL PENDAPATAN', formatRupiah(summary.subTotal + summary.taxTotal)],
+      }
+    }
+    if (section.title === 'Biaya Promosi') {
+      return {
+        ...section,
+        rows: [
+          ['Promo Pembelian', `( ${formatRupiah(summary.discountTotal)} )`],
+          ['Promo Produk', '( Rp 0 )'],
+          ['Komplimen', '( Rp 0 )'],
+        ],
+        total: ['TOTAL BIAYA PROMOSI', `( ${formatRupiah(summary.discountTotal)} )`],
+      }
+    }
     if (section.title === 'Penjualan Bersih') {
       return {
         ...section,
@@ -1703,14 +1780,18 @@ function SalesSummaryReportPage({ posData }) {
         total: ['TOTAL PENJUALAN BERSIH', formatRupiah(summary.grandTotal)],
       }
     }
-    if (section.title === 'Ringkasan Penjualan') {
+    if (section.title === 'Laba Kotor') {
       return {
         ...section,
         rows: [
-          ['Penjualan Kotor', formatRupiah(summary.grandTotal)],
-          ['Diskon', '( Rp 0 )'],
+          ['Penjualan Bersih', formatRupiah(summary.grandTotal)],
+          ['Biaya MDR', '( Rp 0 )'],
+          ['HPP', '( Rp 0 )'],
+          ['Komisi', '( Rp 0 )'],
+          ['Biaya Ongkos Kirim', '( Rp 0 )'],
+          ['Biaya Asuransi', '( Rp 0 )'],
         ],
-        total: ['TOTAL RINGKASAN PENJUALAN', formatRupiah(summary.grandTotal)],
+        total: ['TOTAL LABA KOTOR', formatRupiah(summary.grandTotal)],
       }
     }
     return section
@@ -1952,7 +2033,16 @@ const detailFilterGroups = {
   'Jenis Harga': ['Harga Normal', 'Harga Grosir', 'Harga Promo'],
 }
 
-function SalesDetailReportPage() {
+function SalesDetailReportPage({ posData }) {
+  const summary = buildSalesSummary(posData)
+  const sales = posData.sales || []
+  const liveDetailMetrics = [
+    ['Total Penjualan', formatRupiah(summary.grandTotal)],
+    ['Total Transaksi', String(summary.transactionCount)],
+    ['Penjualan Bersih', formatRupiah(summary.grandTotal)],
+    ['Total Pembayaran', formatRupiah(summary.paidTotal)],
+    ['Total Piutang', formatRupiah(summary.unpaidTotal)],
+  ]
   const [range, setRange] = useState({
     label: '01 Jun 2026 - 30 Jun 2026',
     display: '01 Juni 2026 - 30 Juni 2026',
@@ -1965,11 +2055,12 @@ function SalesDetailReportPage() {
   const [timeBasis, setTimeBasis] = useState('Waktu Order')
   const [filterOpen, setFilterOpen] = useState(false)
   const [tableOpen, setTableOpen] = useState(false)
-  const [activeFilter, setActiveFilter] = useState('Status Pembayaran')
+  const [activeFilter, setActiveFilter] = useState('Semua Filter')
   const [filterValues, setFilterValues] = useState({})
   const [visibleColumns, setVisibleColumns] = useState(detailColumns)
   const [query, setQuery] = useState('')
   const [lastUpdated, setLastUpdated] = useState('beberapa detik yang lalu')
+  const [selectedSale, setSelectedSale] = useState(null)
 
   const processRange = (nextRange) => {
     setRange(nextRange)
@@ -2050,7 +2141,7 @@ function SalesDetailReportPage() {
         </div>
 
         <div className="detail-metrics-grid">
-          {detailMetrics.map(([label, value]) => (
+          {liveDetailMetrics.map(([label, value]) => (
             <article key={label} className="detail-metric-card">
               <span>{label}</span>
               <strong>{value}</strong>
@@ -2068,9 +2159,27 @@ function SalesDetailReportPage() {
                 <th />
               </tr>
             </thead>
+            {sales.length > 0 && (
+              <tbody>
+                {sales.map((sale) => (
+                  <tr key={sale.id}>
+                    {visibleColumns.includes('NO TRANSAKSI') && <td>{sale.m_stran?.tran_no || sale.tran_no || '-'}</td>}
+                    {visibleColumns.includes('WAKTU ORDER') && <td>{new Date(sale.m_stran?.tran_date || sale.created_at).toLocaleString('id-ID')}</td>}
+                    {visibleColumns.includes('WAKTU BAYAR') && <td>{new Date(sale.m_stran?.tran_date || sale.created_at).toLocaleString('id-ID')}</td>}
+                    {visibleColumns.includes('OUTLET') && <td>{sale.m_stran?.outlet_id ? `Outlet ${shortId(sale.m_stran.outlet_id)}` : '-'}</td>}
+                    {visibleColumns.includes('JENIS ORDER') && <td>{sale.note?.includes('Dine-in') || sale.note?.includes('Dine In') ? 'Dine In' : sale.note?.includes('Take Away') ? 'Take Away' : 'Reguler'}</td>}
+                    {visibleColumns.includes('TOTAL PENJUALAN (RP)') && <td>{formatRupiah(sale.grand_total)}</td>}
+                    {visibleColumns.includes('METODE PEMBAYARAN') && <td>{sale.note?.split('Pembayaran: ')?.[1]?.split(' |')?.[0] || sale.note?.split('Metode bayar: ')?.[1]?.split(' |')?.[0] || 'Tunai'}</td>}
+                    {visibleColumns.includes('BAYAR') && <td>{sale.payment_status === 'paid' ? 'Lunas' : 'Belum Lunas'}</td>}
+                    {visibleColumns.includes('ORDER') && <td>Selesai</td>}
+                    <td><button style={{color: 'var(--brand)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600}} onClick={() => setSelectedSale(sale)}>Detail</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
           </table>
-          <EmptyModuleState type="report" />
         </div>
+          {sales.length === 0 && <EmptyModuleState type="report" />}
         <div className="report-updated">Terakhir diperbarui {lastUpdated}</div>
       </section>
 
@@ -2146,7 +2255,98 @@ function SalesDetailReportPage() {
           </div>
         </div>
       ) : null}
+
+      {selectedSale && (
+        <ReceiptModal
+          sale={selectedSale}
+          details={(posData.salesDetails || []).filter((d) => d.stran_id === selectedSale.stran_id)}
+          onClose={() => setSelectedSale(null)}
+        />
+      )}
     </main>
+  )
+}
+
+function ReceiptModal({ sale, details, onClose }) {
+  const isLunas = sale.payment_status === 'paid'
+  const subtotal = details.reduce((sum, item) => sum + (Number(item.price) * Number(item.qty)), 0)
+  const discount = details.reduce((sum, item) => sum + Number(item.discount || 0), 0)
+  
+  return (
+    <div className="modal-backdrop" style={{ zIndex: 9999 }}>
+      <div className="report-dialog receipt-dialog" style={{ width: 420, padding: 0, overflow: 'hidden' }}>
+        <header className="hide-on-print" style={{ background: 'var(--brand)', color: '#fff', padding: '16px 20px' }}>
+          <h2 style={{ margin: 0, fontSize: 18, color: '#fff' }}>Detail Transaksi</h2>
+          <button onClick={onClose} style={{ color: '#fff' }}><X size={20} /></button>
+        </header>
+        
+        <div style={{ padding: '24px 30px', background: '#f8fafc', maxHeight: '70vh', overflowY: 'auto' }}>
+          <div style={{ background: '#fff', padding: 24, borderRadius: 12, boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'inline-flex', padding: 12, borderRadius: 50, background: isLunas ? '#e0f2fe' : '#fef08a', color: isLunas ? '#0284c7' : '#ca8a04', marginBottom: 12 }}>
+                <CircleDollarSign size={32} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: 22, color: '#1e293b' }}>{formatRupiah(sale.grand_total)}</h3>
+              <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>{isLunas ? 'Transaksi Lunas' : 'Belum Lunas'}</p>
+            </div>
+
+            <div style={{ display: 'grid', gap: 10, fontSize: 13, color: '#475569', paddingBottom: 16, borderBottom: '1px dashed #cbd5e1', marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>No. Transaksi</span>
+                <strong style={{ color: '#1e293b' }}>{sale.m_stran?.tran_no || sale.tran_no || shortId(sale.stran_id)}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Waktu</span>
+                <strong style={{ color: '#1e293b' }}>{new Date(sale.m_stran?.tran_date || sale.created_at).toLocaleString('id-ID')}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Metode Pembayaran</span>
+                <strong style={{ color: '#1e293b' }}>{sale.note?.split('Pembayaran: ')?.[1]?.split(' |')?.[0] || sale.note?.split('Metode bayar: ')?.[1]?.split(' |')?.[0] || 'Tunai'}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Kasir</span>
+                <strong style={{ color: '#1e293b' }}>{sale.m_stran?.created_by || 'Admin'}</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: 12, marginBottom: 16, borderBottom: '1px dashed #cbd5e1', paddingBottom: 16 }}>
+              {details.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: '#1e293b', fontWeight: 600 }}>{item.item_name}</div>
+                    <div style={{ color: '#64748b', fontSize: 12 }}>{item.qty} x {formatRupiah(item.price)}</div>
+                  </div>
+                  <strong style={{ color: '#1e293b' }}>{formatRupiah(item.total)}</strong>
+                </div>
+              ))}
+              {details.length === 0 && <p style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>Detail item tidak tersedia</p>}
+            </div>
+
+            <div style={{ display: 'grid', gap: 8, fontSize: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b' }}>
+                <span>Subtotal</span>
+                <span>{formatRupiah(subtotal || sale.grand_total)}</span>
+              </div>
+              {(discount > 0 || sale.total_discount > 0) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ef4444' }}>
+                  <span>Diskon</span>
+                  <span>-{formatRupiah(discount || sale.total_discount)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 16, color: '#1e293b', marginTop: 8, paddingTop: 8, borderTop: '1px solid #e2e8f0' }}>
+                <span>Total</span>
+                <span>{formatRupiah(sale.grand_total)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <footer className="hide-on-print" style={{ padding: '16px 20px', background: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <Button variant="outline" onClick={onClose}>Tutup</Button>
+          <Button onClick={() => window.print()}><Printer size={16} /> Cetak Struk</Button>
+        </footer>
+      </div>
+    </div>
   )
 }
 
@@ -2508,7 +2708,7 @@ const reportFilterOptions = {
   transactionType: ['Semua Jenis Transaksi', 'Pemasukan', 'Penarikan'],
 }
 
-function MajooGenericReportPage({ config }) {
+function MajooGenericReportPage({ config, posData }) {
   const defaultRange = config.singleDate
     ? { label: '06 Juni 2026', display: '06 Juni 2026', startTime: '00:00', endTime: '23:59' }
     : { label: '01 Jun 2026 - 30 Jun 2026', display: '01 Juni 2026 - 30 Juni 2026', startTime: '00:00', endTime: '23:59' }
@@ -2526,6 +2726,93 @@ function MajooGenericReportPage({ config }) {
   const [visibleColumns, setVisibleColumns] = useState(config.columns)
   const [dropdowns, setDropdowns] = useState({})
   const [lastUpdated, setLastUpdated] = useState('beberapa detik yang lalu')
+
+  // Calculate dynamic rows based on config.title
+  const sales = posData?.sales || []
+  const shifts = posData?.shifts || []
+  
+  let liveRows = config.rows || []
+  let liveMetrics = config.metrics || []
+
+  if (config.title === 'Laporan Kas Kasir') {
+    liveRows = shifts.map(shift => ({
+      'TRANSAKSI': '1',
+      'TANGGAL': new Date(shift.created_at).toLocaleString('id-ID'),
+      'OUTLET': `Outlet ${shortId(shift.outlet_id)}`,
+      'MASUK (RP)': formatRupiah(shift.opening_amount),
+      'KELUAR (RP)': formatRupiah(shift.closing_amount),
+      'KATEGORI': 'Penjualan',
+      'NAMA LOGIN': shift.cashier_name || 'Kasir',
+      'NAMA DEVICE': 'POS Terminal',
+    }))
+    
+    const totalMasuk = shifts.reduce((sum, s) => sum + Number(s.opening_amount || 0), 0)
+    const totalKeluar = shifts.reduce((sum, s) => sum + Number(s.closing_amount || 0), 0)
+    
+    liveMetrics = [
+      ['Total Kas Kasir', formatRupiah(totalMasuk - totalKeluar), 'green'],
+      ['Total Uang Masuk', formatRupiah(totalMasuk), 'blue'],
+      ['Total Uang Keluar', formatRupiah(totalKeluar), 'red']
+    ]
+  } else if (config.title === 'Penjualan per Kasir') {
+    const cashierGroups = sales.reduce((acc, sale) => {
+      const cashier = sale.m_stran?.created_by || 'Kasir Default'
+      if (!acc[cashier]) acc[cashier] = { total: 0, count: 0, outlet: sale.m_stran?.outlet_id }
+      acc[cashier].total += Number(sale.grand_total || 0)
+      acc[cashier].count += 1
+      return acc
+    }, {})
+    
+    const totalSales = Object.values(cashierGroups).reduce((sum, g) => sum + g.total, 0)
+    
+    liveRows = Object.entries(cashierGroups).map(([cashier, data]) => ({
+      'KASIR': cashier,
+      'OUTLET': `Outlet ${shortId(data.outlet)}`,
+      'PENJUALAN (RP)': formatRupiah(data.total),
+      'PENJUALAN (%)': totalSales > 0 ? ((data.total / totalSales) * 100).toFixed(2) + '%' : '0%',
+      'LABA KOTOR (RP)': formatRupiah(data.total),
+      'LABA KOTOR (%)': totalSales > 0 ? ((data.total / totalSales) * 100).toFixed(2) + '%' : '0%',
+      'JUMLAH TRANSAKSI': String(data.count)
+    }))
+  } else if (config.title === 'Penjualan per Terminal') {
+    const terminalGroups = sales.reduce((acc, sale) => {
+      const terminal = 'POS Terminal 1'
+      if (!acc[terminal]) acc[terminal] = { total: 0, count: 0, items: 0, outlet: sale.m_stran?.outlet_id }
+      acc[terminal].total += Number(sale.grand_total || 0)
+      acc[terminal].count += 1
+      acc[terminal].items += sale.items?.length || 1
+      return acc
+    }, {})
+    
+    liveRows = Object.entries(terminalGroups).map(([terminal, data]) => ({
+      'TERMINAL': terminal,
+      'OUTLET': `Outlet ${shortId(data.outlet)}`,
+      'PENJUALAN (RP)': formatRupiah(data.total),
+      'LABA KOTOR (RP)': formatRupiah(data.total),
+      'JUMLAH TRANSAKSI': String(data.count),
+      'JUMLAH PRODUK': String(data.items),
+      'PENGEMBALIAN (RP)': 'Rp 0'
+    }))
+  } else if (config.title === 'Laporan Tutup Kasir') {
+    liveRows = shifts.map(shift => ({
+      'WAKTU BUKA / TUTUP KASIR': `${new Date(shift.start_time).toLocaleString('id-ID')} / ${shift.end_time ? new Date(shift.end_time).toLocaleString('id-ID') : '-'}`,
+      'KASIR': shift.cashier_name || 'Kasir',
+      'OUTLET': `Outlet ${shortId(shift.outlet_id)}`,
+      'MODAL AWAL (RP)': formatRupiah(shift.opening_amount),
+      'SALDO AKHIR (RP)': formatRupiah(shift.expected_amount || shift.opening_amount),
+      'TOTAL TUNAI AKTUAL (RP)': formatRupiah(shift.closing_amount || shift.opening_amount),
+      'TOTAL PENERIMAAN NON TUNAI (RP)': 'Rp 0'
+    }))
+  } else if (config.title === 'Laporan Tutup Toko') {
+    liveRows = shifts.filter(s => s.status === 'closed').map(shift => ({
+      'TANGGAL': new Date(shift.end_time || shift.created_at).toLocaleString('id-ID'),
+      'OUTLET': `Outlet ${shortId(shift.outlet_id)}`,
+      'KASIR': shift.cashier_name || 'Kasir',
+      'TOTAL PENJUALAN': formatRupiah((shift.closing_amount || 0) - (shift.opening_amount || 0)),
+      'SELISIH KAS': formatRupiah((shift.closing_amount || 0) - (shift.expected_amount || 0)),
+      'STATUS': 'Selesai'
+    }))
+  }
 
   useEffect(() => {
     setRange(defaultRange)
@@ -2658,8 +2945,8 @@ function MajooGenericReportPage({ config }) {
             ) : null}
           </section>
         ) : null}
-        <GenericMetrics metrics={config.metrics} />
-        <GenericReportTable columns={visibleColumns} />
+        <GenericMetrics metrics={liveMetrics} />
+        <GenericReportTable columns={visibleColumns} rows={liveRows} />
         <div className="report-updated">Terakhir diperbarui {lastUpdated}</div>
       </section>
       {tableOpen ? (
@@ -2743,7 +3030,7 @@ function GenericMetrics({ metrics = [] }) {
   )
 }
 
-function GenericReportTable({ columns }) {
+function GenericReportTable({ columns, rows = [] }) {
   return (
     <div className="detail-table-wrap generic-table-wrap">
       <table className="detail-report-table generic-report-table">
@@ -2755,8 +3042,20 @@ function GenericReportTable({ columns }) {
             <th>+</th>
           </tr>
         </thead>
+        {rows?.length > 0 && (
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={row.id || i}>
+                {columns.map((column, j) => (
+                  <td key={j}>{row[column] || '-'}</td>
+                ))}
+                <td><button style={{color: 'var(--primary-color)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600}}>Detail</button></td>
+              </tr>
+            ))}
+          </tbody>
+        )}
       </table>
-      <EmptyModuleState type="report" />
+      {(!rows || rows.length === 0) && <EmptyModuleState type="report" />}
     </div>
   )
 }
@@ -4326,14 +4625,7 @@ function GuideDone({ onRepeat, onClose }) {
 }
 
 function TrialBar() {
-  return (
-    <div className="trial-bar">
-      <span>Masa Aktif akun trial tersisa 14 hari Segera beli langganan sebelum masa trial berakhir untuk mendapatkan diskon berlangganan hingga 35%</span>
-      <Button variant="danger" onClick={() => toast.success('Paket perpanjangan dibuka')}>
-        Perpanjang
-      </Button>
-    </div>
-  )
+  return null
 }
 
 function AuthPage({ onAuthenticated }) {
@@ -4469,16 +4761,15 @@ function usePostgresPosData(session) {
     sales: [],
     salesDetails: [],
     stockMutations: [],
+    shifts: [],
   })
 
   const refresh = async () => {
     if (!session?.user?.id) return
-    setState((current) => ({ ...current, loading: true, error: '' }))
     let data
     try {
       data = await getPosData(session.user.id)
     } catch (error) {
-      setState((current) => ({ ...current, loading: false, error: error.message }))
       toast.error(error.message)
       return
     }
@@ -4491,6 +4782,7 @@ function usePostgresPosData(session) {
       sales: data.sales || [],
       salesDetails: data.salesDetails || [],
       stockMutations: data.stockMutations || [],
+      shifts: data.shifts || [],
     })
   }
 

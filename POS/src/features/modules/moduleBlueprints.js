@@ -848,10 +848,16 @@ function buildSalesSummary(posData) {
   const grandTotal = sales.reduce((sum, sale) => sum + Number(sale.grand_total || 0), 0)
   const paidTotal = paidSales.reduce((sum, sale) => sum + Number(sale.paid_total || 0), 0)
   const productQty = details.reduce((sum, row) => sum + Number(row.qty || 0), 0)
+  const discountTotal = sales.reduce((sum, sale) => sum + Number(sale.discount_total || 0), 0)
+  const taxTotal = sales.reduce((sum, sale) => sum + Number(sale.tax_total || 0), 0)
+  const subTotal = grandTotal - taxTotal + discountTotal
 
   return {
     grandTotal,
     paidTotal,
+    discountTotal,
+    taxTotal,
+    subTotal,
     unpaidTotal: Math.max(grandTotal - paidTotal, 0),
     transactionCount: sales.length,
     paidCount: paidSales.length,
@@ -867,7 +873,7 @@ function buildDashboardChartData(posData, period) {
     ? ['M1', 'M2', 'M3', 'M4']
     : period === 'Mingguan'
       ? ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
-      : ['08', '10', '12', '14', '16', '18', '20']
+      : ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00']
   const buckets = labels.map((label) => ({ label, current: 0, previous: 0 }))
   const now = new Date()
   const currentMonth = now.getMonth()
@@ -893,7 +899,7 @@ function buildDashboardChartData(posData, period) {
     }
 
     const hour = date.getHours()
-    const index = Math.min(Math.max(Math.floor((hour - 8) / 2), 0), buckets.length - 1)
+    const index = Math.min(Math.max(Math.floor(hour / 2), 0), buckets.length - 1)
     buckets[index].current += value
   })
 
@@ -907,12 +913,13 @@ function buildDashboardChartData(posData, period) {
 }
 
 function buildChartPath(buckets, maxValue) {
-  if (!buckets.length || !maxValue || buckets.filter((item) => item.current > 0).length < 2) return ''
+  if (!buckets.length) return ''
+  const max = maxValue || 1
   const width = 100
   const height = 100
   return buckets.map((item, index) => {
     const x = buckets.length === 1 ? 50 : (index / (buckets.length - 1)) * width
-    const y = height - ((item.current / maxValue) * 76 + 10)
+    const y = height - ((item.current / max) * 76 + 10)
     return `${index ? 'L' : 'M'} ${x.toFixed(2)} ${y.toFixed(2)}`
   }).join(' ')
 }

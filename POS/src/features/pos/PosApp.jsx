@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { ArrowLeft, Search, ShoppingCart, Minus, Plus, Trash2, CheckCircle2, ChevronRight, Store, X, Printer, MessageCircle, LogOut } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import { toast } from 'sonner'
-import { membershipOutletLabel, parseCurrencyInput, formatRupiah, formatQty } from '../../shared/lib/formatters.js'
+import { membershipOutletLabel, parseCurrencyInput, formatRupiah, formatQty, formatCurrencyInput } from '../../shared/lib/formatters.js'
 import { createSale, getShift, updateShift } from '../../shared/api/posApi.js'
 import './pos.css'
 
@@ -278,6 +278,10 @@ export function PosApp({ posData, onClose, session }) {
 
       setReceipt(receiptData)
       resetTransaction()
+      
+      if (posData?.refresh) {
+        await posData.refresh()
+      }
     } catch (err) {
       toast.error('Gagal memproses transaksi.')
     } finally {
@@ -368,7 +372,7 @@ Terima kasih telah berbelanja!`
                 type="text" 
                 placeholder="Rp 0" 
                 value={modalAwal} 
-                onChange={e => setModalAwal(e.target.value)}
+                onChange={e => setModalAwal(formatCurrencyInput(e.target.value))}
                 autoFocus
               />
             </div>
@@ -412,7 +416,7 @@ Terima kasih telah berbelanja!`
                 type="text" 
                 placeholder="Rp 0" 
                 value={kasAktual} 
-                onChange={e => setKasAktual(e.target.value)}
+                onChange={e => setKasAktual(formatCurrencyInput(e.target.value))}
                 autoFocus
               />
             </div>
@@ -670,7 +674,7 @@ Terima kasih telah berbelanja!`
                 className="pos-summary-input" 
                 placeholder="0" 
                 value={discountInput}
-                onChange={e => setDiscountInput(e.target.value)}
+                onChange={e => setDiscountInput(formatCurrencyInput(e.target.value))}
               />
             </div>
             
@@ -681,7 +685,7 @@ Terima kasih telah berbelanja!`
                 className="pos-summary-input" 
                 placeholder="0" 
                 value={taxInput}
-                onChange={e => setTaxInput(e.target.value)}
+                onChange={e => setTaxInput(formatCurrencyInput(e.target.value))}
               />
             </div>
 
@@ -719,7 +723,7 @@ Terima kasih telah berbelanja!`
                       className="pos-cash-input"
                       placeholder="Uang Diterima (Rp)"
                       value={cashReceived}
-                      onChange={e => setCashReceived(e.target.value)}
+                      onChange={e => setCashReceived(formatCurrencyInput(e.target.value))}
                     />
                     {cashValue >= grandTotal && grandTotal > 0 && (
                       <div style={{ textAlign: 'right', fontSize: 13, color: '#64748b', marginTop: 6, fontWeight: 600 }}>
@@ -744,7 +748,7 @@ Terima kasih telah berbelanja!`
                   <select className="pos-cash-input" style={{ width: '40%', padding: 8, fontSize: 13 }} value={splitMethod1} onChange={e => setSplitMethod1(e.target.value)}>
                     <option>Tunai</option><option>QRIS</option><option>Transfer</option>
                   </select>
-                  <input type="text" className="pos-cash-input" style={{ flex: 1, padding: 8, fontSize: 13 }} placeholder="Rp" value={splitAmount1} onChange={e => setSplitAmount1(e.target.value)} />
+                  <input type="text" className="pos-cash-input" style={{ flex: 1, padding: 8, fontSize: 13 }} placeholder="Rp" value={splitAmount1} onChange={e => setSplitAmount1(formatCurrencyInput(e.target.value))} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <select className="pos-cash-input" style={{ width: '40%', padding: 8, fontSize: 13 }} value={splitMethod2} onChange={e => setSplitMethod2(e.target.value)}>
@@ -762,7 +766,9 @@ Terima kasih telah berbelanja!`
               disabled={cart.length === 0 || saving || (!isSplit && paymentMethod === 'Tunai' && cashValue < grandTotal) || (isSplit && splitValue1 <= 0)}
               onClick={handleCheckout}
             >
-              {saving ? 'Memproses...' : 'Bayar Sekarang'}
+              {saving ? 'Memproses...' : 
+                (!isSplit && paymentMethod === 'Tunai' && cashValue < grandTotal) ? 'Uang Belum Cukup' : 
+                (isSplit && splitValue1 <= 0) ? 'Split Nominal Tidak Valid' : 'Bayar Sekarang'}
               {!saving && <ChevronRight size={18} />}
             </button>
           </div>

@@ -44,6 +44,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import capitalVisual from '../../assets/capital-visual.png'
 import { Button } from '../../shared/ui/Button.jsx'
 import { SelectButton } from '../../shared/ui/SelectButton.jsx'
@@ -211,53 +212,46 @@ function SalesDashboard({ activeTab, onStartFlow, posData }) {
             </div>
             <strong>{formatRupiah(chartData.total)}</strong>
           </div>
-          <div className={cn('chart', chartData.pointCount < 2 && 'sparse-chart')} aria-label="Grafik tren penjualan">
-            <div className="chart-grid" />
-            <div className="chart-y-axis">
-              <span>{formatRupiah(chartData.maxValue)}</span>
-              <span>{formatRupiah(chartData.maxValue / 2)}</span>
-              <span>Rp 0</span>
-            </div>
-            <div className="chart-bars" style={{ '--chart-columns': chartData.buckets.length }}>
-              {chartData.buckets.map((item) => {
-                const maxHeight = chartData.pointCount < 2 ? 68 : 82
-                const height = chartData.maxValue ? Math.max((item.current / chartData.maxValue) * maxHeight, item.current ? 9 : 0) : 0
-                return (
-                  <div className={cn('chart-bar-group', item.current > 0 && 'has-value')} key={item.label}>
-                    <span className="chart-bar-value">{item.current ? formatRupiah(item.current) : ''}</span>
-                    <i style={{ '--bar-height': `${height}%` }} />
-                    <small>{item.label}</small>
-                  </div>
-                )
-              })}
-            </div>
-            {chartPath ? (
-              <svg className="chart-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <defs>
-                  <linearGradient id="salesLineGradient" x1="0" x2="1" y1="0" y2="0">
-                    <stop offset="0%" stopColor="#06b98f" />
-                    <stop offset="100%" stopColor="#8de65a" />
-                  </linearGradient>
-                </defs>
-                <path d={chartPath} />
-              </svg>
-            ) : null}
-            {!chartData.total ? (
-              <div className="chart-empty-state">
-                <ChartColumn size={34} />
-                <strong>Belum ada penjualan</strong>
-                <p>Transaksi yang tersimpan akan otomatis muncul di grafik ini.</p>
-              </div>
-            ) : null}
+          <div className="chart" aria-label="Grafik tren penjualan">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData.buckets} margin={{ top: 20, right: 20, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                <XAxis 
+                  dataKey="label" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: '#666' }} 
+                  dy={10} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tickFormatter={(value) => value > 0 ? `Rp ${(value / 1000).toLocaleString('id-ID')}rb` : 'Rp 0'} 
+                  tick={{ fontSize: 11, fill: '#666' }}
+                  width={80}
+                />
+                <Tooltip 
+                  formatter={(value) => [formatRupiah(value), 'Penjualan']} 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="current" 
+                  stroke="#06b98f" 
+                  strokeWidth={3} 
+                  dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#06b98f' }} 
+                  activeDot={{ r: 6, strokeWidth: 0, fill: '#06b98f' }} 
+                  animationDuration={1000}
+                />
+              </LineChart>
+            </ResponsiveContainer>
             <div className="legend">
               <span>
                 <i className="muted-dot" /> Penjualan
               </span>
-              {chartPath ? (
-                <span>
-                  <i /> Tren penjualan
-                </span>
-              ) : null}
+              <span>
+                <i /> Tren penjualan
+              </span>
             </div>
           </div>
         </div>

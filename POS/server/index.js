@@ -326,7 +326,7 @@ app.get('/api/pos-data', async (req, res) => {
     const membershipUserFilter = req.query.userId ? 'and user_id = $1' : ''
     if (req.query.userId) membershipParams.push(req.query.userId)
 
-    const [memberships, stockItems, sales, salesDetails, stockMutations, customers] = await Promise.all([
+    const [memberships, stockItems, sales, salesDetails, stockMutations, customers, shifts] = await Promise.all([
       client.query(
         `select * from public.pos_team_members
          where is_active = true ${membershipUserFilter}
@@ -357,6 +357,12 @@ app.get('/api/pos-data', async (req, res) => {
          order by sm.created_at desc`,
       ),
       client.query('select * from public.m_pelanggan order by name'),
+      client.query(
+        `select * from public.pos_shifts
+         ${req.query.userId ? 'where user_id = $1' : ''}
+         order by created_at desc`,
+        req.query.userId ? [req.query.userId] : []
+      ).catch(() => ({ rows: [] }))
     ])
 
     res.json({
@@ -366,6 +372,7 @@ app.get('/api/pos-data', async (req, res) => {
       salesDetails: salesDetails.rows,
       stockMutations: stockMutations.rows,
       customers: customers.rows,
+      shifts: shifts.rows,
     })
   } catch (error) {
     sendPgError(res, error)
@@ -552,20 +559,10 @@ app.post('/api/customers', async (req, res) => {
       `INSERT INTO public.customers (org_id, name, phone, email, address, member_code)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [orgId, name, phone, email, address, memberCode]
-    ])
-
-    res.json({
-      memberships: memberships.rows,
-      stockItems: stockItems.rows,
-      sales: sales.rows,
-      salesDetails: salesDetails.rows,
-      stockMutations: stockMutations.rows,
-      customers: customers.rows,
-    })
+    )
+    res.status(201).json(result.rows[0])
   } catch (error) {
     sendPgError(res, error)
-  } finally {
-    client.release()
   }
 })
 

@@ -888,10 +888,8 @@ button {
 
 .chart {
   position: relative;
-  min-height: 268px;
+  height: 300px;
   margin-top: 14px;
-  padding: 18px 16px 42px 56px;
-  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 10px;
   background:
@@ -1122,8 +1120,14 @@ button {
 .menu-favorite-page .setup-grid button {
   min-height: 64px;
   border-radius: 0;
-  border-color: #edf0f2;
-  box-shadow: none;
+  border-color: #38bdf8;
+  outline: none;
+}
+
+@media print {
+  .hide-on-print {
+    display: none !important;
+  }
 }
 
 .menu-favorite-page .setup-grid button:first-child {
@@ -4353,6 +4357,14 @@ button {
   white-space: nowrap;
 }
 
+.detail-report-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  color: #475569;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .detail-table-wrap .module-empty {
   min-width: 1120px;
   min-height: 360px;
@@ -5002,5 +5014,26 @@ button {
   }
   .employee-card {
     padding: 16px;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .receipt-dialog, .receipt-dialog * {
+    visibility: visible;
+  }
+  .receipt-dialog {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    box-shadow: none !important;
+  }
+  .hide-on-print {
+    display: none !important;
   }
 }
