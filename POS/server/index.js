@@ -866,6 +866,10 @@ app.post('/api/mutasi-outlet', async (req, res) => {
   }
 })
 
-app.listen(port, () => {
-  console.log(`API Server running on port ${port}`)
-})
+if (process.env.NODE_ENV !== 'production' || (!process.env.VERCEL && !process.env.RENDER)) {
+  app.listen(port, () => {
+    console.log(`API Server running on port ${port}`)
+  })
+}
+
+export default app;
