@@ -1,18 +1,18 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
-import { createProduct } from '../../shared/api/posApi.js'
+import { createProduct, updateProduct, uploadProductPhoto } from '../../shared/api/posApi.js'
 
-export function ProductFormModal({ posData, onClose, onSuccess }) {
+export function ProductFormModal({ posData, onClose, onSuccess, initialData }) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    sku: '',
-    item_name: '',
-    category_name: '',
-    sell_price: '',
-    qty_on_hand: '',
-    qty_minimum: '',
-    photo_url: '',
+    sku: initialData?.sku || '',
+    item_name: initialData?.item_name || '',
+    category_name: initialData?.category_name || '',
+    sell_price: initialData?.sell_price || '',
+    qty_on_hand: initialData?.qty_on_hand || '',
+    qty_minimum: initialData?.qty_minimum || '',
+    photo_url: initialData?.photo_url || '',
   })
 
   const orgId = posData?.memberships?.[0]?.org_id
@@ -31,7 +31,7 @@ export function ProductFormModal({ posData, onClose, onSuccess }) {
 
     setLoading(true)
     try {
-      await createProduct({
+      const payload = {
         orgId,
         outletId,
         sku: formData.sku,
@@ -42,11 +42,17 @@ export function ProductFormModal({ posData, onClose, onSuccess }) {
         qtyMinimum: Number(formData.qty_minimum),
         photoUrl: formData.photo_url,
         createdBy: posData?.user?.id
-      })
-      toast.success('Produk berhasil ditambahkan')
+      }
+      if (initialData?.id) {
+        await updateProduct(initialData.id, payload)
+        toast.success('Produk berhasil diperbarui')
+      } else {
+        await createProduct(payload)
+        toast.success('Produk berhasil ditambahkan')
+      }
       onSuccess()
     } catch (err) {
-      toast.error('Gagal menambahkan produk')
+      toast.error('Gagal menyimpan produk')
     } finally {
       setLoading(false)
     }
@@ -56,7 +62,7 @@ export function ProductFormModal({ posData, onClose, onSuccess }) {
     <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-          <h2 className="text-lg font-bold text-gray-800">Tambah Produk Baru</h2>
+          <h2 className="text-lg font-bold text-gray-800">{initialData?.id ? 'Edit Produk' : 'Tambah Produk Baru'}</h2>
           <button onClick={onClose} className="p-1 text-gray-500 hover:text-gray-700 bg-white rounded-full shadow-sm">
             <X size={20} />
           </button>
@@ -93,20 +99,23 @@ export function ProductFormModal({ posData, onClose, onSuccess }) {
             <input 
               type="file" 
               accept="image/*"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setFormData(prev => ({ ...prev, photo_url: reader.result }));
-                  };
-                  reader.readAsDataURL(file);
+                  try {
+                    toast.loading('Mengunggah foto...', { id: 'upload-toast' })
+                    const res = await uploadProductPhoto(file)
+                    setFormData(prev => ({ ...prev, photo_url: res.url }))
+                    toast.success('Foto berhasil diunggah', { id: 'upload-toast' })
+                  } catch (err) {
+                    toast.error('Gagal mengunggah foto', { id: 'upload-toast' })
+                  }
                 }
               }} 
               className="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500 text-sm" 
             />
-            {formData.photo_url && formData.photo_url.startsWith('data:image') && (
-              <img src={formData.photo_url} alt="Preview" className="mt-2 h-24 object-contain rounded border" />
+            {formData.photo_url && (
+              <img src={formData.photo_url} alt="Preview" className="mt-2 h-24 w-24 object-cover rounded border" />
             )}
           </div>
         </form>

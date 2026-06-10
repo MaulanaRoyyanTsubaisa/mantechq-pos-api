@@ -53,6 +53,7 @@ import {
   getStoredSession,
   signInWithEmail,
 } from './lib/api.js'
+import { deleteProduct } from './shared/api/posApi.js'
 import { PosApp } from './features/pos/PosApp.jsx'
 import capitalVisual from './assets/capital-visual.png'
 import './style.css'
@@ -778,7 +779,7 @@ function mapStockToProductRows(stockItems) {
     formatRupiah(0),
     formatRupiah(item.sell_price),
     item.is_active ? 'Tampil di Menu' : 'Tidak Tampil di Menu',
-    '',
+    { id: item.id, orgId: item.org_id, item },
   ])
 }
 
@@ -2772,13 +2773,33 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
     return matchesQuery && matchesStatus
   })
 
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [editingProduct, setEditingProduct] = useState(null)
+
   const runAction = (action) => {
-    if (action.toLowerCase().includes('impor')) toast.success(`${action} dibuka`)
-    else toast.success(`${action} disiapkan`)
+    if (action === 'Tambah Produk' || action === 'Tambah Bahan Baku') {
+      setEditingProduct(null)
+      setShowAddModal(true)
+    } else if (action.toLowerCase().includes('impor')) {
+      toast.success(`${action} dibuka`)
+    } else {
+      toast.success(`${action} disiapkan`)
+    }
   }
 
   return (
     <main className="content product-page">
+      {showAddModal && (
+        <ProductFormModal 
+          posData={posData} 
+          initialData={editingProduct}
+          onClose={() => setShowAddModal(false)} 
+          onSuccess={() => {
+            setShowAddModal(false)
+            window.location.reload()
+          }} 
+        />
+      )}
       <CapitalBanner compact />
       <section className="panel product-directory-card">
         <header className="product-directory-head">
@@ -2847,11 +2868,29 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
               {rows.map((row, rowIndex) => (
                 <tr key={`${row[0]}-${rowIndex}`}>
                   {row.map((cell, index) => {
-                    const isStatus = String(cell).includes('Tampil di Menu')
+                    const isStatus = typeof cell === 'string' && cell.includes('Tampil di Menu')
                     const isAction = index === row.length - 1
                     return (
-                      <td key={`${cell}-${index}`}>
-                        {isStatus ? <span className="status-pill">Tampil di Menu</span> : isAction ? <button className="row-more" aria-label="Aksi baris"><MoreVertical size={16} /></button> : cell}
+                      <td key={`${index}`}>
+                        {isStatus ? <span className="status-pill">{cell}</span> : isAction ? (
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button className="icon-link" onClick={() => {
+                              setEditingProduct(cell.item)
+                              setShowAddModal(true)
+                            }} aria-label="Edit Produk"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
+                            <button className="icon-link" onClick={async () => {
+                              if (confirm('Yakin ingin menghapus produk ini?')) {
+                                try {
+                                  await deleteProduct(cell.id, cell.orgId)
+                                  toast.success('Produk berhasil dihapus')
+                                  window.location.reload()
+                                } catch (e) {
+                                  toast.error('Gagal menghapus produk')
+                                }
+                              }
+                            }} aria-label="Hapus Produk"><Trash2 size={16} color="#ef4444" /></button>
+                          </div>
+                        ) : cell}
                       </td>
                     )
                   })}

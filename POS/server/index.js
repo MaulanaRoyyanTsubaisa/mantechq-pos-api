@@ -4,6 +4,7 @@ import pg from 'pg'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import multer from 'multer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '..')
@@ -38,6 +39,29 @@ const pool = new pg.Pool({ connectionString: databaseUrl })
 
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
+
+// Create uploads directory
+const uploadDir = path.join(__dirname, 'uploads')
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true })
+}
+
+// Configure multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/\\s+/g, '_')}`)
+})
+const upload = multer({ storage })
+
+app.use('/uploads', express.static(uploadDir))
+
+app.post('/api/upload', upload.single('photo'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' })
+  }
+  const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+  res.json({ url: photoUrl })
+})
 
 function toCamelProduct(body) {
   return {
@@ -91,6 +115,35 @@ async function findOrCreateUser(client, email) {
   )
   return created.rows[0]
 }
+
+async function initDb() {
+  const client = await pool.connect()
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS public.pos_shifts (
+        id uuid primary key default gen_random_uuid(),
+        org_id uuid not null,
+        outlet_id uuid not null,
+        user_id uuid not null,
+        cashier_name text,
+        start_time timestamptz not null default now(),
+        end_time timestamptz,
+        opening_amount numeric(14,2) default 0,
+        closing_amount numeric(14,2) default 0,
+        expected_amount numeric(14,2) default 0,
+        status text default 'open',
+        created_at timestamptz default now()
+      );
+    `)
+    console.log('Database tables verified.')
+  } catch (err) {
+    console.error('Failed to init DB:', err)
+  } finally {
+    client.release()
+  }
+}
+
+initDb()
 
 app.get('/api/health', async (_req, res) => {
   try {
@@ -169,6 +222,52 @@ app.post('/api/products', async (req, res) => {
     )
     res.status(201).json(result.rows[0])
   } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.put('/api/products/:id', async (req, res) => {
+  const product = toCamelProduct(req.body)
+  try {
+    const result = await pool.query(
+      `update public.st_mast set
+        sku = $1, item_name = $2, category_name = $3, unit = $4,
+        sell_price = $5, qty_on_hand = $6, qty_minimum = $7, is_active = $8, photo_url = $9, updated_at = now()
+      where id = $10 and org_id = $11
+      returning *`,
+      [
+        String(product.sku || '').trim(),
+        String(product.itemName || '').trim(),
+        product.categoryName || null,
+        product.unit || 'Pcs',
+        Number(product.sellPrice || 0),
+        Number(product.qtyOnHand || 0),
+        Number(product.qtyMinimum || 0),
+        req.body.is_active !== false,
+        product.photoUrl || null,
+        req.params.id,
+        product.orgId
+      ]
+    )
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
+    res.json(result.rows[0])
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.delete('/api/products/:id', async (req, res) => {
+  const orgId = req.query.orgId
+  try {
+    const result = await pool.query(`delete from public.st_mast where id = $1 and org_id = $2 returning id`, [req.params.id, orgId])
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
+    res.json({ success: true })
+  } catch (error) {
+    // Soft delete if foreign key violation
+    if (error.code === '23503') {
+      await pool.query(`update public.st_mast set is_active = false where id = $1 and org_id = $2`, [req.params.id, orgId])
+      return res.json({ success: true, softDeleted: true })
+    }
     sendPgError(res, error)
   }
 })
@@ -303,6 +402,46 @@ app.post('/api/sales', async (req, res) => {
       ],
     )
     res.status(201).json(result.rows[0])
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.get('/api/shifts/current', async (req, res) => {
+  try {
+    const { orgId, outletId, userId } = req.query
+    if (!orgId || !outletId || !userId) return res.status(400).json({ error: 'Missing parameters' })
+    const result = await pool.query(
+      `select * from public.pos_shifts where org_id = $1 and outlet_id = $2 and user_id = $3 and status = 'open' order by created_at desc limit 1`,
+      [orgId, outletId, userId]
+    )
+    res.json(result.rows[0] || null)
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.post('/api/shifts', async (req, res) => {
+  const { orgId, outletId, userId, cashierName, action, openingAmount, closingAmount, expectedAmount } = req.body
+  try {
+    if (action === 'open') {
+      const result = await pool.query(
+        `insert into public.pos_shifts (org_id, outlet_id, user_id, cashier_name, opening_amount, status)
+         values ($1, $2, $3, $4, $5, 'open') returning *`,
+        [orgId, outletId, userId, cashierName, Number(openingAmount || 0)]
+      )
+      res.json(result.rows[0])
+    } else if (action === 'close') {
+      const result = await pool.query(
+        `update public.pos_shifts set closing_amount = $1, expected_amount = $2, end_time = now(), status = 'closed'
+         where org_id = $3 and outlet_id = $4 and user_id = $5 and status = 'open'
+         returning *`,
+        [Number(closingAmount || 0), Number(expectedAmount || 0), orgId, outletId, userId]
+      )
+      res.json(result.rows[0] || null)
+    } else {
+      res.status(400).json({ error: 'Invalid action' })
+    }
   } catch (error) {
     sendPgError(res, error)
   }
