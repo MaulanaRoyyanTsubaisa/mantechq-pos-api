@@ -44,30 +44,16 @@ const pool = new pg.Pool({
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
 
-// Create uploads directory
-const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(process.cwd(), 'server', 'uploads')
-try {
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true })
-  }
-} catch (err) {
-  console.error('Failed to create upload dir:', err)
-}
-
-// Configure multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/\\s+/g, '_')}`)
-})
-const upload = multer({ storage })
-
-app.use('/uploads', express.static(uploadDir))
+// Configure multer for Base64 (Vercel compatible)
+const storage = multer.memoryStorage()
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } })
 
 app.post('/api/upload', upload.single('photo'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' })
   }
-  const photoUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+  const base64 = req.file.buffer.toString('base64')
+  const photoUrl = `data:${req.file.mimetype};base64,${base64}`
   res.json({ url: photoUrl })
 })
 
