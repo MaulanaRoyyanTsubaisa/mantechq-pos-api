@@ -1678,10 +1678,11 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
           posData={posData} 
           initialData={editingProduct}
           onClose={() => setShowAddModal(false)} 
-          onSuccess={() => {
+          onSuccess={async () => {
             setShowAddModal(false)
-            // Ideally refetch data here, but page will reload or socket will update
-            window.location.reload()
+            if (posData?.refresh) {
+              await posData.refresh()
+            }
           }} 
         />
       )}

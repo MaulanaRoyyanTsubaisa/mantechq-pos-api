@@ -69,6 +69,7 @@ function toCamelProduct(body) {
     qtyOnHand: body.qtyOnHand ?? body.qty_on_hand,
     qtyMinimum: body.qtyMinimum ?? body.qty_minimum ?? 0,
     createdBy: body.createdBy || body.created_by,
+    photoUrl: body.photoUrl || body.photo_url,
   }
 }
 
