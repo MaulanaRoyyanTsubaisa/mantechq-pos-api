@@ -35,7 +35,12 @@ const databaseUrl = process.env.DATABASE_URL || 'postgresql://pos_dev:pos_dev_12
 const defaultOrgId = process.env.POS_DEFAULT_ORG_ID || 'f63d5959-6c12-4765-8d27-2990f7f3139f'
 const defaultOutletId = process.env.POS_DEFAULT_OUTLET_ID || 'dee31aef-a313-4fb7-aaa3-55c2fc2c4c3e'
 
-const pool = new pg.Pool({ connectionString: databaseUrl })
+const pool = new pg.Pool({
+  connectionString: databaseUrl,
+  ...(databaseUrl.includes('neon.tech') || databaseUrl.includes('render.com') || process.env.VERCEL 
+    ? { ssl: { rejectUnauthorized: false } } 
+    : {})
+})
 
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
@@ -121,8 +126,9 @@ async function findOrCreateUser(client, email) {
 }
 
 async function initDb() {
-  const client = await pool.connect()
+  let client
   try {
+    client = await pool.connect()
     await client.query(`
       CREATE TABLE IF NOT EXISTS public.pos_shifts (
         id uuid primary key default gen_random_uuid(),
@@ -143,7 +149,7 @@ async function initDb() {
   } catch (err) {
     console.error('Failed to init DB:', err)
   } finally {
-    client.release()
+    if (client) client.release()
   }
 }
 
