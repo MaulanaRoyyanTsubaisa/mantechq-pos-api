@@ -638,7 +638,7 @@ Object.assign(moduleBlueprints, {
     actions: ['Impor Data', 'Ekspor Data', 'Tambah Produk'],
     filters: ['Kategori'],
     controls: 'product',
-    columns: ['NAMA PRODUK', 'SKU', 'KATEGORI', 'HARGA MODAL', 'HARGA BELI', 'HARGA JUAL', 'STATUS'],
+    columns: ['FOTO', 'NAMA PRODUK', 'SKU', 'KATEGORI', 'HARGA MODAL', 'HARGA BELI', 'HARGA JUAL', 'STATUS'],
     rows: [],
   },
   'Daftar Bahan Baku': {
@@ -784,6 +784,7 @@ function parseQuantityInput(value) {
 
 function mapStockToProductRows(stockItems) {
   return stockItems.map((item) => [
+    item.photo_url ? { type: 'photo', url: item.photo_url, name: item.item_name } : { type: 'photo' },
     item.item_name,
     item.sku,
     item.category_name || '-',

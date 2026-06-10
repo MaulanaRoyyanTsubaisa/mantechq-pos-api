@@ -1777,13 +1777,15 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                                 try {
                                   await deleteProduct(cell.id, cell.orgId)
                                   toast.success('Produk berhasil dihapus')
-                                  window.location.reload()
+                                  if (posData?.refresh) await posData.refresh()
                                 } catch (e) {
                                   toast.error('Gagal menghapus produk')
                                 }
                               }
-                            }} aria-label="Hapus Produk"><Trash2 size={16} color="#ef4444" /></button>
+                            }} aria-label="Hapus Produk"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg></button>
                           </div>
+                        ) : cell?.type === 'photo' ? (
+                          cell.url ? <img src={cell.url} alt={cell.name} style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover' }} /> : <div style={{ width: 44, height: 44, borderRadius: 6, background: '#f0f0f0', display: 'grid', placeItems: 'center', fontSize: 10, color: '#aaa' }}>-</div>
                         ) : cell}
                       </td>
                     )
