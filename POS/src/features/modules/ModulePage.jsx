@@ -1642,6 +1642,26 @@ function TransactionPage({ posData, session }) {
     setPaymentStatus('paid')
   }
 
+  const holdOrder = () => {
+    if (!cart.length) return toast.error('Keranjang kosong')
+    const holdData = { cart, discountTotal, taxTotal, note }
+    const existingHolds = JSON.parse(localStorage.getItem('pos_held_orders') || '[]')
+    existingHolds.push({ id: Date.now(), label: `Hold ${new Date().toLocaleTimeString('id-ID')}`, data: holdData })
+    localStorage.setItem('pos_held_orders', JSON.stringify(existingHolds))
+    toast.success('Pesanan berhasil disimpan')
+    resetTransaction()
+  }
+
+  const loadHoldOrder = (hold) => {
+    setCart(hold.data.cart || [])
+    setDiscountTotal(hold.data.discountTotal || '0')
+    setTaxTotal(hold.data.taxTotal || '0')
+    setNote(hold.data.note || '')
+    const existingHolds = JSON.parse(localStorage.getItem('pos_held_orders') || '[]')
+    localStorage.setItem('pos_held_orders', JSON.stringify(existingHolds.filter(h => h.id !== hold.id)))
+    toast.success('Pesanan dilanjutkan')
+  }
+
   const saveTransaction = async () => {
     if (!membership?.org_id || !membership?.outlet_id) {
       toast.error('Outlet belum valid untuk transaksi.')
@@ -1814,12 +1834,28 @@ function TransactionPage({ posData, session }) {
               </div>
               <div className="cart-actions">
                 <Button variant="outline" onClick={resetTransaction} disabled={saving || !cart.length}>
-                  <Trash2 size={16} />
-                  Reset
+                  <Trash2 size={16} /> Reset
+                </Button>
+                <Button variant="outline" onClick={holdOrder} disabled={saving || !cart.length}>
+                  <Clock3 size={16} /> Simpan
                 </Button>
                 <Button onClick={saveTransaction} disabled={saving || !cart.length}>
                   <CircleDollarSign size={17} />
-                  {saving ? 'Menyimpan...' : 'Simpan Transaksi'}
+                  {saving ? 'Menyimpan...' : 'Bayar'}
+                </Button>
+              </div>
+              <div className="cart-actions mt-2">
+                <Button 
+                  variant="outline" 
+                  style={{ width: '100%' }} 
+                  onClick={() => {
+                    const existingHolds = JSON.parse(localStorage.getItem('pos_held_orders') || '[]')
+                    if (!existingHolds.length) return toast.info('Tidak ada pesanan tersimpan')
+                    const hold = existingHolds[existingHolds.length - 1]
+                    loadHoldOrder(hold)
+                  }}
+                >
+                  <ClipboardList size={16} /> Lanjutkan Pesanan Terakhir ({JSON.parse(localStorage.getItem('pos_held_orders') || '[]').length})
                 </Button>
               </div>
             </div>

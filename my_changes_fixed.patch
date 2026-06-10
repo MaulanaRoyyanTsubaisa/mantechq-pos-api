@@ -1,0 +1,2826 @@
+diff --git a/POS/src/main.jsx b/POS/src/main.jsx
+index 2ce675f..0807c9f 100644
+--- a/POS/src/main.jsx
++++ b/POS/src/main.jsx
+@@ -119,7 +119,20 @@ const sidebarGroups = [
+   {
+     label: 'Inventori',
+     icon: Boxes,
+-    children: ['Daftar Bahan Baku', 'Pembelian Stok', 'Kelola Stok'],
++    children: [
++      'Daftar Bahan Baku',
++      {
++        label: 'Pembelian Stok',
++        children: ['Permintaan Barang', 'Pemesanan Stok', 'Pengiriman Pembelian', 'Faktur Pembelian', 'Pembayaran Faktur', 'Retur'],
++      },
++      {
++        label: 'Kelola Stok',
++        children: ['Daftar Stok', 'Stok Opname', 'Stok Terbuang'],
++      },
++      'Produksi Stok',
++      'Mutasi Antar Outlet',
++      'Daftar Pemasok'
++    ],
+   },
+   {
+     label: 'Pelanggan',
+@@ -775,14 +788,18 @@ function Sidebar({ activePage, openGroup, setOpenGroup, setActivePage, isOpen, s
+           </Button>
+         </div>
+ 
+-        <button className="outlet-switch" onClick={() => toast.info(`Outlet aktif: ${activeOutlet}`)}>
+-          <Store size={30} />
+-          <span>
+-            <small>Outlet</small>
+-            {activeOutlet}
+-          </span>
+-          <PanelLeftClose size={18} />
+-        </button>
++        <div className="outlet-switch">
++          <button type="button" className="outlet-btn" onClick={() => toast.info(`Outlet aktif: ${activeOutlet}`)}>
++            <Store size={30} />
++            <span>
++              <small>Outlet</small>
++              {activeOutlet}
++            </span>
++          </button>
++          <button type="button" className="sidebar-collapse-btn" onClick={() => setIsOpen((v) => !v)} aria-label="Toggle menu">
++            <PanelLeftClose size={18} />
++          </button>
++        </div>
+ 
+         <nav className="side-nav" aria-label="Navigasi utama">
+           {sidebarGroups.map((group) => {
+@@ -984,7 +1001,21 @@ function Onboarding({ onStartFlow }) {
+ 
+ function SalesDashboard({ activeTab, onStartFlow }) {
+   const [period, setPeriod] = useState('Harian')
++  const [dateOpen, setDateOpen] = useState(false)
++  const [dateRange, setDateRange] = useState({ label: 'Hari Ini', display: '06 Jun 2026 - 06 Jun 2026', startTime: '00:00', endTime: '23:59' })
+   const heading = activeTab === 'Penjualan' ? 'Dashboard Penjualan' : `Dashboard ${activeTab}`
++
++  const widgets = [
++    { title: 'Kontrol Fraud', icon: ShieldCheck },
++    { title: 'Metode Pembayaran', icon: CreditCard },
++    { title: 'Jenis Order', icon: ShoppingBag },
++    { title: 'Penjualan per Kategori', icon: ListFilter },
++    { title: 'Produk Terlaris', icon: Star },
++    { title: 'Komisi per Kasir', icon: Percent },
++    { title: 'Penjualan per Kasir', icon: Users },
++    { title: 'Stok Terendah', icon: Package },
++  ]
++
+   return (
+     <main className="content">
+       <Onboarding onStartFlow={onStartFlow} />
+@@ -1008,11 +1039,20 @@ function SalesDashboard({ activeTab, onStartFlow }) {
+               </button>
+             ))}
+           </div>
+-          <div className="date-nav">
++          <div className="date-nav" style={{ position: 'relative' }}>
+             <Button variant="outline" aria-label="Tanggal sebelumnya">
+               <ChevronLeft size={18} />
+             </Button>
+-            <span>{period === 'Bulan' ? '01 Jun 26 - 30 Jun 26' : '06 Jun 26 - 06 Jun 26'}</span>
++            <DateRangePicker 
++              open={dateOpen}
++              range={dateRange}
++              onToggle={() => setDateOpen(!dateOpen)}
++              onCancel={() => setDateOpen(false)}
++              onProcess={(draft) => {
++                setDateRange(draft)
++                setDateOpen(false)
++              }}
++            />
+             <Button variant="outline" aria-label="Tanggal berikutnya">
+               <ChevronRight size={18} />
+             </Button>
+@@ -1041,7 +1081,7 @@ function SalesDashboard({ activeTab, onStartFlow }) {
+         <div className="chart-block">
+           <div className="chart-head">
+             <strong>Penjualan</strong>
+-            <span>06 Juni 2026</span>
++            <span>{dateRange.display}</span>
+           </div>
+           <div className="chart">
+             <div className="chart-grid" />
+@@ -1062,14 +1102,14 @@ function SalesDashboard({ activeTab, onStartFlow }) {
+       </section>
+ 
+       <section className="report-grid">
+-        {reportCards.map(([title, empty, Icon]) => (
+-          <article className="panel report-card" key={title}>
++        {widgets.map((w) => (
++          <article className="panel report-card" key={w.title}>
+             <div>
+-              <Icon size={20} />
+-              <strong>{title}</strong>
++              <w.icon size={20} />
++              <strong>{w.title}</strong>
+             </div>
+-            <p>{empty}</p>
+-            <Button variant="link" onClick={() => toast.info(`Membuka detail ${title}`)}>
++            <p>{w.title.includes('Pembayaran') ? 'Belum Ada Pembayaran' : 'Belum Ada Transaksi'}</p>
++            <Button variant="link" onClick={() => toast.info(`Membuka detail ${w.title}`)}>
+               Lihat Semua
+             </Button>
+           </article>
+@@ -1201,24 +1241,37 @@ function EmptyModuleState({ type }) {
+ }
+ 
+ function ModulePage({ activePage, onStartFlow }) {
+-  if (activePage === 'Ringkasan Penjualan') {
+-    return <SalesSummaryReportPage />
+-  }
+-  if (activePage === 'Detail Penjualan') {
+-    return <SalesDetailReportPage />
+-  }
+-  if (activePage === 'Penjualan Per Periode') {
+-    return <SalesPeriodReportPage />
+-  }
+-  if (activePage === 'Penjualan Outlet') {
+-    return <SalesOutletReportPage />
+-  }
+-  if (reportPageConfigs[activePage]) {
+-    return <MajooGenericReportPage config={reportPageConfigs[activePage]} />
+-  }
+-  if (productPageConfigs[activePage]) {
+-    return <ProductDirectoryPage config={productPageConfigs[activePage]} onStartFlow={onStartFlow} />
+-  }
++  if (activePage === 'Ringkasan Penjualan') return <SalesSummaryReportPage />
++  if (activePage === 'Detail Penjualan') return <SalesDetailReportPage />
++  if (activePage === 'Penjualan Per Periode') return <SalesPeriodReportPage />
++  if (activePage === 'Penjualan Outlet') return <SalesOutletReportPage />
++  if (reportPageConfigs[activePage]) return <MajooGenericReportPage config={reportPageConfigs[activePage]} />
++  if (productPageConfigs[activePage]) return <ProductDirectoryPage config={productPageConfigs[activePage]} onStartFlow={onStartFlow} />
++
++  // Inventori
++  if (activePage === 'Daftar Bahan Baku') return <DaftarBahanBakuPage />
++  if (activePage === 'Pemesanan Stok') return <PemesananStokPage />
++  if (activePage === 'Daftar Stok') return <DaftarStokPage />
++
++  // Pelanggan
++  if (activePage === 'Daftar Pelanggan') return <DaftarPelangganPage />
++  if (activePage === 'Grup Pelanggan') return <GrupPelangganPage />
++  if (activePage === 'Grup Harga Spesial') return <GrupHargaSpesialPage />
++  if (activePage === 'Kustom Data Pelanggan') return <KustomDataPelangganPage />
++  if (activePage === 'Pengaturan Data Pelanggan') return <PengaturanDataPelangganPage />
++
++  // Promosi
++  if (['Basic Promo', 'Per Total Pembelian', 'Per Produk'].includes(activePage)) return <PromoListPage tipe={activePage} />
++  if (activePage === 'Kupon') return <KuponPage />
++  if (activePage === 'Loyalty') return <LoyaltyPage />
++  if (activePage === 'Poin Reward') return <PoinRewardPage />
++
++  // Invoice
++  if (activePage === 'Daftar Penawaran Penjualan') return <InvoiceDirectoryPage type="penawaran" />
++  if (activePage === 'Daftar Pesanan Penjualan') return <InvoiceDirectoryPage type="pesanan" />
++  if (activePage === 'Daftar Pengiriman Penjualan') return <InvoiceDirectoryPage type="pengiriman" />
++  if (activePage === 'Daftar Invoice') return <InvoiceDirectoryPage type="invoice" />
++  if (activePage === 'Daftar Penerimaan Penjualan') return <InvoiceDirectoryPage type="penerimaan" />
+ 
+   const parent = useMemo(
+     () => sidebarGroups.find((group) => group.label === activePage || flattenItems(group.children).includes(activePage)),
+@@ -1271,52 +1324,37 @@ function ModulePage({ activePage, onStartFlow }) {
+             })}
+           </div>
+         </div>
+-
+         <div className="module-context">
+-          <span className="module-icon">
+-            <Icon size={20} />
+-          </span>
++          <span className="module-icon"><Icon size={20} /></span>
+           <div>
+             <strong>{parent?.label || 'TripleSys PoS'}</strong>
+             <p>{blueprint.description}</p>
+           </div>
+         </div>
+-
+         <div className="majoo-filterbar">
+           <label>
+             <Search size={17} />
+-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari ..." />
++            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari ..." />
+           </label>
+           {controls === 'product' ? <SelectButton label="Semua Kategori" /> : null}
+           {controls === 'invoice' || controls === 'date-status' ? <SelectButton label="01 Jun 2026 - 30 Jun 2026" /> : null}
+-          {controls === 'invoice' || controls === 'date-status' ? <SelectButton label={status} onClick={() => setStatus('Semua Status')} /> : null}
+           {controls === 'status-tabs' || controls === 'product' ? (
+-            <div className="radio-tabs" role="tablist" aria-label="Status tampil">
++            <div className="radio-tabs" role="tablist">
+               {['Semua', 'Tampil di Menu', 'Tidak Tampil di Menu'].map((item) => (
+-                <button key={item} className={item === 'Semua' ? 'active' : ''} onClick={() => toast.info(item)}>
+-                  {item}
+-                </button>
++                <button key={item} className={item === 'Semua' ? 'active' : ''} onClick={() => toast.info(item)}>{item}</button>
+               ))}
+             </div>
+           ) : null}
+         </div>
+-
+         {blueprint.summary ? (
+           <div className="invoice-summary">
+-            {blueprint.summary.map(([label, value]) => (
+-              <MiniKpi key={label} label={label} value={value} />
+-            ))}
++            {blueprint.summary.map(([label, value]) => <MiniKpi key={label} label={label} value={value} />)}
+           </div>
+         ) : null}
+-
+         <div className="module-table">
+           <div className="module-table-head" style={{ gridTemplateColumns: `44px repeat(${blueprint.columns.length}, minmax(130px, 1fr))` }}>
+-            <span className="check-col">
+-              <input type="checkbox" aria-label="Toggle All Current Page Rows Selected" />
+-            </span>
+-            {blueprint.columns.map((column) => (
+-              <span key={column}>{column}</span>
+-            ))}
++            <span className="check-col"><input type="checkbox" /></span>
++            {blueprint.columns.map((column) => <span key={column}>{column}</span>)}
+           </div>
+           {blueprint.rows.length ? null : <EmptyModuleState type={blueprint.type} />}
+         </div>
+@@ -1683,10 +1721,6 @@ function SalesDetailReportPage() {
+             <p>{range.display}</p>
+           </div>
+           <div className="sales-detail-actions">
+-            <Button variant="outline" onClick={() => setTableOpen(true)}>
+-              <Settings size={16} />
+-              Atur Tabel
+-            </Button>
+             <Button variant="outline" onClick={() => setFilterOpen(true)}>
+               <ListFilter size={16} />
+               Filter
+@@ -2383,12 +2417,6 @@ function GenericReportHeader({ config, range, exportOpen, setExportOpen, exportR
+         <p><CalendarDays size={16} /> {range.display}</p>
+       </div>
+       <div className="sales-detail-actions">
+-        {(config.tableSettings || onTable) && !hideExport ? (
+-          <Button variant="outline" onClick={onTable}>
+-            <Settings size={16} />
+-            Atur Tabel
+-          </Button>
+-        ) : null}
+         {!hideExport ? <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} /> : null}
+       </div>
+     </div>
+@@ -2442,6 +2470,7 @@ function ProductDirectoryPage({ config, onStartFlow }) {
+   const [query, setQuery] = useState('')
+   const [status, setStatus] = useState('Semua')
+   const [favorite, setFavorite] = useState(false)
++  const [isAddOpen, setIsAddOpen] = useState(false)
+   const rows = config.rows || []
+ 
+   const runAction = (action) => {
+@@ -2464,9 +2493,13 @@ function ProductDirectoryPage({ config, onStartFlow }) {
+                 <Star size={21} />
+               </button>
+             </div>
+-            {config.subtitle ? <p>{config.subtitle}</p> : null}
++            {config.subtitle ? <p style={{ marginTop: '4px', fontSize: '13px', color: 'var(--muted)' }}>{config.subtitle}</p> : null}
++            {config.title === 'Daftar Produk' ? <p style={{ marginTop: '2px', fontSize: '12px', color: 'var(--muted)' }}>Data yang tampil berdasarkan Outlet Utama (Software House)</p> : null}
+           </div>
+           <div className="product-directory-actions">
++            <Button variant="link" onClick={() => toast.info('Pengaturan Kolom')} aria-label="Pengaturan Tabel">
++              <Settings size={16} />
++            </Button>
+             {(config.actions || []).map((action) => (
+               <Button key={action} variant="link" onClick={() => runAction(action)}>
+                 {action.toLowerCase().includes('impor') ? <Upload size={16} /> : <Download size={16} />}
+@@ -2474,7 +2507,7 @@ function ProductDirectoryPage({ config, onStartFlow }) {
+               </Button>
+             ))}
+             {config.addLabel ? (
+-              <Button onClick={() => (config.addFlow ? onStartFlow(config.addFlow) : toast.success(config.addLabel))}>
++              <Button onClick={() => setIsAddOpen(true)}>
+                 <Plus size={18} />
+                 {config.addLabel}
+               </Button>
+@@ -2507,34 +2540,43 @@ function ProductDirectoryPage({ config, onStartFlow }) {
+         </div>
+ 
+         <div className="product-table-wrap">
+-          <table className="product-table">
+-            <thead>
+-              <tr>
+-                {config.columns.map((column) => (
+-                  <th key={column || 'action'}>{column}</th>
+-                ))}
+-              </tr>
+-            </thead>
+-            <tbody>
+-              {rows.map((row, rowIndex) => (
+-                <tr key={`${row[0]}-${rowIndex}`}>
+-                  {row.map((cell, index) => {
+-                    const isStatus = String(cell).includes('Tampil di Menu')
+-                    const isAction = index === row.length - 1
+-                    return (
+-                      <td key={`${cell}-${index}`}>
+-                        {isStatus ? <span className="status-pill">Tampil di Menu</span> : isAction ? <button className="row-more" aria-label="Aksi baris"><MoreVertical size={16} /></button> : cell}
+-                      </td>
+-                    )
+-                  })}
++          <div className="data-table-scroll">
++            <table className="data-table">
++              <thead>
++                <tr>
++                  <th className="check-th"><input type="checkbox" /></th>
++                  {config.columns.map((column) => (
++                    <th key={column || 'action'}>{column}</th>
++                  ))}
+                 </tr>
+-              ))}
+-            </tbody>
+-          </table>
+-          {!rows.length ? <EmptyModuleState type="master" /> : null}
++              </thead>
++              <tbody>
++                {rows.map((row, rowIndex) => (
++                  <tr key={`${row[0]}-${rowIndex}`}>
++                    <td className="check-th"><input type="checkbox" /></td>
++                    {row.map((cell, index) => {
++                      const isStatus = String(cell).includes('Tampil di Menu')
++                      const isAction = index === row.length - 1
++                      return (
++                        <td key={`${cell}-${index}`}>
++                          {isStatus ? <span className="status-pill">Tampil di Menu</span> : isAction ? <button className="row-more" aria-label="Aksi baris"><MoreVertical size={16} /></button> : cell}
++                        </td>
++                      )
++                    })}
++                  </tr>
++                ))}
++              </tbody>
++            </table>
++          </div>
++          {!rows.length ? (
++            <div className="table-empty">
++              <Package size={42} strokeWidth={1.5} />
++              <p>Data tidak tersedia Belum ada data yang dapat ditampilkan di halaman ini</p>
++            </div>
++          ) : null}
+         </div>
+ 
+-        <footer className="product-pagination">
++        <footer className="table-pagination">
+           <div>
+             <span>Tampilkan:</span>
+             <button>10 <ChevronDown size={14} /></button>
+@@ -2547,6 +2589,55 @@ function ProductDirectoryPage({ config, onStartFlow }) {
+           </nav>
+         </footer>
+       </section>
++
++      {isAddOpen ? (
++        <>
++          <div className="slide-scrim" onClick={() => setIsAddOpen(false)} />
++          <div className="slide-panel open">
++            <div className="slide-panel-head">
++              <h2>{config.addLabel}</h2>
++              <button onClick={() => setIsAddOpen(false)}><X size={18} /></button>
++            </div>
++            <div className="slide-panel-body">
++              <label className="panel-form-row">
++                <span className="panel-form-label">Nama Produk <span className="req">*</span></span>
++                <input type="text" placeholder="Masukkan nama produk" />
++              </label>
++              <label className="panel-form-row">
++                <span className="panel-form-label">SKU <span className="req">*</span></span>
++                <input type="text" placeholder="Masukkan SKU atau auto-generate" />
++              </label>
++              <label className="panel-form-row">
++                <span className="panel-form-label">Kategori</span>
++                <select>
++                  <option>Pilih Kategori</option>
++                  <option>Makanan</option>
++                  <option>Minuman</option>
++                </select>
++              </label>
++              <label className="panel-form-row">
++                <span className="panel-form-label">Harga Beli / Modal</span>
++                <input type="number" placeholder="Rp 0" />
++              </label>
++              <label className="panel-form-row">
++                <span className="panel-form-label">Harga Jual <span className="req">*</span></span>
++                <input type="number" placeholder="Rp 0" />
++              </label>
++              <label className="panel-form-row">
++                <span className="panel-form-label">Status Produk</span>
++                <div className="radio-group" style={{ marginTop: '8px' }}>
++                  <label className="radio-opt"><input type="radio" name="prodStatus" defaultChecked /> Tampil di Menu</label>
++                  <label className="radio-opt"><input type="radio" name="prodStatus" /> Tidak Tampil di Menu</label>
++                </div>
++              </label>
++            </div>
++            <div className="slide-panel-footer">
++              <button onClick={() => setIsAddOpen(false)}>Batal</button>
++              <Button onClick={() => { toast.success(`${config.addLabel} berhasil disimpan`); setIsAddOpen(false) }}>Simpan</Button>
++            </div>
++          </div>
++        </>
++      ) : null}
+     </main>
+   )
+ }
+@@ -3099,15 +3190,23 @@ function OutletDetailFlow({ onClose, onOutletSaved }) {
+         <section className="flow-card outlet-detail-card">
+           <h2>Informasi Outlet</h2>
+           <h3>Detail Logo</h3>
+-          <FormRow label={<span className="label-inline">Logo Outlet <Info size={16} /></span>}>
++          <FormRow label={
++            <div className="label-block">
++              <span className="label-inline">Logo Outlet <Info size={16} /></span>
++              <small style={{ display: 'block', color: '#687480', marginTop: '6px', fontSize: '11px', maxWidth: '130px', lineHeight: 1.4 }}>Ukuran 500px x 500px, maks 1MB</small>
++            </div>
++          }>
+             <div className="outlet-upload-line">
+-              <small>Ukuran 500px x 500px, maks 1MB</small>
+               <UploadBox />
+             </div>
+           </FormRow>
+-          <FormRow label="Logo Struk">
++          <FormRow label={
++            <div className="label-block">
++              <span className="label-inline">Logo Struk</span>
++              <small style={{ display: 'block', color: '#687480', marginTop: '6px', fontSize: '11px', maxWidth: '130px', lineHeight: 1.4 }}>Ukuran dapat diatur sesuai kebutuhan, maks 1MB</small>
++            </div>
++          }>
+             <div className="outlet-upload-line">
+-              <small>Ukuran dapat diatur sesuai kebutuhan, maks 1MB</small>
+               <UploadBox />
+             </div>
+           </FormRow>
+@@ -3121,8 +3220,8 @@ function OutletDetailFlow({ onClose, onOutletSaved }) {
+               <input value={values.manager} readOnly />
+               <button type="button" onClick={() => setManagerOpen(true)}>...</button>
+             </div>
+-            <small>{values.managerEmail}</small>
+-            <button type="button" className="outline-wide" onClick={() => setManagerOpen(true)}>Tambah Manager</button>
++            <small style={{ display: 'block', margin: '4px 0 10px', color: '#687480', fontSize: '11px' }}>{values.managerEmail}</small>
++            <Button variant="outline" style={{ width: '100%', borderColor: 'var(--brand)', color: 'var(--brand)', height: '36px' }} onClick={() => setManagerOpen(true)}>Tambah Manager</Button>
+           </FormRow>
+           <FormRow label="Jenis Outlet">
+             <div className="radio-grid">
+@@ -3188,13 +3287,11 @@ function OutletDetailFlow({ onClose, onOutletSaved }) {
+                 Kota*
+                 <SelectInput placeholder="Pilih kota" value={values.city} options={cityOptions} onChange={(value) => setOutletField('city', value)} />
+               </label>
+-              <label className="wide address-input">
++              <label className="wide address-input" style={{ position: 'relative' }}>
+                 Alamat Lengkap*
+-                <div>
+-                  <input ref={(node) => { if (node) refs.current.address = node }} value={values.address} onChange={(event) => setOutletField('address', event.target.value)} placeholder="Contoh: Jalan Mangga No.12" />
+-                  <Button variant="outline">Ubah</Button>
+-                </div>
+-                <small>Pilih lokasi melalui Maps</small>
++                <input ref={(node) => { if (node) refs.current.address = node }} value={values.address} onChange={(event) => setOutletField('address', event.target.value)} placeholder="Contoh: Jalan Mangga No.12" style={{ paddingRight: '80px' }} />
++                <Button variant="outline" style={{ position: 'absolute', right: '4px', top: '23px', height: '30px', color: 'var(--brand)', borderColor: 'var(--brand)', padding: '0 12px', fontSize: '12px' }}>Ubah</Button>
++                <small style={{ display: 'block', marginTop: '6px', color: '#7a8490', fontSize: '11px' }}>Pilih lokasi melalui Maps</small>
+               </label>
+             </div>
+             {(errors.country || errors.province || errors.city || errors.address) ? <p className="field-error">{errors.country || errors.province || errors.city || errors.address}</p> : null}
+@@ -3213,7 +3310,15 @@ function OutletDetailFlow({ onClose, onOutletSaved }) {
+         </section>
+       </main>
+       {managerOpen ? <ManagerModal outlet={values.name} onClose={() => setManagerOpen(false)} onSave={addManager} /> : null}
+-      <FlowFooter simple onCancel={onClose} onSave={validateOutlet} />
++      <footer className="flow-footer" style={{ padding: '16px 24px' }}>
++        <button type="button" aria-label="Hapus" style={{ color: '#ff4d4f', border: '1px solid #f0f0f0', padding: '8px', borderRadius: '6px', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
++          <Trash2 size={16} />
++        </button>
++        <div style={{ marginLeft: 'auto', display: 'flex', gap: '24px', alignItems: 'center' }}>
++          <button type="button" style={{ color: 'var(--brand)', background: 'transparent', border: 0, fontWeight: 700, padding: 0 }} onClick={onClose}>Batal</button>
++          <Button onClick={validateOutlet}>Simpan</Button>
++        </div>
++      </footer>
+     </div>
+   )
+ }
+@@ -3221,7 +3326,8 @@ function OutletDetailFlow({ onClose, onOutletSaved }) {
+ function RadioCard({ label, checked, onChange }) {
+   return (
+     <label className={cn('radio-card', checked && 'checked')}>
+-      <input type="radio" checked={checked} onChange={onChange} />
++      <input type="radio" checked={checked} onChange={onChange} style={{ display: 'none' }} />
++      <div className={cn('custom-radio', checked && 'checked')} />
+       <span>{label}</span>
+     </label>
+   )
+@@ -3432,6 +3538,1238 @@ function SimpleSetupFlow({ type, onClose, outlets, onOutletCreated }) {
+   )
+ }
+ 
++// GöÇGöÇGöÇ SHARED UTILITIES GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
++
++function StatusBadge({ status }) {
++  const map = {
++    Aktif: 'badge-green', aktif: 'badge-green',
++    Diterima: 'badge-green', Lunas: 'badge-green', Selesai: 'badge-green', Disetujui: 'badge-green',
++    Menunggu: 'badge-yellow', Draft: 'badge-yellow', Pending: 'badge-yellow', Terkirim: 'badge-yellow',
++    Dipesan: 'badge-yellow', Diproses: 'badge-yellow',
++    Nonaktif: 'badge-gray', 'Tidak Aktif': 'badge-gray',
++    Batal: 'badge-red', Void: 'badge-red', Overdue: 'badge-red', Terlambat: 'badge-red',
++    'Belum Lunas': 'badge-orange',
++  }
++  return <span className={`status-badge ${map[status] || 'badge-gray'}`}>{status}</span>
++}
++
++function PageHeader({ title, subtitle, icon: Icon, actions = [], onHelp, favorite, onFavorite }) {
++  return (
++    <div className="page-header-bar">
++      <div className="page-header-left">
++        <div className="page-header-title-row">
++          {Icon ? <Icon size={20} className="page-header-icon" /> : null}
++          <h1>{title}</h1>
++          {onHelp ? <button className="icon-link" onClick={onHelp} aria-label="Bantuan"><HelpCircle size={18} /></button> : null}
++          {onFavorite ? (
++            <button className={cn('icon-link favorite', favorite && 'active')} onClick={onFavorite} aria-label="Favorit">
++              <Star size={19} />
++            </button>
++          ) : null}
++        </div>
++        {subtitle ? <p className="page-header-subtitle">{subtitle}</p> : null}
++      </div>
++      <div className="page-header-actions">{actions}</div>
++    </div>
++  )
++}
++
++function KpiStrip({ cards }) {
++  return (
++    <div className="kpi-strip">
++      {cards.map(([label, value, tone = 'green']) => (
++        <div key={label} className={`kpi-card kpi-${tone}`}>
++          <span>{label}</span>
++          <strong>{value}</strong>
++        </div>
++      ))}
++    </div>
++  )
++}
++
++function FilterBar({ children }) {
++  return <div className="filter-bar">{children}</div>
++}
++
++function SearchInput({ value, onChange, placeholder = 'Cari ...' }) {
++  return (
++    <label className="search-field">
++      <Search size={16} />
++      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
++    </label>
++  )
++}
++
++function StatusTabs({ tabs, active, onChange }) {
++  return (
++    <div className="status-tabs" role="tablist">
++      {tabs.map((tab) => (
++        <button key={tab} role="tab" className={active === tab ? 'active' : ''} onClick={() => onChange(tab)}>{tab}</button>
++      ))}
++    </div>
++  )
++}
++
++function DataTable({ columns, rows = [], emptyText = 'Belum ada data', renderRow }) {
++  return (
++    <div className="data-table-wrap">
++      <div className="data-table-scroll">
++        <table className="data-table">
++          <thead>
++            <tr>
++              <th className="check-th"><input type="checkbox" /></th>
++              {columns.map((col) => <th key={col}>{col}</th>)}
++              <th>Aksi</th>
++            </tr>
++          </thead>
++          <tbody>
++            {rows.length ? rows.map((row, i) => renderRow(row, i)) : null}
++          </tbody>
++        </table>
++        {!rows.length ? (
++          <div className="table-empty">
++            <ClipboardList size={40} />
++            <p>{emptyText}</p>
++          </div>
++        ) : null}
++      </div>
++      <div className="table-pagination">
++        <div>
++          <span>Tampilkan:</span>
++          <button>10 <ChevronDown size={13} /></button>
++          <span>0 GÇô 0 dari {rows.length} data</span>
++        </div>
++        <nav>
++          <button><ChevronLeft size={15} /> Sebelumnya</button>
++          <strong>1</strong>
++          <button>Selanjutnya <ChevronRight size={15} /></button>
++        </nav>
++      </div>
++    </div>
++  )
++}
++
++function SlidePanel({ open, onClose, title, children, footer }) {
++  return (
++    <>
++      {open ? <div className="slide-scrim" onClick={onClose} /> : null}
++      <div className={cn('slide-panel', open && 'open')}>
++        <div className="slide-panel-head">
++          <h2>{title}</h2>
++          <button onClick={onClose} aria-label="Tutup"><X size={20} /></button>
++        </div>
++        <div className="slide-panel-body">{children}</div>
++        {footer ? <div className="slide-panel-footer">{footer}</div> : null}
++      </div>
++    </>
++  )
++}
++
++function PanelFormRow({ label, children, required, error }) {
++  return (
++    <div className={cn('panel-form-row', error && 'has-error')}>
++      <label className="panel-form-label">{label}{required ? <span className="req">*</span> : null}</label>
++      {children}
++      {error ? <span className="form-error">{error}</span> : null}
++    </div>
++  )
++}
++
++function defaultRange() {
++  return { label: '01 Jun 2026 - 30 Jun 2026', display: '01 Juni 2026 - 30 Juni 2026', startTime: '00:00', endTime: '23:59' }
++}
++
++// GöÇGöÇGöÇ INVENTORI GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
++
++const demoRawMaterials = [
++  { sku: 'BK-001', nama: 'Tepung Terigu', satuan: 'Kg', stok: 50, minStok: 10, hargaModal: 'Rp 12.000', status: 'Aktif' },
++  { sku: 'BK-002', nama: 'Gula Pasir', satuan: 'Kg', stok: 25, minStok: 5, hargaModal: 'Rp 14.500', status: 'Aktif' },
++  { sku: 'BK-003', nama: 'Minyak Goreng', satuan: 'Liter', stok: 3, minStok: 5, hargaModal: 'Rp 18.000', status: 'Aktif' },
++  { sku: 'BK-004', nama: 'Telur Ayam', satuan: 'Butir', stok: 120, minStok: 30, hargaModal: 'Rp 2.500', status: 'Aktif' },
++]
++
++function DaftarBahanBakuPage() {
++  const [query, setQuery] = useState('')
++  const [statusTab, setStatusTab] = useState('Semua')
++  const [panelOpen, setPanelOpen] = useState(false)
++  const [favorite, setFavorite] = useState(false)
++  const [form, setForm] = useState({ sku: '', nama: '', satuan: 'Pcs', hargaModal: '', stokAwal: '', minStok: '' })
++  const [errors, setErrors] = useState({})
++
++  const satuan = ['Pcs', 'Kg', 'Gram', 'Liter', 'Ml', 'Butir', 'Lusin', 'Box']
++
++  const filtered = demoRawMaterials.filter((item) => {
++    const q = query.toLowerCase()
++    const matchQ = !q || item.nama.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q)
++    const matchStatus = statusTab === 'Semua' || item.status === statusTab
++    return matchQ && matchStatus
++  })
++
++  const setField = (key, val) => {
++    setForm((f) => ({ ...f, [key]: val }))
++    setErrors((e) => { const n = { ...e }; delete n[key]; return n })
++  }
++
++  const validate = () => {
++    const err = {}
++    if (!form.nama.trim()) err.nama = 'Nama bahan baku wajib diisi'
++    if (!form.satuan) err.satuan = 'Satuan wajib dipilih'
++    if (Object.keys(err).length) { setErrors(err); toast.error(Object.values(err)[0]); return }
++    toast.success('Bahan baku berhasil disimpan')
++    setPanelOpen(false)
++    setForm({ sku: '', nama: '', satuan: 'Pcs', hargaModal: '', stokAwal: '', minStok: '' })
++  }
++
++  const kpiCards = [
++    ['Total Bahan Baku', demoRawMaterials.length, 'green'],
++    ['Stok Rendah', demoRawMaterials.filter((i) => i.stok <= i.minStok).length, 'red'],
++    ['Total Item Aktif', demoRawMaterials.filter((i) => i.status === 'Aktif').length, 'blue'],
++  ]
++
++  return (
++    <main className="content inv-page">
++      <CapitalBanner compact />
++      <section className="panel inv-card">
++        <PageHeader
++          title="Daftar Bahan Baku"
++          subtitle="Data yang tampil berdasarkan Outlet Utama (Software House)"
++          icon={Boxes}
++          favorite={favorite}
++          onFavorite={() => setFavorite((v) => !v)}
++          onHelp={() => toast.info('Bantuan Daftar Bahan Baku')}
++          actions={[
++            <Button key="set" variant="link" onClick={() => toast.info('Pengaturan Kolom')} aria-label="Pengaturan Tabel"><Settings size={15} /></Button>,
++            <Button key="imp" variant="outline" onClick={() => toast.success('Impor Bahan Baku')}><Upload size={15} /> Impor Bahan Baku</Button>,
++            <Button key="exp" variant="outline" onClick={() => toast.success('Ekspor Bahan Baku')}><Download size={15} /> Ekspor Bahan Baku</Button>,
++            <Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> Tambah Bahan Baku</Button>,
++          ]}
++        />
++        <FilterBar>
++          <SearchInput value={query} onChange={setQuery} placeholder="Cari ..." />
++        </FilterBar>
++        <DataTable
++          columns={['SKU', 'NAMA', 'SATUAN']}
++          rows={[]}
++          emptyText={<><strong>Data tidak tersedia</strong><br/>Belum ada data yang dapat ditampilkan di halaman ini</>}
++          renderRow={(item, i) => (
++            <tr key={i}>
++              <td><input type="checkbox" /></td>
++              <td className="mono">{item.sku}</td>
++              <td className="fw-600">{item.nama}</td>
++              <td>{item.satuan}</td>
++              <td>
++                <button className="row-more" aria-label="Aksi"><MoreVertical size={15} /></button>
++              </td>
++            </tr>
++          )}
++        />
++      </section>
++      <SlidePanel
++        open={panelOpen}
++        onClose={() => setPanelOpen(false)}
++        title="Tambah Bahan Baku"
++        footer={
++          <>
++            <button onClick={() => setPanelOpen(false)}>Batal</button>
++            <Button onClick={validate}>Simpan</Button>
++          </>
++        }
++      >
++        <PanelFormRow label="SKU / Kode Bahan Baku">
++          <input value={form.sku} onChange={(e) => setField('sku', e.target.value)} placeholder="Contoh: BK-001 (opsional, auto-generate)" />
++        </PanelFormRow>
++        <PanelFormRow label="Nama Bahan Baku" required error={errors.nama}>
++          <input value={form.nama} onChange={(e) => setField('nama', e.target.value)} placeholder="Contoh: Tepung Terigu" />
++        </PanelFormRow>
++        <PanelFormRow label="Satuan" required error={errors.satuan}>
++          <SelectInput value={form.satuan} options={satuan} onChange={(v) => setField('satuan', v)} />
++        </PanelFormRow>
++        <PanelFormRow label="Harga Modal">
++          <input value={form.hargaModal} onChange={(e) => setField('hargaModal', e.target.value)} placeholder="Rp 0" />
++        </PanelFormRow>
++        <PanelFormRow label="Stok Awal">
++          <input type="number" value={form.stokAwal} onChange={(e) => setField('stokAwal', e.target.value)} placeholder="0" />
++        </PanelFormRow>
++        <PanelFormRow label="Minimum Stok (Alert)">
++          <input type="number" value={form.minStok} onChange={(e) => setField('minStok', e.target.value)} placeholder="0" />
++        </PanelFormRow>
++      </SlidePanel>
++    </main>
++  )
++}
++
++const demoPurchaseOrders = [
++  { no: 'PO-2026-001', pemasok: 'CV Bahan Prima', tgl: '01 Jun 2026', jt: '10 Jun 2026', total: 'Rp 2.500.000', status: 'Diterima', items: 3 },
++  { no: 'PO-2026-002', pemasok: 'UD Supplier Jaya', tgl: '03 Jun 2026', jt: '13 Jun 2026', total: 'Rp 870.000', status: 'Dipesan', items: 2 },
++  { no: 'PO-2026-003', pemasok: 'CV Bahan Prima', tgl: '05 Jun 2026', jt: '15 Jun 2026', total: 'Rp 430.000', status: 'Draft', items: 1 },
++]
++
++function PemesananStokPage() {
++  const [query, setQuery] = useState('')
++  const [calendarOpen, setCalendarOpen] = useState(false)
++  const [range, setRange] = useState(defaultRange())
++  const [panelOpen, setPanelOpen] = useState(false)
++  const [favorite, setFavorite] = useState(false)
++  const [form, setForm] = useState({ pemasok: '', tglPO: '', tglJT: '', catatan: '' })
++  const [errors, setErrors] = useState({})
++
++  const setField = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((e) => { const n = { ...e }; delete n[k]; return n }) }
++
++  const processRange = (r) => { setRange(r); setCalendarOpen(false); toast.success('Periode diperbarui') }
++
++  const validate = () => {
++    const err = {}
++    if (!form.pemasok.trim()) err.pemasok = 'Pemasok wajib dipilih'
++    if (!form.tglPO.trim()) err.tglPO = 'Tanggal PO wajib diisi'
++    if (Object.keys(err).length) { setErrors(err); toast.error(Object.values(err)[0]); return }
++    toast.success('Pemesanan Stok berhasil dibuat')
++    setPanelOpen(false)
++  }
++
++  return (
++    <main className="content inv-page">
++      <CapitalBanner compact />
++      <section className="panel inv-card">
++        <PageHeader
++          title="Pemesanan Stok"
++          subtitle={`${range.start} - ${range.end}`}
++          icon={Boxes}
++          favorite={favorite}
++          onFavorite={() => setFavorite((v) => !v)}
++          onHelp={() => toast.info('Bantuan Pemesanan Stok')}
++          actions={[
++            <Button key="exp" variant="outline" onClick={() => toast.success('Ekspor Pemesanan Stok')}><Download size={15} /> Ekspor Pemesanan Stok</Button>,
++            <Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> Tambah Pemesanan Stok</Button>,
++          ]}
++        />
++        <FilterBar>
++          <SearchInput value={query} onChange={setQuery} placeholder="Cari ..." />
++          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((v) => !v)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
++          <SelectButton label="" />
++        </FilterBar>
++        <DataTable
++          columns={['NO. PEMESANAN STOK', 'JENIS PEMESANAN', 'TANGGAL PEMESANAN', 'PEMASOK', 'OUTLET', 'DIBUAT OLEH', 'UANG MUKA (RP)', 'TAGIHAN (RP)', 'STATUS']}
++          rows={[]}
++          emptyText={<><strong>Data tidak tersedia</strong><br/>Belum ada data yang dapat ditampilkan di halaman ini</>}
++          renderRow={(item, i) => (
++            <tr key={i}>
++              <td><input type="checkbox" /></td>
++              <td colSpan={10}></td>
++            </tr>
++          )}
++        />
++      </section>
++      <SlidePanel
++        open={panelOpen}
++        onClose={() => setPanelOpen(false)}
++        title="Buat Purchase Order"
++        footer={
++          <>
++            <button onClick={() => setPanelOpen(false)}>Batal</button>
++            <Button onClick={validate}>Buat PO</Button>
++          </>
++        }
++      >
++        <PanelFormRow label="Pemasok" required error={errors.pemasok}>
++          <SelectInput value={form.pemasok} options={['CV Bahan Prima', 'UD Supplier Jaya', 'PT Distributor Utama']} onChange={(v) => setField('pemasok', v)} placeholder="Pilih Pemasok" />
++        </PanelFormRow>
++        <PanelFormRow label="Tanggal PO" required error={errors.tglPO}>
++          <input type="date" value={form.tglPO} onChange={(e) => setField('tglPO', e.target.value)} />
++        </PanelFormRow>
++        <PanelFormRow label="Tanggal Jatuh Tempo">
++          <input type="date" value={form.tglJT} onChange={(e) => setField('tglJT', e.target.value)} />
++        </PanelFormRow>
++        <PanelFormRow label="Outlet Tujuan">
++          <SelectInput value="" options={['Software House', 'Semua Outlet']} onChange={() => {}} placeholder="Pilih Outlet" />
++        </PanelFormRow>
++        <PanelFormRow label="Bahan Baku">
++          <button className="outline-wide" onClick={() => toast.info('Pilih bahan baku')}><Plus size={14} /> Tambah Item Bahan Baku</button>
++        </PanelFormRow>
++        <PanelFormRow label="Catatan">
++          <textarea value={form.catatan} onChange={(e) => setField('catatan', e.target.value)} placeholder="Catatan tambahan untuk PO ..." rows={3} />
++        </PanelFormRow>
++      </SlidePanel>
++    </main>
++  )
++}
++
++function DaftarStokPage() {
++  const [query, setQuery] = useState('')
++  const [statusTab, setStatusTab] = useState('Semua')
++  const [calendarOpen, setCalendarOpen] = useState(false)
++  const [range, setRange] = useState(defaultRange())
++  const [favorite, setFavorite] = useState(false)
++
++  const processRange = (r) => { setRange(r); setCalendarOpen(false); toast.success('Periode diperbarui') }
++
++  return (
++    <main className="content inv-page">
++      <CapitalBanner compact />
++      <div className="notice-banner" style={{ background: '#e7f8ec', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', color: '#08a88c', fontWeight: 600, fontSize: '13px' }}>
++        Menu Baru - Tambah Bahan Baku. Tambah dan ubah bahan baku di pindahkan ke halaman khusus bahan baku. <a href="#" style={{ textDecoration: 'underline' }}>Menu Bahan Baku</a>
++      </div>
++      <section className="panel inv-card">
++        <PageHeader
++          title="Daftar Stok"
++          icon={Boxes}
++          favorite={favorite}
++          onFavorite={() => setFavorite((v) => !v)}
++          onHelp={() => toast.info('Bantuan Daftar Stok')}
++          actions={[
++            <Button key="exp" variant="outline" onClick={() => toast.success('Ekspor Daftar Stok')}><Download size={15} /> Ekspor Daftar Stok</Button>,
++          ]}
++        />
++        <FilterBar>
++          <SearchInput value={query} onChange={setQuery} placeholder="Cari ..." />
++          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((v) => !v)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
++          <SelectButton label="" />
++          <SelectButton label="Sertakan Kolom" />
++          <Button variant="outline">Jumlah Stok</Button>
++          <StatusTabs tabs={['Semua', 'Produk', 'Bahan']} active={statusTab} onChange={setStatusTab} />
++        </FilterBar>
++        <DataTable
++          columns={['SKU', 'NAMA', 'JENIS', 'AWAL', 'MASUK', 'TERJUAL', 'AKHIR', 'SATUAN']}
++          rows={[]}
++          emptyText={<><strong>Data tidak tersedia</strong><br/>Belum ada data yang dapat ditampilkan di halaman ini</>}
++          renderRow={(item, i) => (
++            <tr key={i}>
++              <td colSpan={9}></td>
++            </tr>
++          )}
++        />
++      </section>
++    </main>
++  )
++}
++
++
++
++// GöÇGöÇGöÇ PELANGGAN GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
++
++const demoCustomers = [
++  { nama: 'Budi Santoso', kode: 'PLG-001', hp: '081234567890', email: 'budi@email.com', grup: 'Gold', poin: 1500, deposit: 'Rp 200.000', status: 'Aktif' },
++  { nama: 'Siti Rahayu', kode: 'PLG-002', hp: '082345678901', email: 'siti@email.com', grup: 'Silver', poin: 320, deposit: 'Rp 0', status: 'Aktif' },
++  { nama: 'Ahmad Fauzi', kode: 'PLG-003', hp: '083456789012', email: 'ahmad@email.com', grup: 'Member', poin: 80, deposit: 'Rp 0', status: 'Aktif' },
++]
++
++function DaftarPelangganPage() {
++  const [query, setQuery] = useState('')
++  const [panelOpen, setPanelOpen] = useState(false)
++  const [favorite, setFavorite] = useState(false)
++  const [form, setForm] = useState({ nama: '', hp: '', email: '', alamat: '', grup: '', gender: '' })
++  const [errors, setErrors] = useState({})
++
++  const setField = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((e) => { const n = { ...e }; delete n[k]; return n }) }
++
++  const filtered = demoCustomers.filter((c) => {
++    const q = query.toLowerCase()
++    return !q || c.nama.toLowerCase().includes(q) || c.hp.includes(q) || c.email.toLowerCase().includes(q)
++  })
++
++  const validate = () => {
++    const err = {}
++    if (!form.nama.trim()) err.nama = 'Nama pelanggan wajib diisi'
++    if (Object.keys(err).length) { setErrors(err); toast.error(Object.values(err)[0]); return }
++    toast.success('Pelanggan berhasil ditambahkan')
++    setPanelOpen(false)
++    setForm({ nama: '', hp: '', email: '', alamat: '', grup: '', gender: '' })
++  }
++
++  const kpiCards = [
++    ['Total Pelanggan', demoCustomers.length, 'blue'],
++    ['Member Aktif', demoCustomers.filter((c) => c.status === 'Aktif').length, 'green'],
++    ['Total Poin', demoCustomers.reduce((s, c) => s + c.poin, 0).toLocaleString('id'), 'yellow'],
++    ['Total Deposit', 'Rp 200.000', 'purple'],
++  ]
++
++  return (
++    <main className="content inv-page">
++      <CapitalBanner compact />
++      <section className="panel inv-card">
++        <PageHeader
++          title="Daftar Pelanggan"
++          icon={Users}
++          favorite={favorite}
++          onFavorite={() => setFavorite((v) => !v)}
++          onHelp={() => toast.info('Bantuan Daftar Pelanggan')}
++          actions={[
++            <Button key="exp" variant="outline" onClick={() => toast.success('Ekspor Data')}><Download size={15} /> Ekspor</Button>,
++            <Button key="imp" variant="outline" onClick={() => toast.success('Impor Data')}><Upload size={15} /> Impor</Button>,
++            <Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> Tambah Pelanggan</Button>,
++          ]}
++        />
++        <KpiStrip cards={kpiCards} />
++        <FilterBar>
++          <SearchInput value={query} onChange={setQuery} placeholder="Cari nama, HP, email ..." />
++          <SelectButton label="Semua Grup" />
++          <SelectButton label="Semua Status" />
++        </FilterBar>
++        <DataTable
++          columns={['Nama Pelanggan', 'Kode', 'No. HP', 'Email', 'Grup', 'Poin', 'Saldo Deposit', 'Status']}
++          rows={filtered}
++          emptyText="Belum ada pelanggan. Klik Tambah Pelanggan untuk memulai."
++          renderRow={(c, i) => (
++            <tr key={i}>
++              <td><input type="checkbox" /></td>
++              <td className="fw-600">{c.nama}</td>
++              <td className="mono text-muted">{c.kode}</td>
++              <td>{c.hp}</td>
++              <td>{c.email}</td>
++              <td><span className="group-pill">{c.grup}</span></td>
++              <td className="fw-600">{c.poin.toLocaleString('id')}</td>
++              <td>{c.deposit}</td>
++              <td><StatusBadge status={c.status} /></td>
++              <td><button className="row-more"><MoreVertical size={15} /></button></td>
++            </tr>
++          )}
++        />
++      </section>
++      <SlidePanel
++        open={panelOpen}
++        onClose={() => setPanelOpen(false)}
++        title="Tambah Pelanggan"
++        footer={
++          <>
++            <button onClick={() => setPanelOpen(false)}>Batal</button>
++            <Button onClick={validate}>Simpan</Button>
++          </>
++        }
++      >
++        <PanelFormRow label="Nama Lengkap" required error={errors.nama}>
++          <input value={form.nama} onChange={(e) => setField('nama', e.target.value)} placeholder="Contoh: Budi Santoso" />
++        </PanelFormRow>
++        <PanelFormRow label="Nomor HP">
++          <input value={form.hp} onChange={(e) => setField('hp', e.target.value)} placeholder="08xxxxxxxxxxxx" type="tel" />
++        </PanelFormRow>
++        <PanelFormRow label="Email">
++          <input value={form.email} onChange={(e) => setField('email', e.target.value)} placeholder="email@contoh.com" type="email" />
++        </PanelFormRow>
++        <PanelFormRow label="Jenis Kelamin">
++          <div className="radio-group">
++            {['Laki-laki', 'Perempuan'].map((g) => (
++              <label key={g} className="radio-opt">
++                <input type="radio" name="gender" value={g} checked={form.gender === g} onChange={() => setField('gender', g)} />
++                {g}
++              </label>
++            ))}
++          </div>
++        </PanelFormRow>
++        <PanelFormRow label="Tanggal Lahir">
++          <input type="date" />
++        </PanelFormRow>
++        <PanelFormRow label="Grup Pelanggan">
++          <SelectInput value={form.grup} options={['Gold', 'Silver', 'Member', 'VIP']} onChange={(v) => setField('grup', v)} placeholder="Pilih Grup" />
++        </PanelFormRow>
++        <PanelFormRow label="Alamat">
++          <textarea value={form.alamat} onChange={(e) => setField('alamat', e.target.value)} placeholder="Alamat lengkap pelanggan" rows={3} />
++        </PanelFormRow>
++      </SlidePanel>
++    </main>
++  )
++}
++
++const demoGrupPelanggan = [
++  { nama: 'Gold', jumlah: 12, benefit: 'Diskon 10%, Poin 2x', minTrx: 'Rp 5.000.000', status: 'Aktif' },
++  { nama: 'Silver', jumlah: 34, benefit: 'Diskon 5%, Poin 1.5x', minTrx: 'Rp 2.000.000', status: 'Aktif' },
++  { nama: 'Member', jumlah: 89, benefit: 'Poin 1x', minTrx: 'Rp 0', status: 'Aktif' },
++]
++
++function GrupPelangganPage() {
++  const [query, setQuery] = useState('')
++  const [panelOpen, setPanelOpen] = useState(false)
++  const [form, setForm] = useState({ nama: '', minTrx: '', benefit: '' })
++  const [errors, setErrors] = useState({})
++
++  const setField = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((e) => { const n = { ...e }; delete n[k]; return n }) }
++  const filtered = demoGrupPelanggan.filter((g) => !query || g.nama.toLowerCase().includes(query.toLowerCase()))
++  const validate = () => {
++    if (!form.nama.trim()) { toast.error('Nama grup wajib diisi'); return }
++    toast.success('Grup pelanggan berhasil ditambahkan'); setPanelOpen(false)
++  }
++
++  return (
++    <main className="content inv-page">
++      <section className="panel inv-card">
++        <PageHeader
++          title="Grup Pelanggan"
++          icon={Users}
++          onHelp={() => toast.info('Bantuan Grup Pelanggan')}
++          actions={[<Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> Tambah Grup</Button>]}
++        />
++        <FilterBar>
++          <SearchInput value={query} onChange={setQuery} placeholder="Cari grup pelanggan ..." />
++        </FilterBar>
++        <DataTable
++          columns={['Nama Grup', 'Jumlah Pelanggan', 'Benefit', 'Min. Transaksi', 'Status']}
++          rows={filtered}
++          emptyText="Belum ada grup pelanggan."
++          renderRow={(g, i) => (
++            <tr key={i}>
++              <td><input type="checkbox" /></td>
++              <td className="fw-600">{g.nama}</td>
++              <td>{g.jumlah}</td>
++              <td>{g.benefit}</td>
++              <td>{g.minTrx}</td>
++              <td><StatusBadge status={g.status} /></td>
++              <td><button className="row-more"><MoreVertical size={15} /></button></td>
++            </tr>
++          )}
++        />
++      </section>
++      <SlidePanel open={panelOpen} onClose={() => setPanelOpen(false)} title="Tambah Grup Pelanggan"
++        footer={<><button onClick={() => setPanelOpen(false)}>Batal</button><Button onClick={validate}>Simpan</Button></>}>
++        <PanelFormRow label="Nama Grup" required error={errors.nama}>
++          <input value={form.nama} onChange={(e) => setField('nama', e.target.value)} placeholder="Contoh: Gold Member" />
++        </PanelFormRow>
++        <PanelFormRow label="Minimum Transaksi">
++          <input value={form.minTrx} onChange={(e) => setField('minTrx', e.target.value)} placeholder="Rp 0" />
++        </PanelFormRow>
++        <PanelFormRow label="Benefit / Deskripsi">
++          <textarea value={form.benefit} onChange={(e) => setField('benefit', e.target.value)} placeholder="Jelaskan benefit grup ini ..." rows={3} />
++        </PanelFormRow>
++        <PanelFormRow label="Diskon Otomatis (%)">
++          <input type="number" placeholder="0" min="0" max="100" />
++        </PanelFormRow>
++        <PanelFormRow label="Multiplier Poin">
++          <input type="number" placeholder="1" step="0.5" min="1" />
++        </PanelFormRow>
++      </SlidePanel>
++    </main>
++  )
++}
++
++function GrupHargaSpesialPage() {
++  const [query, setQuery] = useState('')
++  const [panelOpen, setPanelOpen] = useState(false)
++
++  return (
++    <main className="content inv-page">
++      <section className="panel inv-card">
++        <PageHeader
++          title="Grup Harga Spesial"
++          icon={Tags}
++          onHelp={() => toast.info('Bantuan Grup Harga Spesial')}
++          actions={[<Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> Tambah Grup Harga</Button>]}
++        />
++        <FilterBar>
++          <SearchInput value={query} onChange={setQuery} placeholder="Cari grup harga ..." />
++        </FilterBar>
++        <DataTable
++          columns={['Nama Grup Harga', 'Jumlah Pelanggan', 'Jumlah Produk', 'Status']}
++          rows={[]}
++          emptyText="Belum ada grup harga spesial. Buat grup untuk memberikan harga khusus pada pelanggan tertentu."
++          renderRow={() => null}
++        />
++      </section>
++      <SlidePanel open={panelOpen} onClose={() => setPanelOpen(false)} title="Tambah Grup Harga Spesial"
++        footer={<><button onClick={() => setPanelOpen(false)}>Batal</button><Button onClick={() => { toast.success('Berhasil disimpan'); setPanelOpen(false) }}>Simpan</Button></>}>
++        <PanelFormRow label="Nama Grup Harga" required>
++          <input placeholder="Contoh: Harga Grosir, Harga Reseller" />
++        </PanelFormRow>
++        <PanelFormRow label="Pilih Pelanggan">
++          <button className="outline-wide" onClick={() => toast.info('Pilih pelanggan')}><Plus size={14} /> Tambah Pelanggan</button>
++        </PanelFormRow>
++        <PanelFormRow label="Atur Harga Produk">
++          <button className="outline-wide" onClick={() => toast.info('Pilih produk')}><Plus size={14} /> Tambah Produk &amp; Harga</button>
++        </PanelFormRow>
++      </SlidePanel>
++    </main>
++  )
++}
++
++function KustomDataPelangganPage() {
++  const [panelOpen, setPanelOpen] = useState(false)
++  const fields = [
++    { label: 'Nomor KTP', tipe: 'Teks', wajib: true, status: 'Aktif' },
++    { label: 'Pekerjaan', tipe: 'Dropdown', wajib: false, status: 'Aktif' },
++    { label: 'Tanggal Anniversari', tipe: 'Tanggal', wajib: false, status: 'Nonaktif' },
++  ]
++
++  return (
++    <main className="content inv-page">
++      <section className="panel inv-card">
++        <PageHeader
++          title="Kustom Data Pelanggan"
++          icon={Users}
++          onHelp={() => toast.info('Bantuan Kustom Data')}
++          actions={[<Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> Tambah Field</Button>]}
++        />
++        <div className="info-banner" style={{ margin: '0 0 16px' }}>
++          <Info size={16} />
++          <span>Tambahkan field kustom untuk menyimpan data pelanggan tambahan sesuai kebutuhan bisnis Anda.</span>
++        </div>
++        <DataTable
++          columns={['Label Field', 'Tipe Data', 'Wajib Diisi', 'Status']}
++          rows={fields}
++          renderRow={(f, i) => (
++            <tr key={i}>
++              <td><input type="checkbox" /></td>
++              <td className="fw-600">{f.label}</td>
++              <td>{f.tipe}</td>
++              <td>{f.wajib ? <span className="text-danger fw-600">Ya</span> : <span className="text-muted">Tidak</span>}</td>
++              <td><StatusBadge status={f.status} /></td>
++              <td><button className="row-more"><MoreVertical size={15} /></button></td>
++            </tr>
++          )}
++        />
++      </section>
++      <SlidePanel open={panelOpen} onClose={() => setPanelOpen(false)} title="Tambah Field Kustom"
++        footer={<><button onClick={() => setPanelOpen(false)}>Batal</button><Button onClick={() => { toast.success('Field ditambahkan'); setPanelOpen(false) }}>Simpan</Button></>}>
++        <PanelFormRow label="Label Field" required>
++          <input placeholder="Contoh: Nomor KTP, Pekerjaan" />
++        </PanelFormRow>
++        <PanelFormRow label="Tipe Data" required>
++          <SelectInput value="" options={['Teks', 'Angka', 'Tanggal', 'Dropdown', 'Pilihan Ganda']} onChange={() => {}} placeholder="Pilih Tipe Data" />
++        </PanelFormRow>
++        <PanelFormRow label="Opsi Wajib Diisi">
++          <label className="check-line"><input type="checkbox" /> Wajib diisi oleh kasir</label>
++        </PanelFormRow>
++        <PanelFormRow label="Tampilkan di Struk">
++          <label className="check-line"><input type="checkbox" /> Tampilkan field ini pada struk</label>
++        </PanelFormRow>
++      </SlidePanel>
++    </main>
++  )
++}
++
++function PengaturanDataPelangganPage() {
++  const [settings, setSettings] = useState({
++    poin: true, deposit: false, member: true, loyalty: false, birthday: true, auto_kode: true, sync_hp: false,
++  })
++  const toggle = (k) => setSettings((s) => ({ ...s, [k]: !s[k] }))
++
++  const items = [
++    ['poin', 'Program Poin', 'Pelanggan mendapatkan poin setiap transaksi yang bisa ditukar reward.'],
++    ['deposit', 'Saldo Deposit', 'Pelanggan bisa mengisi saldo deposit untuk digunakan sebagai metode bayar.'],
++    ['member', 'Kartu Member', 'Aktifkan fitur kartu member dengan nomor unik per pelanggan.'],
++    ['loyalty', 'Program Loyalti', 'Aktifkan program loyalti dengan stamp atau tier otomatis.'],
++    ['birthday', 'Hadiah Ulang Tahun', 'Kirim hadiah/promo otomatis pada hari ulang tahun pelanggan.'],
++    ['auto_kode', 'Auto-generate Kode Pelanggan', 'Kode pelanggan dibuat otomatis saat penambahan.'],
++    ['sync_hp', 'Sync Nomor HP ke WhatsApp', 'Nomor HP digunakan untuk pengiriman notifikasi WhatsApp.'],
++  ]
++
++  return (
++    <main className="content inv-page">
++      <section className="panel inv-card">
++        <PageHeader title="Pengaturan Data Pelanggan" icon={Users} onHelp={() => toast.info('Bantuan Pengaturan')} />
++        <div className="settings-list">
++          {items.map(([key, label, desc]) => (
++            <div key={key} className="settings-row">
++              <div>
++                <strong>{label}</strong>
++                <p>{desc}</p>
++              </div>
++              <button className={cn('toggle-btn', settings[key] && 'active')} onClick={() => { toggle(key); toast.success(`${label} ${settings[key] ? 'dinonaktifkan' : 'diaktifkan'}`) }}>
++                <span className="toggle-knob" />
++              </button>
++            </div>
++          ))}
++        </div>
++        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--line)' }}>
++          <Button onClick={() => toast.success('Pengaturan berhasil disimpan')}>Simpan Pengaturan</Button>
++        </div>
++      </section>
++    </main>
++  )
++}
++
++// GöÇGöÇGöÇ PROMOSI GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
++
++const demoPromos = [
++  { nama: 'Promo Lebaran', tipe: 'Basic Promo', periode: '01 Jun GÇô 10 Jun 2026', nilai: 'Diskon 20%', terpakai: 45, status: 'Aktif' },
++  { nama: 'Beli 2 Gratis 1', tipe: 'Per Produk', periode: '05 Jun GÇô 30 Jun 2026', nilai: 'Gratis 1 item', terpakai: 12, status: 'Aktif' },
++  { nama: 'Hemat 50rb', tipe: 'Per Total Pembelian', periode: '01 Jun GÇô 15 Jun 2026', nilai: 'Rp 50.000', terpakai: 78, status: 'Nonaktif' },
++]
++
++function PromoListPage({ tipe }) {
++  const [query, setQuery] = useState('')
++  const [statusTab, setStatusTab] = useState('Semua')
++  const [panelOpen, setPanelOpen] = useState(false)
++  const [calendarOpen, setCalendarOpen] = useState(false)
++  const [range, setRange] = useState(defaultRange())
++  const [favorite, setFavorite] = useState(false)
++  const [form, setForm] = useState({ nama: '', tipeDiskon: 'Persentase', nilai: '', minBeli: '', mulai: '', selesai: '' })
++  const [errors, setErrors] = useState({})
++
++  const setField = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((e) => { const n = { ...e }; delete n[k]; return n }) }
++  const processRange = (r) => { setRange(r); setCalendarOpen(false); toast.success('Periode diperbarui') }
++
++  const filtered = demoPromos.filter((p) => {
++    const q = query.toLowerCase()
++    const matchQ = !q || p.nama.toLowerCase().includes(q)
++    const matchStatus = statusTab === 'Semua' || p.status === statusTab
++    const matchTipe = !tipe || tipe === 'Basic Promo' || p.tipe === tipe
++    return matchQ && matchStatus && matchTipe
++  })
++
++  const validate = () => {
++    const err = {}
++    if (!form.nama.trim()) err.nama = 'Nama promo wajib diisi'
++    if (!form.nilai.trim()) err.nilai = 'Nilai promo wajib diisi'
++    if (Object.keys(err).length) { setErrors(err); toast.error(Object.values(err)[0]); return }
++    toast.success('Promo berhasil ditambahkan'); setPanelOpen(false)
++  }
++
++  const kpiCards = [
++    ['Total Promo', demoPromos.length, 'blue'],
++    ['Promo Aktif', demoPromos.filter((p) => p.status === 'Aktif').length, 'green'],
++    ['Total Penggunaan', demoPromos.reduce((s, p) => s + p.terpakai, 0), 'yellow'],
++  ]
++
++  return (
++    <main className="content inv-page">
++      <CapitalBanner compact />
++      <section className="panel inv-card">
++        <PageHeader
++          title={tipe || 'Promo'}
++          icon={Percent}
++          favorite={favorite}
++          onFavorite={() => setFavorite((v) => !v)}
++          onHelp={() => toast.info(`Bantuan ${tipe || 'Promo'}`)}
++          actions={[
++            <Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> Tambah Promo</Button>,
++          ]}
++        />
++        <KpiStrip cards={kpiCards} />
++        <FilterBar>
++          <SearchInput value={query} onChange={setQuery} placeholder="Cari nama promo ..." />
++          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((v) => !v)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
++          <SelectButton label="Semua Outlet" />
++          <StatusTabs tabs={['Semua', 'Aktif', 'Nonaktif']} active={statusTab} onChange={setStatusTab} />
++        </FilterBar>
++        <DataTable
++          columns={['Nama Promo', 'Tipe', 'Periode', 'Nilai Promo', 'Digunakan', 'Status']}
++          rows={filtered}
++          emptyText="Belum ada promo. Klik Tambah Promo untuk membuat promo pertama."
++          renderRow={(p, i) => (
++            <tr key={i}>
++              <td><input type="checkbox" /></td>
++              <td className="fw-600">{p.nama}</td>
++              <td><span className="type-pill">{p.tipe}</span></td>
++              <td className="text-muted">{p.periode}</td>
++              <td>{p.nilai}</td>
++              <td>{p.terpakai}x</td>
++              <td><StatusBadge status={p.status} /></td>
++              <td><button className="row-more"><MoreVertical size={15} /></button></td>
++            </tr>
++          )}
++        />
++      </section>
++      <SlidePanel open={panelOpen} onClose={() => setPanelOpen(false)} title={`Tambah ${tipe || 'Promo'}`}
++        footer={<><button onClick={() => setPanelOpen(false)}>Batal</button><Button onClick={validate}>Simpan</Button></>}>
++        <PanelFormRow label="Nama Promo" required error={errors.nama}>
++          <input value={form.nama} onChange={(e) => setField('nama', e.target.value)} placeholder="Contoh: Promo Weekend" />
++        </PanelFormRow>
++        <PanelFormRow label="Tipe Diskon">
++          <div className="radio-group">
++            {['Persentase', 'Nominal'].map((t) => (
++              <label key={t} className="radio-opt">
++                <input type="radio" name="tipeDiskon" value={t} checked={form.tipeDiskon === t} onChange={() => setField('tipeDiskon', t)} />{t}
++              </label>
++            ))}
++          </div>
++        </PanelFormRow>
++        <PanelFormRow label={`Nilai ${form.tipeDiskon === 'Persentase' ? '(%)'  : '(Rp)'}`} required error={errors.nilai}>
++          <input value={form.nilai} onChange={(e) => setField('nilai', e.target.value)} placeholder={form.tipeDiskon === 'Persentase' ? '10' : '50000'} />
++        </PanelFormRow>
++        <PanelFormRow label="Minimum Pembelian">
++          <input value={form.minBeli} onChange={(e) => setField('minBeli', e.target.value)} placeholder="Rp 0 (tidak ada minimum)" />
++        </PanelFormRow>
++        <PanelFormRow label="Periode Promo">
++          <div className="two-col">
++            <input type="date" value={form.mulai} onChange={(e) => setField('mulai', e.target.value)} />
++            <input type="date" value={form.selesai} onChange={(e) => setField('selesai', e.target.value)} />
++          </div>
++        </PanelFormRow>
++        <PanelFormRow label="Berlaku untuk Outlet">
++          <SelectInput value="" options={['Semua Outlet', 'Software House']} onChange={() => {}} placeholder="Semua Outlet" />
++        </PanelFormRow>
++        {tipe === 'Per Produk' ? (
++          <PanelFormRow label="Pilih Produk">
++            <button className="outline-wide" onClick={() => toast.info('Pilih produk')}><Plus size={14} /> Tambah Produk</button>
++          </PanelFormRow>
++        ) : null}
++      </SlidePanel>
++    </main>
++  )
++}
++
++const demoCoupons = [
++  { kode: 'LEBARAN20', kuota: 100, terpakai: 45, periode: '01 GÇô 15 Jun 2026', diskon: '20%', status: 'Aktif' },
++  { kode: 'NEWMEMBER', kuota: 50, terpakai: 50, periode: '01 Jan GÇô 31 Des 2026', diskon: 'Rp 25.000', status: 'Habis' },
++  { kode: 'WEEKEND10', kuota: 200, terpakai: 12, periode: '01 Jun GÇô 30 Jun 2026', diskon: '10%', status: 'Aktif' },
++]
++
++function KuponPage() {
++  const [query, setQuery] = useState('')
++  const [panelOpen, setPanelOpen] = useState(false)
++  const [statusTab, setStatusTab] = useState('Semua')
++
++  const filtered = demoCoupons.filter((c) => {
++    const q = query.toLowerCase()
++    const matchQ = !q || c.kode.toLowerCase().includes(q)
++    const matchStatus = statusTab === 'Semua' || c.status === statusTab
++    return matchQ && matchStatus
++  })
++
++  const kpiCards = [
++    ['Total Kupon', demoCoupons.length, 'blue'],
++    ['Kupon Aktif', demoCoupons.filter((c) => c.status === 'Aktif').length, 'green'],
++    ['Total Digunakan', demoCoupons.reduce((s, c) => s + c.terpakai, 0), 'yellow'],
++  ]
++
++  return (
++    <main className="content inv-page">
++      <section className="panel inv-card">
++        <PageHeader
++          title="Kupon"
++          icon={Gift}
++          onHelp={() => toast.info('Bantuan Kupon')}
++          actions={[
++            <Button key="gen" variant="outline" onClick={() => toast.success('Generate kode massal')}><Sparkles size={15} /> Generate Kode</Button>,
++            <Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> Tambah Kupon</Button>,
++          ]}
++        />
++        <KpiStrip cards={kpiCards} />
++        <FilterBar>
++          <SearchInput value={query} onChange={setQuery} placeholder="Cari kode kupon ..." />
++          <StatusTabs tabs={['Semua', 'Aktif', 'Nonaktif', 'Habis']} active={statusTab} onChange={setStatusTab} />
++        </FilterBar>
++        <DataTable
++          columns={['Kode Kupon', 'Kuota', 'Terpakai', 'Sisa', 'Periode', 'Diskon', 'Status']}
++          rows={filtered}
++          emptyText="Belum ada kupon."
++          renderRow={(c, i) => (
++            <tr key={i}>
++              <td><input type="checkbox" /></td>
++              <td><span className="coupon-code">{c.kode}</span></td>
++              <td>{c.kuota}</td>
++              <td>{c.terpakai}</td>
++              <td className={c.kuota - c.terpakai === 0 ? 'text-danger fw-700' : 'fw-600'}>{c.kuota - c.terpakai}</td>
++              <td className="text-muted">{c.periode}</td>
++              <td className="fw-600">{c.diskon}</td>
++              <td><StatusBadge status={c.status} /></td>
++              <td><button className="row-more"><MoreVertical size={15} /></button></td>
++            </tr>
++          )}
++        />
++      </section>
++      <SlidePanel open={panelOpen} onClose={() => setPanelOpen(false)} title="Tambah Kupon"
++        footer={<><button onClick={() => setPanelOpen(false)}>Batal</button><Button onClick={() => { toast.success('Kupon berhasil dibuat'); setPanelOpen(false) }}>Simpan</Button></>}>
++        <PanelFormRow label="Kode Kupon" required>
++          <div className="field-with-action">
++            <input placeholder="CONTOH20" style={{ textTransform: 'uppercase' }} />
++            <button onClick={() => toast.info('Kode di-generate')}>Generate</button>
++          </div>
++        </PanelFormRow>
++        <PanelFormRow label="Tipe Diskon" required>
++          <SelectInput value="" options={['Persentase (%)', 'Nominal (Rp)']} onChange={() => {}} placeholder="Pilih Tipe" />
++        </PanelFormRow>
++        <PanelFormRow label="Nilai Diskon" required>
++          <input placeholder="Contoh: 20 atau 50000" />
++        </PanelFormRow>
++        <PanelFormRow label="Kuota Penggunaan">
++          <input type="number" placeholder="0 = tidak terbatas" min="0" />
++        </PanelFormRow>
++        <PanelFormRow label="Periode Berlaku">
++          <div className="two-col">
++            <input type="date" />
++            <input type="date" />
++          </div>
++        </PanelFormRow>
++        <PanelFormRow label="Minimum Pembelian">
++          <input placeholder="Rp 0" />
++        </PanelFormRow>
++      </SlidePanel>
++    </main>
++  )
++}
++
++function LoyaltyPage() {
++  const [panelOpen, setPanelOpen] = useState(false)
++  const programs = [
++    { nama: 'Program Poin Dasar', mekanisme: 'Poin per transaksi', reward: 'Diskon & Produk Gratis', status: 'Aktif' },
++    { nama: 'Stamp Card Kopi', mekanisme: 'Stamp per pembelian kopi', reward: 'Kopi gratis ke-10', status: 'Aktif' },
++  ]
++
++  return (
++    <main className="content inv-page">
++      <section className="panel inv-card">
++        <PageHeader
++          title="Loyalty"
++          icon={HeartHandshake}
++          onHelp={() => toast.info('Bantuan Loyalty')}
++          actions={[<Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> Tambah Program</Button>]}
++        />
++        <div className="info-banner" style={{ margin: '0 0 16px' }}>
++          <Info size={16} />
++          <span>Program loyalty membantu mempertahankan pelanggan dengan memberikan reward atas setiap transaksi.</span>
++        </div>
++        <DataTable
++          columns={['Nama Program', 'Mekanisme', 'Reward', 'Status']}
++          rows={programs}
++          renderRow={(p, i) => (
++            <tr key={i}>
++              <td><input type="checkbox" /></td>
++              <td className="fw-600">{p.nama}</td>
++              <td>{p.mekanisme}</td>
++              <td>{p.reward}</td>
++              <td><StatusBadge status={p.status} /></td>
++              <td><button className="row-more"><MoreVertical size={15} /></button></td>
++            </tr>
++          )}
++        />
++      </section>
++      <SlidePanel open={panelOpen} onClose={() => setPanelOpen(false)} title="Tambah Program Loyalty"
++        footer={<><button onClick={() => setPanelOpen(false)}>Batal</button><Button onClick={() => { toast.success('Program loyalty dibuat'); setPanelOpen(false) }}>Simpan</Button></>}>
++        <PanelFormRow label="Nama Program" required>
++          <input placeholder="Contoh: Program Poin Reguler" />
++        </PanelFormRow>
++        <PanelFormRow label="Mekanisme" required>
++          <SelectInput value="" options={['Poin per Transaksi', 'Poin per Produk', 'Stamp Card']} onChange={() => {}} placeholder="Pilih Mekanisme" />
++        </PanelFormRow>
++        <PanelFormRow label="Nilai Poin (per Rp 1.000)">
++          <input type="number" placeholder="1" min="0" />
++        </PanelFormRow>
++        <PanelFormRow label="Masa Berlaku Poin">
++          <SelectInput value="" options={['Tidak ada', '30 hari', '90 hari', '1 tahun', 'Selamanya']} onChange={() => {}} placeholder="Pilih" />
++        </PanelFormRow>
++      </SlidePanel>
++    </main>
++  )
++}
++
++const demoPoinRewards = [
++  { nama: 'Diskon Rp 10.000', poin: 100, stok: 50, kadaluarsa: 'Des 2026', status: 'Aktif' },
++  { nama: 'Minuman Gratis', poin: 250, stok: 20, kadaluarsa: 'Jun 2026', status: 'Aktif' },
++  { nama: 'Potongan 20%', poin: 500, stok: 10, kadaluarsa: 'Jan 2027', status: 'Nonaktif' },
++]
++
++function PoinRewardPage() {
++  const [panelOpen, setPanelOpen] = useState(false)
++  const [query, setQuery] = useState('')
++
++  const filtered = demoPoinRewards.filter((r) => !query || r.nama.toLowerCase().includes(query.toLowerCase()))
++
++  return (
++    <main className="content inv-page">
++      <section className="panel inv-card">
++        <PageHeader
++          title="Poin Reward"
++          icon={Sparkles}
++          onHelp={() => toast.info('Bantuan Poin Reward')}
++          actions={[<Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> Tambah Reward</Button>]}
++        />
++        <FilterBar>
++          <SearchInput value={query} onChange={setQuery} placeholder="Cari reward ..." />
++        </FilterBar>
++        <DataTable
++          columns={['Nama Reward', 'Poin Dibutuhkan', 'Stok', 'Kedaluwarsa', 'Status']}
++          rows={filtered}
++          renderRow={(r, i) => (
++            <tr key={i}>
++              <td><input type="checkbox" /></td>
++              <td className="fw-600">{r.nama}</td>
++              <td><span className="poin-badge">{r.poin} poin</span></td>
++              <td className={r.stok <= 5 ? 'text-danger fw-700' : ''}>{r.stok}</td>
++              <td className="text-muted">{r.kadaluarsa}</td>
++              <td><StatusBadge status={r.status} /></td>
++              <td><button className="row-more"><MoreVertical size={15} /></button></td>
++            </tr>
++          )}
++        />
++      </section>
++      <SlidePanel open={panelOpen} onClose={() => setPanelOpen(false)} title="Tambah Reward"
++        footer={<><button onClick={() => setPanelOpen(false)}>Batal</button><Button onClick={() => { toast.success('Reward ditambahkan'); setPanelOpen(false) }}>Simpan</Button></>}>
++        <PanelFormRow label="Nama Reward" required>
++          <input placeholder="Contoh: Diskon Rp 10.000" />
++        </PanelFormRow>
++        <PanelFormRow label="Poin yang Dibutuhkan" required>
++          <input type="number" placeholder="100" min="1" />
++        </PanelFormRow>
++        <PanelFormRow label="Tipe Reward">
++          <SelectInput value="" options={['Diskon Nominal', 'Diskon Persentase', 'Produk Gratis', 'Voucher']} onChange={() => {}} placeholder="Pilih Tipe" />
++        </PanelFormRow>
++        <PanelFormRow label="Nilai Reward">
++          <input placeholder="Contoh: 10000 atau 20" />
++        </PanelFormRow>
++        <PanelFormRow label="Stok Reward">
++          <input type="number" placeholder="0 = tidak terbatas" />
++        </PanelFormRow>
++        <PanelFormRow label="Tanggal Kedaluwarsa">
++          <input type="date" />
++        </PanelFormRow>
++      </SlidePanel>
++    </main>
++  )
++}
++
++// GöÇGöÇGöÇ INVOICE GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
++
++const invoiceTypeConfig = {
++  penawaran: {
++    title: 'Daftar Penawaran Penjualan',
++    addLabel: 'Buat Penawaran',
++    columns: ['No. Penawaran', 'Pelanggan', 'Outlet', 'Tanggal', 'Berlaku Hingga', 'Total', 'Status'],
++    statuses: ['Semua', 'Draft', 'Terkirim', 'Disetujui', 'Batal'],
++    kpiLabels: ['Total Penawaran', 'Draft', 'Terkirim', 'Disetujui'],
++    demo: [
++      { no: 'PW-2026-001', pelanggan: 'Budi Santoso', outlet: 'Software House', tgl: '01 Jun 2026', berlaku: '15 Jun 2026', total: 'Rp 1.500.000', status: 'Terkirim' },
++      { no: 'PW-2026-002', pelanggan: 'Siti Rahayu', outlet: 'Software House', tgl: '03 Jun 2026', berlaku: '17 Jun 2026', total: 'Rp 750.000', status: 'Draft' },
++    ],
++  },
++  pesanan: {
++    title: 'Daftar Pesanan Penjualan',
++    addLabel: 'Buat Pesanan',
++    columns: ['No. Pesanan', 'Pelanggan', 'Outlet', 'Tanggal', 'Total', 'Status'],
++    statuses: ['Semua', 'Draft', 'Dipesan', 'Diproses', 'Selesai', 'Batal'],
++    kpiLabels: ['Total Pesanan', 'Menunggu', 'Diproses', 'Selesai'],
++    demo: [
++      { no: 'SO-2026-001', pelanggan: 'Ahmad Fauzi', outlet: 'Software House', tgl: '02 Jun 2026', berlaku: '-', total: 'Rp 2.200.000', status: 'Diproses' },
++    ],
++  },
++  pengiriman: {
++    title: 'Daftar Pengiriman Penjualan',
++    addLabel: 'Buat Pengiriman',
++    columns: ['No. Pengiriman', 'Pelanggan', 'Kurir', 'No. Resi', 'Tanggal', 'Status'],
++    statuses: ['Semua', 'Menunggu', 'Dikirim', 'Diterima', 'Batal'],
++    kpiLabels: ['Total Pengiriman', 'Menunggu', 'Dikirim', 'Diterima'],
++    demo: [
++      { no: 'SH-2026-001', pelanggan: 'Budi Santoso', outlet: 'JNE', tgl: '03 Jun 2026', berlaku: 'JNE-1234567890', total: '-', status: 'Dikirim' },
++    ],
++  },
++  invoice: {
++    title: 'Daftar Invoice',
++    addLabel: 'Buat Invoice',
++    columns: ['No. Invoice', 'Pelanggan', 'Outlet', 'Tanggal', 'Jatuh Tempo', 'Total Tagihan', 'Sisa Tagihan', 'Status'],
++    statuses: ['Semua', 'Draft', 'Terkirim', 'Lunas', 'Belum Lunas', 'Terlambat'],
++    kpiLabels: ['Total Invoice', 'Void', 'Lunas', 'Belum Lunas'],
++    summary: [['Total Invoice', 'Rp 0'], ['Void', 'Rp 0'], ['Lunas', 'Rp 0'], ['Belum Lunas', 'Rp 0']],
++    demo: [
++      { no: 'INV-2026-001', pelanggan: 'Budi Santoso', outlet: 'Software House', tgl: '01 Jun 2026', berlaku: '15 Jun 2026', total: 'Rp 1.500.000', status: 'Lunas', sisa: 'Rp 0' },
++      { no: 'INV-2026-002', pelanggan: 'Ahmad Fauzi', outlet: 'Software House', tgl: '03 Jun 2026', berlaku: '17 Jun 2026', total: 'Rp 2.200.000', status: 'Belum Lunas', sisa: 'Rp 2.200.000' },
++    ],
++  },
++  penerimaan: {
++    title: 'Daftar Penerimaan Penjualan',
++    addLabel: 'Buat Penerimaan',
++    columns: ['No. Penerimaan', 'No. Invoice', 'Pelanggan', 'Tanggal', 'Metode Bayar', 'Nominal', 'Status'],
++    statuses: ['Semua', 'Draft', 'Diterima', 'Batal'],
++    kpiLabels: ['Total Penerimaan', 'Draft', 'Diterima', 'Total Nominal'],
++    demo: [
++      { no: 'RC-2026-001', pelanggan: 'INV-2026-001', outlet: 'Budi Santoso', tgl: '05 Jun 2026', berlaku: 'Transfer Bank', total: 'Rp 1.500.000', status: 'Diterima' },
++    ],
++  },
++}
++
++function InvoiceDirectoryPage({ type }) {
++  const config = invoiceTypeConfig[type] || invoiceTypeConfig.invoice
++  const [query, setQuery] = useState('')
++  const [statusTab, setStatusTab] = useState('Semua')
++  const [calendarOpen, setCalendarOpen] = useState(false)
++  const [range, setRange] = useState(defaultRange())
++  const [panelOpen, setPanelOpen] = useState(false)
++  const [favorite, setFavorite] = useState(false)
++
++  const processRange = (r) => { setRange(r); setCalendarOpen(false); toast.success('Periode diperbarui') }
++
++  const filtered = config.demo.filter((item) => {
++    const q = query.toLowerCase()
++    const matchQ = !q || item.no.toLowerCase().includes(q) || item.pelanggan.toLowerCase().includes(q)
++    const matchStatus = statusTab === 'Semua' || item.status === statusTab
++    return matchQ && matchStatus
++  })
++
++  const kpiCards = config.kpiLabels.map((label, i) => {
++    const counts = [config.demo.length, config.demo.filter((d) => d.status === config.statuses[1]).length,
++      config.demo.filter((d) => d.status === config.statuses[2]).length, config.demo.filter((d) => d.status === config.statuses[3]).length]
++    const tones = ['blue', 'yellow', 'green', 'red']
++    return [label, counts[i] ?? 0, tones[i]]
++  })
++
++  return (
++    <main className="content inv-page">
++      <CapitalBanner compact />
++      <section className="panel inv-card">
++        <PageHeader
++          title={config.title}
++          icon={FileText}
++          favorite={favorite}
++          onFavorite={() => setFavorite((v) => !v)}
++          onHelp={() => toast.info(`Bantuan ${config.title}`)}
++          actions={[
++            <Button key="exp" variant="outline" onClick={() => toast.success('Ekspor')}><Download size={15} /> Ekspor</Button>,
++            <Button key="add" onClick={() => setPanelOpen(true)}><Plus size={15} /> {config.addLabel}</Button>,
++          ]}
++        />
++        <KpiStrip cards={kpiCards} />
++        {config.summary ? (
++          <div className="invoice-summary">
++            {config.summary.map(([label, value]) => <MiniKpi key={label} label={label} value={value} />)}
++          </div>
++        ) : null}
++        <FilterBar>
++          <SearchInput value={query} onChange={setQuery} placeholder={`Cari no., pelanggan ...`} />
++          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((v) => !v)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
++          <SelectButton label="Semua Outlet" />
++          <StatusTabs tabs={config.statuses} active={statusTab} onChange={setStatusTab} />
++        </FilterBar>
++        <DataTable
++          columns={config.columns}
++          rows={filtered}
++          emptyText={`Belum ada ${config.title.toLowerCase()}.`}
++          renderRow={(item, i) => (
++            <tr key={i}>
++              <td><input type="checkbox" /></td>
++              <td className="mono fw-600">{item.no}</td>
++              <td>{item.pelanggan}</td>
++              <td>{item.outlet}</td>
++              <td>{item.tgl}</td>
++              {type === 'pengiriman' ? <td className="mono text-muted">{item.berlaku}</td> : <td className={item.status === 'Terlambat' ? 'text-danger' : ''}>{item.berlaku}</td>}
++              {type === 'invoice' ? <td className="fw-600">{item.total}</td> : null}
++              {type === 'invoice' ? <td className={item.status === 'Belum Lunas' ? 'text-danger fw-700' : 'text-muted'}>{item.sisa}</td> : <td className="fw-600">{item.total}</td>}
++              <td><StatusBadge status={item.status} /></td>
++              <td><button className="row-more"><MoreVertical size={15} /></button></td>
++            </tr>
++          )}
++        />
++      </section>
++      <SlidePanel open={panelOpen} onClose={() => setPanelOpen(false)} title={config.addLabel}
++        footer={<><button onClick={() => setPanelOpen(false)}>Batal</button><Button onClick={() => { toast.success(`${config.addLabel} berhasil dibuat`); setPanelOpen(false) }}>Simpan</Button></>}>
++        <PanelFormRow label="Pelanggan" required>
++          <SelectInput value="" options={['Budi Santoso', 'Siti Rahayu', 'Ahmad Fauzi']} onChange={() => {}} placeholder="Pilih Pelanggan" />
++        </PanelFormRow>
++        <PanelFormRow label="Outlet" required>
++          <SelectInput value="" options={['Software House']} onChange={() => {}} placeholder="Pilih Outlet" />
++        </PanelFormRow>
++        <PanelFormRow label="Tanggal" required>
++          <input type="date" />
++        </PanelFormRow>
++        {type !== 'pengiriman' ? (
++          <PanelFormRow label="Tanggal Jatuh Tempo / Berlaku Hingga">
++            <input type="date" />
++          </PanelFormRow>
++        ) : (
++          <PanelFormRow label="Kurir">
++            <SelectInput value="" options={['JNE', 'J&T', 'SiCepat', 'Gosend', 'Grab Express']} onChange={() => {}} placeholder="Pilih Kurir" />
++          </PanelFormRow>
++        )}
++        <PanelFormRow label="Produk / Item">
++          <button className="outline-wide" onClick={() => toast.info('Tambah produk')}><Plus size={14} /> Tambah Produk</button>
++        </PanelFormRow>
++        {type === 'invoice' || type === 'penerimaan' ? (
++          <PanelFormRow label="Metode Pembayaran">
++            <SelectInput value="" options={['Tunai', 'Transfer Bank', 'QRIS', 'Kartu Kredit', 'Debit']} onChange={() => {}} placeholder="Pilih Metode" />
++          </PanelFormRow>
++        ) : null}
++        <PanelFormRow label="Catatan">
++          <textarea placeholder="Catatan tambahan ..." rows={3} />
++        </PanelFormRow>
++      </SlidePanel>
++    </main>
++  )
++}
++
+ function FlowHeader({ title, onClose }) {
+   return (
+     <header className="flow-header">
+diff --git a/POS/src/style.css b/POS/src/style.css
+index f6a255f..aff1296 100644
+--- a/POS/src/style.css
++++ b/POS/src/style.css
+@@ -120,24 +120,35 @@ button {
+ }
+ 
+ .outlet-switch {
+-  display: grid;
+-  grid-template-columns: auto 1fr auto;
+-  gap: 11px;
++  display: flex;
+   align-items: center;
++  justify-content: space-between;
+   width: 100%;
+   min-height: 88px;
+   padding: 16px 20px 15px 22px;
+-  border: 0;
+   background: #08c7a0;
+   color: #fff;
++}
++
++.outlet-btn {
++  display: flex;
++  align-items: center;
++  gap: 11px;
++  background: transparent;
++  border: 0;
++  color: #fff;
+   text-align: left;
++  padding: 0;
++  margin: 0;
++  flex: 1;
++  min-width: 0;
+ }
+ 
+ .outlet-switch:hover {
+   background: #10b99a;
+ }
+ 
+-.outlet-switch span {
++.outlet-btn span {
+   display: grid;
+   gap: 3px;
+   font-size: 17px;
+@@ -146,18 +157,27 @@ button {
+   min-width: 0;
+ }
+ 
+-.outlet-switch small {
++.outlet-btn small {
+   font-size: 12px;
+   font-weight: 800;
+ }
+ 
+-.outlet-switch > svg:last-child {
++.sidebar-collapse-btn {
++  display: grid;
++  place-items: center;
+   width: 28px;
+   height: 28px;
+-  padding: 5px;
++  padding: 0;
++  border: 0;
+   border-radius: 999px;
+   background: rgba(255, 255, 255, 0.92);
+   color: #08a88c;
++  flex: 0 0 auto;
++  cursor: pointer;
++}
++
++.sidebar-collapse-btn:hover {
++  background: #fff;
+ }
+ 
+ .side-nav {
+@@ -1525,7 +1545,7 @@ button {
+ }
+ 
+ .confirm-dialog header button,
+-.confirm-dialog footer > button {
++.confirm-dialog footer > button:not(.btn) {
+   border: 0;
+   background: transparent;
+   color: #4f5a65;
+@@ -1833,18 +1853,41 @@ button {
+   box-shadow: inset 0 0 0 1px rgba(8, 199, 160, 0.2);
+ }
+ 
+-.radio-card input {
+-  width: 15px;
+-  height: 15px;
+-  accent-color: var(--brand);
++.custom-radio {
++  width: 16px;
++  height: 16px;
++  border-radius: 50%;
++  border: 1px solid #cfd5dc;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  flex: 0 0 auto;
++}
++
++.custom-radio.checked {
++  border-color: var(--brand);
++}
++
++.custom-radio.checked::after {
++  content: '';
++  width: 8px;
++  height: 8px;
++  border-radius: 50%;
++  background: var(--brand);
+ }
+ 
+ .expiry-row {
+   display: grid;
+-  grid-template-columns: minmax(0, 1fr) 112px;
++  grid-template-columns: minmax(0, 1fr) auto;
+   gap: 12px;
+ }
+ 
++.expiry-row button {
++  height: 38px;
++  color: var(--brand);
++  border-color: var(--brand);
++}
++
+ .schedule-block {
+   display: grid;
+   gap: 10px;
+@@ -1862,8 +1905,8 @@ button {
+ 
+ .schedule-grid {
+   display: grid;
+-  grid-template-columns: 190px 150px 150px minmax(180px, 1fr);
+-  gap: 10px 16px;
++  grid-template-columns: 100px 120px 120px 120px;
++  gap: 12px 16px;
+   align-items: center;
+   margin-top: 8px;
+ }
+@@ -1882,11 +1925,12 @@ button {
+ 
+ .schedule-day {
+   justify-content: space-between;
++  font-size: 13px;
+ }
+ 
+ .time-input {
+   display: inline-flex;
+-  min-height: 34px;
++  min-height: 32px;
+   align-items: center;
+   gap: 8px;
+   padding: 0 12px;
+@@ -1894,15 +1938,29 @@ button {
+   border-radius: 6px;
+   background: #f9fafb;
+   color: #26313b;
++  font-size: 13px;
++}
++
++.shift-cell label {
++  font-size: 13px;
++  display: flex;
++  align-items: center;
++  gap: 6px;
++}
++
++.shift-cell input[type="checkbox"] {
++  width: 14px;
++  height: 14px;
++  accent-color: var(--brand);
+ }
+ 
+ .shift-cell button {
+   display: inline-grid;
+-  width: 24px;
+-  height: 24px;
++  width: 20px;
++  height: 20px;
+   place-items: center;
+   border: 0;
+-  border-radius: 5px;
++  border-radius: 4px;
+   background: #dde2e6;
+   color: #83909d;
+ }
+@@ -3031,8 +3089,10 @@ button {
+   left: 0;
+   z-index: 40;
+   display: grid;
+-  grid-template-columns: 160px 280px 280px 210px;
+-  width: min(930px, calc(100vw - 340px));
++  grid-template-columns: 140px 240px 240px 180px;
++  width: max-content;
++  max-width: 90vw;
++  overflow-x: auto;
+   border-radius: 8px;
+   background: #fff;
+   box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+@@ -4091,3 +4151,874 @@ button {
+     width: 100%;
+   }
+ }
++
++/* GöÇGöÇGöÇ NEW PAGES: INVENTORI / PELANGGAN / PROMOSI / INVOICE GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ */
++
++/* Page layout */
++.inv-page {
++  display: flex;
++  flex-direction: column;
++  gap: 0;
++}
++
++.inv-card {
++  overflow: hidden;
++}
++
++/* Page Header Bar */
++.page-header-bar {
++  display: flex;
++  align-items: flex-start;
++  justify-content: space-between;
++  flex-wrap: wrap;
++  gap: 12px;
++  padding: 20px 20px 16px;
++  border-bottom: 1px solid var(--line);
++}
++
++.page-header-left {
++  display: flex;
++  flex-direction: column;
++  gap: 4px;
++  min-width: 0;
++}
++
++.page-header-title-row {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  flex-wrap: wrap;
++}
++
++.page-header-title-row h1 {
++  margin: 0;
++  font-size: 20px;
++  font-weight: 800;
++  line-height: 1.2;
++}
++
++.page-header-icon {
++  color: var(--brand);
++  flex-shrink: 0;
++}
++
++.page-header-subtitle {
++  margin: 0;
++  font-size: 13px;
++  color: var(--muted);
++}
++
++.page-header-actions {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  flex-wrap: wrap;
++  flex-shrink: 0;
++}
++
++/* KPI Strip */
++.kpi-strip {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
++  border-bottom: 1px solid var(--line);
++}
++
++.kpi-card {
++  display: flex;
++  flex-direction: column;
++  gap: 4px;
++  padding: 16px 20px;
++  border-right: 1px solid var(--line);
++}
++
++.kpi-card:last-child {
++  border-right: 0;
++}
++
++.kpi-card span {
++  font-size: 12px;
++  color: var(--muted);
++  font-weight: 600;
++  text-transform: uppercase;
++  letter-spacing: 0.02em;
++}
++
++.kpi-card strong {
++  font-size: 22px;
++  font-weight: 800;
++  line-height: 1.15;
++}
++
++.kpi-green strong { color: #0aaf90; }
++.kpi-blue strong { color: #2563eb; }
++.kpi-yellow strong { color: #d97706; }
++.kpi-red strong { color: var(--danger); }
++.kpi-purple strong { color: #7c3aed; }
++.kpi-gray strong { color: var(--muted); }
++.kpi-orange strong { color: #ea580c; }
++
++/* Filter Bar */
++.filter-bar {
++  display: flex;
++  align-items: center;
++  flex-wrap: wrap;
++  gap: 8px;
++  padding: 12px 20px;
++  border-bottom: 1px solid var(--line);
++  background: #fafbfc;
++}
++
++/* Search Field */
++.search-field {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  min-width: 200px;
++  height: 36px;
++  padding: 0 12px;
++  border: 1px solid var(--line);
++  border-radius: 6px;
++  background: #fff;
++  color: var(--muted);
++  cursor: text;
++}
++
++.search-field input {
++  border: 0;
++  outline: none;
++  background: transparent;
++  font-size: 14px;
++  color: var(--text);
++  width: 100%;
++}
++
++.search-field input::placeholder {
++  color: var(--muted);
++}
++
++/* Status Tabs */
++.status-tabs {
++  display: flex;
++  align-items: center;
++  gap: 0;
++  border: 1px solid var(--line);
++  border-radius: 6px;
++  overflow: hidden;
++  flex-shrink: 0;
++}
++
++.status-tabs button {
++  height: 36px;
++  padding: 0 14px;
++  border: 0;
++  border-right: 1px solid var(--line);
++  background: #fff;
++  color: #4d535b;
++  font-size: 13px;
++  font-weight: 600;
++  white-space: nowrap;
++  transition: background 0.12s, color 0.12s;
++}
++
++.status-tabs button:last-child {
++  border-right: 0;
++}
++
++.status-tabs button.active {
++  background: var(--brand);
++  color: #fff;
++}
++
++.status-tabs button:not(.active):hover {
++  background: #f0f2f4;
++}
++
++/* Inv main tabs (for Kelola Stok) */
++.inv-main-tabs {
++  display: flex;
++  gap: 0;
++  padding: 0 20px;
++  border-bottom: 1px solid var(--line);
++  overflow-x: auto;
++  scrollbar-width: none;
++}
++
++.inv-main-tabs::-webkit-scrollbar {
++  display: none;
++}
++
++.inv-main-tabs button {
++  flex-shrink: 0;
++  height: 44px;
++  padding: 0 18px;
++  border: 0;
++  border-bottom: 3px solid transparent;
++  background: transparent;
++  color: var(--muted);
++  font-size: 14px;
++  font-weight: 700;
++  white-space: nowrap;
++  transition: color 0.12s, border-color 0.12s;
++}
++
++.inv-main-tabs button.active {
++  color: var(--brand);
++  border-bottom-color: var(--brand);
++}
++
++.inv-main-tabs button:hover:not(.active) {
++  color: var(--text);
++}
++
++/* Data Table */
++.data-table-wrap {
++  display: flex;
++  flex-direction: column;
++}
++
++.data-table-scroll {
++  overflow-x: auto;
++  min-height: 200px;
++}
++
++.data-table {
++  width: 100%;
++  min-width: 600px;
++  border-collapse: collapse;
++  font-size: 13.5px;
++}
++
++.data-table thead {
++  background: #f7f9fb;
++  border-bottom: 1px solid var(--line);
++}
++
++.data-table th {
++  padding: 11px 14px;
++  text-align: left;
++  font-size: 11.5px;
++  font-weight: 750;
++  color: var(--muted);
++  text-transform: uppercase;
++  letter-spacing: 0.04em;
++  white-space: nowrap;
++}
++
++.data-table th.check-th {
++  width: 44px;
++  padding: 11px 0 11px 16px;
++}
++
++.data-table td {
++  padding: 12px 14px;
++  border-bottom: 1px solid var(--line);
++  vertical-align: middle;
++  color: var(--text);
++}
++
++.data-table tbody tr:hover {
++  background: #f8fafb;
++}
++
++.data-table tbody tr:last-child td {
++  border-bottom: 0;
++}
++
++.table-empty {
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  justify-content: center;
++  gap: 10px;
++  padding: 48px 24px;
++  color: var(--muted);
++  text-align: center;
++}
++
++.table-empty p {
++  margin: 0;
++  font-size: 14px;
++  max-width: 320px;
++  line-height: 1.5;
++}
++
++.table-pagination {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 12px;
++  padding: 12px 20px;
++  border-top: 1px solid var(--line);
++  background: #fafbfc;
++  flex-wrap: wrap;
++}
++
++.table-pagination > div {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  font-size: 13px;
++  color: var(--muted);
++}
++
++.table-pagination > div button {
++  display: flex;
++  align-items: center;
++  gap: 4px;
++  height: 30px;
++  padding: 0 10px;
++  border: 1px solid var(--line);
++  border-radius: 5px;
++  background: #fff;
++  font-size: 12px;
++  font-weight: 700;
++}
++
++.table-pagination nav {
++  display: flex;
++  align-items: center;
++  gap: 6px;
++}
++
++.table-pagination nav button {
++  display: flex;
++  align-items: center;
++  gap: 4px;
++  height: 32px;
++  padding: 0 12px;
++  border: 1px solid var(--line);
++  border-radius: 5px;
++  background: #fff;
++  font-size: 13px;
++  font-weight: 600;
++  color: #4d535b;
++}
++
++.table-pagination nav strong {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  width: 32px;
++  height: 32px;
++  border-radius: 5px;
++  background: var(--brand);
++  color: #fff;
++  font-size: 13px;
++}
++
++/* Status Badges */
++.status-badge {
++  display: inline-flex;
++  align-items: center;
++  padding: 3px 10px;
++  border-radius: 20px;
++  font-size: 12px;
++  font-weight: 700;
++  white-space: nowrap;
++}
++
++.badge-green { background: #d1fae5; color: #065f46; }
++.badge-yellow { background: #fef3c7; color: #92400e; }
++.badge-red { background: #fee2e2; color: #991b1b; }
++.badge-gray { background: #f1f5f9; color: #475569; }
++.badge-orange { background: #ffedd5; color: #9a3412; }
++.badge-blue { background: #dbeafe; color: #1e40af; }
++.badge-purple { background: #ede9fe; color: #5b21b6; }
++
++/* Pill styles */
++.group-pill {
++  display: inline-flex;
++  align-items: center;
++  padding: 2px 10px;
++  border-radius: 20px;
++  font-size: 12px;
++  font-weight: 700;
++  background: var(--brand-soft);
++  color: var(--brand-dark);
++}
++
++.coupon-code {
++  font-family: 'JetBrains Mono', 'Courier New', monospace;
++  font-size: 13px;
++  font-weight: 800;
++  letter-spacing: 0.05em;
++  color: var(--brand-dark);
++  background: var(--brand-soft);
++  padding: 2px 8px;
++  border-radius: 4px;
++}
++
++.poin-badge {
++  display: inline-flex;
++  align-items: center;
++  padding: 2px 10px;
++  border-radius: 20px;
++  font-size: 12px;
++  font-weight: 700;
++  background: #fef3c7;
++  color: #92400e;
++}
++
++.type-pill {
++  display: inline-flex;
++  align-items: center;
++  padding: 2px 10px;
++  border-radius: 20px;
++  font-size: 11.5px;
++  font-weight: 700;
++  background: #ede9fe;
++  color: #5b21b6;
++}
++
++/* Utility classes */
++.fw-600 { font-weight: 600; }
++.fw-700 { font-weight: 700; }
++.mono { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 12px; }
++.text-danger { color: var(--danger); }
++.text-muted { color: var(--muted); }
++
++/* Slide Panel (Right Drawer) */
++.slide-scrim {
++  position: fixed;
++  inset: 0;
++  z-index: 200;
++  background: rgba(15, 23, 42, 0.4);
++  backdrop-filter: blur(2px);
++  animation: fadeIn 0.2s ease;
++}
++
++.slide-panel {
++  position: fixed;
++  top: 0;
++  right: 0;
++  bottom: 0;
++  z-index: 201;
++  width: min(480px, 100vw);
++  display: flex;
++  flex-direction: column;
++  background: #fff;
++  box-shadow: -8px 0 40px rgba(15, 23, 42, 0.18);
++  transform: translateX(100%);
++  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
++}
++
++.slide-panel.open {
++  transform: translateX(0);
++}
++
++.slide-panel-head {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 12px;
++  padding: 18px 20px;
++  border-bottom: 1px solid var(--line);
++  flex-shrink: 0;
++}
++
++.slide-panel-head h2 {
++  margin: 0;
++  font-size: 18px;
++  font-weight: 800;
++}
++
++.slide-panel-head button {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  width: 34px;
++  height: 34px;
++  border: 0;
++  border-radius: 50%;
++  background: #f1f5f9;
++  color: #64748b;
++  cursor: pointer;
++  flex-shrink: 0;
++}
++
++.slide-panel-head button:hover {
++  background: #e2e8f0;
++}
++
++.slide-panel-body {
++  flex: 1;
++  overflow-y: auto;
++  padding: 20px;
++  display: flex;
++  flex-direction: column;
++  gap: 0;
++}
++
++.slide-panel-footer {
++  display: flex;
++  align-items: center;
++  justify-content: flex-end;
++  gap: 10px;
++  padding: 16px 20px;
++  border-top: 1px solid var(--line);
++  flex-shrink: 0;
++}
++
++.slide-panel-footer > button:not(.btn) {
++  padding: 0 16px;
++  height: 36px;
++  border: 1px solid var(--line);
++  border-radius: 6px;
++  background: #fff;
++  font-weight: 700;
++  cursor: pointer;
++}
++
++/* Panel Form Row */
++.panel-form-row {
++  display: flex;
++  flex-direction: column;
++  gap: 6px;
++  padding: 14px 0;
++  border-bottom: 1px solid var(--line);
++}
++
++.panel-form-row:last-child {
++  border-bottom: 0;
++}
++
++.panel-form-row.has-error .panel-form-label {
++  color: var(--danger);
++}
++
++.panel-form-row input,
++.panel-form-row textarea,
++.panel-form-row select {
++  width: 100%;
++  height: 38px;
++  padding: 0 12px;
++  border: 1px solid var(--line);
++  border-radius: 6px;
++  background: #fff;
++  font-size: 14px;
++  color: var(--text);
++  outline: none;
++  transition: border-color 0.12s;
++}
++
++.panel-form-row textarea {
++  height: auto;
++  padding: 10px 12px;
++  resize: vertical;
++  line-height: 1.5;
++}
++
++.panel-form-row input:focus,
++.panel-form-row textarea:focus {
++  border-color: var(--brand);
++}
++
++.panel-form-row input[type="date"] {
++  cursor: pointer;
++}
++
++.panel-form-label {
++  font-size: 13px;
++  font-weight: 700;
++  color: #374151;
++}
++
++.req {
++  color: var(--danger);
++  margin-left: 2px;
++}
++
++.form-error {
++  font-size: 12px;
++  color: var(--danger);
++  font-weight: 600;
++}
++
++/* Radio group */
++.radio-group {
++  display: flex;
++  gap: 16px;
++  flex-wrap: wrap;
++}
++
++.radio-opt {
++  display: flex;
++  align-items: center;
++  gap: 6px;
++  font-size: 14px;
++  cursor: pointer;
++}
++
++/* Field with action button */
++.field-with-action {
++  display: flex;
++  gap: 8px;
++}
++
++.field-with-action input {
++  flex: 1;
++}
++
++.field-with-action > button {
++  flex-shrink: 0;
++  height: 38px;
++  padding: 0 14px;
++  border: 1px solid var(--line);
++  border-radius: 6px;
++  background: #fff;
++  font-weight: 700;
++  font-size: 13px;
++  cursor: pointer;
++}
++
++.field-with-action > button:hover {
++  background: var(--brand-soft);
++  border-color: var(--brand);
++  color: var(--brand-dark);
++}
++
++/* Settings List (Pengaturan Data Pelanggan) */
++.settings-list {
++  display: flex;
++  flex-direction: column;
++}
++
++.settings-row {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 16px;
++  padding: 16px 20px;
++  border-bottom: 1px solid var(--line);
++}
++
++.settings-row > div {
++  flex: 1;
++  min-width: 0;
++}
++
++.settings-row strong {
++  display: block;
++  font-size: 14px;
++  font-weight: 700;
++  color: var(--text);
++  margin-bottom: 2px;
++}
++
++.settings-row p {
++  margin: 0;
++  font-size: 13px;
++  color: var(--muted);
++  line-height: 1.4;
++}
++
++/* Toggle Button */
++.toggle-btn {
++  position: relative;
++  flex-shrink: 0;
++  width: 46px;
++  height: 26px;
++  border: 0;
++  border-radius: 999px;
++  background: #d1d5db;
++  cursor: pointer;
++  transition: background 0.18s ease;
++  padding: 0;
++}
++
++.toggle-btn.active {
++  background: var(--brand);
++}
++
++.toggle-knob {
++  position: absolute;
++  top: 3px;
++  left: 3px;
++  width: 20px;
++  height: 20px;
++  border-radius: 50%;
++  background: #fff;
++  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
++  transition: transform 0.18s ease;
++}
++
++.toggle-btn.active .toggle-knob {
++  transform: translateX(20px);
++}
++
++@keyframes fadeIn {
++  from { opacity: 0; }
++  to { opacity: 1; }
++}
++
++/* Row more button */
++.row-more {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  width: 30px;
++  height: 30px;
++  border: 0;
++  border-radius: 6px;
++  background: transparent;
++  color: var(--muted);
++  cursor: pointer;
++}
++
++.row-more:hover {
++  background: #f1f5f9;
++  color: var(--text);
++}
++
++/* GöÇGöÇGöÇ MOBILE FIRST: NEW PAGES GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ */
++@media (max-width: 768px) {
++  .page-header-bar {
++    flex-direction: column;
++    align-items: stretch;
++    padding: 16px;
++    gap: 12px;
++  }
++
++  .page-header-actions {
++    flex-direction: row;
++    flex-wrap: wrap;
++  }
++
++  .page-header-actions .btn {
++    flex: 1;
++    justify-content: center;
++    min-height: 40px;
++  }
++
++  .kpi-strip {
++    grid-template-columns: repeat(2, 1fr);
++  }
++
++  .kpi-card {
++    padding: 12px 14px;
++  }
++
++  .kpi-card strong {
++    font-size: 18px;
++  }
++
++  .kpi-card:nth-child(even) {
++    border-right: 0;
++  }
++
++  .filter-bar {
++    flex-direction: column;
++    align-items: stretch;
++    padding: 12px 16px;
++    gap: 8px;
++  }
++
++  .search-field {
++    width: 100%;
++    min-width: 0;
++  }
++
++  .status-tabs {
++    overflow-x: auto;
++    width: 100%;
++  }
++
++  .status-tabs button {
++    flex: 1;
++    min-width: max-content;
++    padding: 0 12px;
++    font-size: 12px;
++  }
++
++  .inv-main-tabs button {
++    padding: 0 14px;
++    font-size: 13px;
++  }
++
++  .slide-panel {
++    width: 100%;
++  }
++
++  .table-pagination {
++    flex-direction: column;
++    align-items: stretch;
++    gap: 8px;
++    padding: 12px 16px;
++  }
++
++  .table-pagination > div {
++    justify-content: center;
++  }
++
++  .table-pagination nav {
++    justify-content: center;
++  }
++
++  .settings-row {
++    padding: 14px 16px;
++  }
++
++  .data-table th,
++  .data-table td {
++    padding: 10px 12px;
++  }
++}
++
++@media (max-width: 480px) {
++  .kpi-strip {
++    grid-template-columns: 1fr;
++  }
++
++  .kpi-card {
++    border-right: 0;
++    border-bottom: 1px solid var(--line);
++  }
++
++  .kpi-card:last-child {
++    border-bottom: 0;
++  }
++}
++
++/* Outline wide button (for adding items inside forms) */
++.outline-wide {
++  display: flex;
++  align-items: center;
++  gap: 6px;
++  width: 100%;
++  height: 38px;
++  padding: 0 14px;
++  border: 1.5px dashed var(--line);
++  border-radius: 6px;
++  background: #fafbfc;
++  font-size: 13px;
++  font-weight: 700;
++  color: var(--muted);
++  cursor: pointer;
++  transition: border-color 0.12s, color 0.12s;
++}
++
++.outline-wide:hover {
++  border-color: var(--brand);
++  color: var(--brand-dark);
++  background: var(--brand-soft);
++}
++
++/* Inline checkbox label */
++.check-line {
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  font-size: 14px;
++  cursor: pointer;
++}
++
++.check-line input[type="checkbox"] {
++  width: 16px;
++  height: 16px;
++  border: 1.5px solid var(--line);
++  border-radius: 4px;
++  accent-color: var(--brand);
++  flex-shrink: 0;
++  cursor: pointer;
++}
++

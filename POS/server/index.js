@@ -820,6 +820,55 @@ app.post('/api/stock-opname', async (req, res) => {
   }
 })
 
+// Stock Movement / Mutasi Antar Outlet
+app.get('/api/mutasi-outlet', async (req, res) => {
+  try {
+    const { orgId, outletId } = req.query
+    if (!orgId) return res.status(400).json({ error: 'orgId required' })
+    const result = await pool.query(
+      `SELECT * FROM public.st_mutation
+       WHERE org_id = $1 AND movement_type = 'transfer' ${outletId ? 'AND outlet_id = $2' : ''}
+       ORDER BY created_at DESC`,
+      outletId ? [orgId, outletId] : [orgId]
+    )
+    res.json(result.rows)
+  } catch (error) { sendPgError(res, error) }
+})
+
+app.post('/api/mutasi-outlet', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { orgId, sourceOutletId, targetOutletId, stMastId, qty, notes, userId } = req.body
+    
+    // Decrease source outlet stock
+    const sourceStockRes = await client.query(`SELECT stock_qty FROM public.st_mast WHERE id = $1 AND outlet_id = $2`, [stMastId, sourceOutletId])
+    if (sourceStockRes.rows.length === 0) throw new Error('Stok asal tidak ditemukan')
+    const sourceQty = Number(sourceStockRes.rows[0].stock_qty)
+    if (sourceQty < qty) throw new Error('Stok asal tidak mencukupi')
+
+    await client.query(`UPDATE public.st_mast SET stock_qty = stock_qty - $1 WHERE id = $2 AND outlet_id = $3`, [qty, stMastId, sourceOutletId])
+
+    // Increase target outlet stock (assuming target outlet has the same st_mast product, if not, we would need to create it. For MVP, assume it exists or we just track it)
+    await client.query(`UPDATE public.st_mast SET stock_qty = stock_qty + $1 WHERE id = $2 AND outlet_id = $3`, [qty, stMastId, targetOutletId])
+
+    // Insert to st_mutation (Out from source)
+    await client.query(
+      `INSERT INTO public.st_mutation (org_id, outlet_id, st_mast_id, movement_type, qty_out, qty_before, qty_after, note, created_by)
+       VALUES ($1, $2, $3, 'transfer', $4, $5, $6, $7, $8)`,
+      [orgId, sourceOutletId, stMastId, qty, sourceQty, sourceQty - qty, `Transfer ke Outlet ${targetOutletId}: ${notes}`, userId]
+    )
+
+    await client.query('COMMIT')
+    res.status(201).json({ success: true, message: 'Mutasi berhasil' })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    sendPgError(res, error)
+  } finally {
+    client.release()
+  }
+})
+
 app.listen(port, () => {
   console.log(`API Server running on port ${port}`)
 })
