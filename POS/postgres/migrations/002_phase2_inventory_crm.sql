@@ -1,0 +1,87 @@
+CREATE TABLE IF NOT EXISTS suppliers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  contact_name VARCHAR(255),
+  phone VARCHAR(50),
+  email VARCHAR(255),
+  address TEXT,
+  status VARCHAR(50) DEFAULT 'ACTIVE',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS purchase_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL,
+  outlet_id UUID NOT NULL,
+  supplier_id UUID REFERENCES suppliers(id),
+  po_number VARCHAR(100) NOT NULL UNIQUE,
+  status VARCHAR(50) DEFAULT 'PENDING',
+  total_amount NUMERIC(15,2) DEFAULT 0,
+  expected_date DATE,
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS po_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  po_id UUID REFERENCES purchase_orders(id) ON DELETE CASCADE,
+  st_mast_id UUID,
+  quantity NUMERIC(15,2) DEFAULT 0,
+  unit_price NUMERIC(15,2) DEFAULT 0,
+  subtotal NUMERIC(15,2) DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS stock_opname (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL,
+  outlet_id UUID NOT NULL,
+  opname_number VARCHAR(100) NOT NULL UNIQUE,
+  status VARCHAR(50) DEFAULT 'DRAFT',
+  notes TEXT,
+  created_by UUID,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS stock_opname_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  opname_id UUID REFERENCES stock_opname(id) ON DELETE CASCADE,
+  st_mast_id UUID,
+  system_qty NUMERIC(15,2) DEFAULT 0,
+  actual_qty NUMERIC(15,2) DEFAULT 0,
+  difference NUMERIC(15,2) DEFAULT 0,
+  note TEXT
+);
+
+CREATE TABLE IF NOT EXISTS customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  phone VARCHAR(50),
+  email VARCHAR(255),
+  address TEXT,
+  member_code VARCHAR(100) UNIQUE,
+  points INTEGER DEFAULT 0,
+  status VARCHAR(50) DEFAULT 'ACTIVE',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS promos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  type VARCHAR(50) NOT NULL, -- e.g. PERCENTAGE, NOMINAL
+  value NUMERIC(15,2) NOT NULL,
+  min_purchase NUMERIC(15,2) DEFAULT 0,
+  max_discount NUMERIC(15,2),
+  start_date TIMESTAMP WITH TIME ZONE,
+  end_date TIMESTAMP WITH TIME ZONE,
+  status VARCHAR(50) DEFAULT 'ACTIVE',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

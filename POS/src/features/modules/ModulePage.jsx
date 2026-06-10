@@ -63,7 +63,7 @@ import {
   buildSalesSummary,
   downloadCSV,
 } from './moduleBlueprints.js'
-import { DaftarBahanBakuPage, PemesananStokPage, DaftarStokPage } from './InventoryPages.jsx'
+import { DaftarBahanBakuPage, PemesananStokPage, DaftarStokPage, DaftarPemasokPage, KelolaStokPage } from './InventoryPages.jsx'
 import { ProductFormModal } from './ProductFormModal.jsx'
 import { DaftarPelangganPage } from './CustomerPages.jsx'
 
@@ -115,6 +115,8 @@ function ModulePage({ activePage, onStartFlow, posData }) {
   if (activePage === 'Daftar Bahan Baku') return <DaftarBahanBakuPage />
   if (activePage === 'Pemesanan Stok') return <PemesananStokPage />
   if (activePage === 'Daftar Stok') return <DaftarStokPage />
+  if (activePage === 'Daftar Pemasok') return <DaftarPemasokPage />
+  if (activePage === 'Kelola Stok') return <KelolaStokPage />
 
   // Customer custom pages
   if (activePage === 'Daftar Pelanggan') return <DaftarPelangganPage posData={posData} onRefresh={() => window.location.reload()} />

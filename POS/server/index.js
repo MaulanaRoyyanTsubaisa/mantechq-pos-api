@@ -451,6 +451,375 @@ app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Endpoint tidak ditemukan.' })
 })
 
+// ---------------------------------------------------------------------
+// PHASE 2 & 3: INVENTORY, CRM, ADVANCED SALES ENDPOINTS
+// ---------------------------------------------------------------------
+
+// Suppliers
+app.get('/api/suppliers', async (req, res) => {
+  try {
+    const { orgId } = req.query
+    if (!orgId) return res.status(400).json({ error: 'orgId required' })
+    const result = await pool.query(`SELECT * FROM public.suppliers WHERE org_id = $1 ORDER BY name ASC`, [orgId])
+    res.json(result.rows)
+  } catch (error) { sendPgError(res, error) }
+})
+
+app.post('/api/suppliers', async (req, res) => {
+  try {
+    const { orgId, name, contactName, phone, email, address } = req.body
+    const result = await pool.query(
+      `INSERT INTO public.suppliers (org_id, name, contact_name, phone, email, address)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [orgId, name, contactName, phone, email, address]
+    )
+    res.status(201).json(result.rows[0])
+  } catch (error) { sendPgError(res, error) }
+})
+
+// Purchase Orders
+app.get('/api/purchase-orders', async (req, res) => {
+  try {
+    const { orgId, outletId } = req.query
+    if (!orgId) return res.status(400).json({ error: 'orgId required' })
+    const result = await pool.query(
+      `SELECT po.*, s.name as supplier_name 
+       FROM public.purchase_orders po
+       LEFT JOIN public.suppliers s ON s.id = po.supplier_id
+       WHERE po.org_id = $1 ${outletId ? 'AND po.outlet_id = $2' : ''}
+       ORDER BY po.created_at DESC`,
+      outletId ? [orgId, outletId] : [orgId]
+    )
+    res.json(result.rows)
+  } catch (error) { sendPgError(res, error) }
+})
+
+app.post('/api/purchase-orders', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { orgId, outletId, supplierId, expectedDate, notes, items, userId } = req.body
+    const poNumber = `PO-${Date.now()}`
+    
+    // insert PO
+    const poResult = await client.query(
+      `INSERT INTO public.purchase_orders (org_id, outlet_id, supplier_id, po_number, expected_date, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [orgId, outletId, supplierId, poNumber, expectedDate, notes, userId]
+    )
+    const po = poResult.rows[0]
+    
+    // insert items
+    let total = 0
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const subtotal = item.quantity * item.unitPrice
+        total += subtotal
+        await client.query(
+          `INSERT INTO public.po_items (po_id, st_mast_id, quantity, unit_price, subtotal)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [po.id, item.stMastId, item.quantity, item.unitPrice, subtotal]
+        )
+      }
+    }
+    
+    // update total
+    await client.query(`UPDATE public.purchase_orders SET total_amount = $1 WHERE id = $2`, [total, po.id])
+    await client.query('COMMIT')
+    res.status(201).json({ ...po, total_amount: total })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    sendPgError(res, error)
+  } finally {
+    client.release()
+  }
+})
+
+// Customers
+app.get('/api/customers', async (req, res) => {
+  try {
+    const { orgId } = req.query
+    if (!orgId) return res.status(400).json({ error: 'orgId required' })
+    const result = await pool.query(`SELECT * FROM public.customers WHERE org_id = $1 ORDER BY name ASC`, [orgId])
+    res.json(result.rows)
+  } catch (error) { sendPgError(res, error) }
+})
+
+app.post('/api/customers', async (req, res) => {
+  try {
+    const { orgId, name, phone, email, address, memberCode } = req.body
+    const result = await pool.query(
+      `INSERT INTO public.customers (org_id, name, phone, email, address, member_code)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [orgId, name, phone, email, address, memberCode]
+    ])
+
+    res.json({
+      memberships: memberships.rows,
+      stockItems: stockItems.rows,
+      sales: sales.rows,
+      salesDetails: salesDetails.rows,
+      stockMutations: stockMutations.rows,
+      customers: customers.rows,
+    })
+  } catch (error) {
+    sendPgError(res, error)
+  } finally {
+    client.release()
+  }
+})
+
+app.post('/api/sales', async (req, res) => {
+  const body = req.body || {}
+  try {
+    const result = await pool.query(
+      `select * from public.create_sales_transaction(
+        $1::uuid,
+        $2::uuid,
+        $3::text,
+        $4::numeric,
+        $5::numeric,
+        $6::numeric,
+        $7::text,
+        $8::jsonb,
+        $9::uuid
+      )`,
+      [
+        body.orgId || body.org_id,
+        body.outletId || body.outlet_id,
+        body.note || '',
+        Number(body.discountTotal ?? body.discount_total ?? 0),
+        Number(body.taxTotal ?? body.tax_total ?? 0),
+        Number(body.paidTotal ?? body.paid_total ?? 0),
+        body.paymentStatus || body.payment_status || 'paid',
+        JSON.stringify(body.items || []),
+        body.userId || body.user_id || null,
+      ],
+    )
+    res.status(201).json(result.rows[0])
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.get('/api/shifts/current', async (req, res) => {
+  try {
+    const { orgId, outletId, userId } = req.query
+    if (!orgId || !outletId || !userId) return res.status(400).json({ error: 'Missing parameters' })
+    const result = await pool.query(
+      `select * from public.pos_shifts where org_id = $1 and outlet_id = $2 and user_id = $3 and status = 'open' order by created_at desc limit 1`,
+      [orgId, outletId, userId]
+    )
+    res.json(result.rows[0] || null)
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.post('/api/shifts', async (req, res) => {
+  const { orgId, outletId, userId, cashierName, action, openingAmount, closingAmount, expectedAmount } = req.body
+  try {
+    if (action === 'open') {
+      const result = await pool.query(
+        `insert into public.pos_shifts (org_id, outlet_id, user_id, cashier_name, opening_amount, status)
+         values ($1, $2, $3, $4, $5, 'open') returning *`,
+        [orgId, outletId, userId, cashierName, Number(openingAmount || 0)]
+      )
+      res.json(result.rows[0])
+    } else if (action === 'close') {
+      const result = await pool.query(
+        `update public.pos_shifts set closing_amount = $1, expected_amount = $2, end_time = now(), status = 'closed'
+         where org_id = $3 and outlet_id = $4 and user_id = $5 and status = 'open'
+         returning *`,
+        [Number(closingAmount || 0), Number(expectedAmount || 0), orgId, outletId, userId]
+      )
+      res.json(result.rows[0] || null)
+    } else {
+      res.status(400).json({ error: 'Invalid action' })
+    }
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Endpoint tidak ditemukan.' })
+})
+
+// ---------------------------------------------------------------------
+// PHASE 2 & 3: INVENTORY, CRM, ADVANCED SALES ENDPOINTS
+// ---------------------------------------------------------------------
+
+// Suppliers
+app.get('/api/suppliers', async (req, res) => {
+  try {
+    const { orgId } = req.query
+    if (!orgId) return res.status(400).json({ error: 'orgId required' })
+    const result = await pool.query(`SELECT * FROM public.suppliers WHERE org_id = $1 ORDER BY name ASC`, [orgId])
+    res.json(result.rows)
+  } catch (error) { sendPgError(res, error) }
+})
+
+app.post('/api/suppliers', async (req, res) => {
+  try {
+    const { orgId, name, contactName, phone, email, address } = req.body
+    const result = await pool.query(
+      `INSERT INTO public.suppliers (org_id, name, contact_name, phone, email, address)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [orgId, name, contactName, phone, email, address]
+    )
+    res.status(201).json(result.rows[0])
+  } catch (error) { sendPgError(res, error) }
+})
+
+// Purchase Orders
+app.get('/api/purchase-orders', async (req, res) => {
+  try {
+    const { orgId, outletId } = req.query
+    if (!orgId) return res.status(400).json({ error: 'orgId required' })
+    const result = await pool.query(
+      `SELECT po.*, s.name as supplier_name 
+       FROM public.purchase_orders po
+       LEFT JOIN public.suppliers s ON s.id = po.supplier_id
+       WHERE po.org_id = $1 ${outletId ? 'AND po.outlet_id = $2' : ''}
+       ORDER BY po.created_at DESC`,
+      outletId ? [orgId, outletId] : [orgId]
+    )
+    res.json(result.rows)
+  } catch (error) { sendPgError(res, error) }
+})
+
+app.post('/api/purchase-orders', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { orgId, outletId, supplierId, expectedDate, notes, items, userId } = req.body
+    const poNumber = `PO-${Date.now()}`
+    
+    // insert PO
+    const poResult = await client.query(
+      `INSERT INTO public.purchase_orders (org_id, outlet_id, supplier_id, po_number, expected_date, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [orgId, outletId, supplierId, poNumber, expectedDate, notes, userId]
+    )
+    const po = poResult.rows[0]
+    
+    // insert items
+    let total = 0
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const subtotal = item.quantity * item.unitPrice
+        total += subtotal
+        await client.query(
+          `INSERT INTO public.po_items (po_id, st_mast_id, quantity, unit_price, subtotal)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [po.id, item.stMastId, item.quantity, item.unitPrice, subtotal]
+        )
+      }
+    }
+    
+    // update total
+    await client.query(`UPDATE public.purchase_orders SET total_amount = $1 WHERE id = $2`, [total, po.id])
+    await client.query('COMMIT')
+    res.status(201).json({ ...po, total_amount: total })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    sendPgError(res, error)
+  } finally {
+    client.release()
+  }
+})
+
+// Customers
+app.get('/api/customers', async (req, res) => {
+  try {
+    const { orgId } = req.query
+    if (!orgId) return res.status(400).json({ error: 'orgId required' })
+    const result = await pool.query(`SELECT * FROM public.customers WHERE org_id = $1 ORDER BY name ASC`, [orgId])
+    res.json(result.rows)
+  } catch (error) { sendPgError(res, error) }
+})
+
+app.post('/api/customers', async (req, res) => {
+  try {
+    const { orgId, name, phone, email, address, memberCode } = req.body
+    const result = await pool.query(
+      `INSERT INTO public.customers (org_id, name, phone, email, address, member_code)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [orgId, name, phone, email, address, memberCode]
+    )
+    res.status(201).json(result.rows[0])
+  } catch (error) { sendPgError(res, error) }
+})
+
+// Stock Opname
+app.get('/api/stock-opname', async (req, res) => {
+  try {
+    const { orgId, outletId } = req.query
+    if (!orgId) return res.status(400).json({ error: 'orgId required' })
+    const result = await pool.query(
+      `SELECT * FROM public.stock_opname
+       WHERE org_id = $1 ${outletId ? 'AND outlet_id = $2' : ''}
+       ORDER BY created_at DESC`,
+      outletId ? [orgId, outletId] : [orgId]
+    )
+    res.json(result.rows)
+  } catch (error) { sendPgError(res, error) }
+})
+
+app.post('/api/stock-opname', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const { orgId, outletId, notes, items, userId } = req.body
+    const opnameNumber = `SO-${Date.now()}`
+    
+    // insert stock opname
+    const opnameResult = await client.query(
+      `INSERT INTO public.stock_opname (org_id, outlet_id, opname_number, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [orgId, outletId, opnameNumber, notes, userId]
+    )
+    const opname = opnameResult.rows[0]
+    
+    // insert items and update st_mast
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const diff = item.actualQty - item.systemQty
+        
+        // 1. insert to stock_opname_items
+        await client.query(
+          `INSERT INTO public.stock_opname_items (opname_id, st_mast_id, system_qty, actual_qty, difference, note)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [opname.id, item.stMastId, item.systemQty, item.actualQty, diff, item.note]
+        )
+        
+        // 2. update actual stock in st_mast
+        await client.query(
+          `UPDATE public.st_mast SET stock_qty = $1 WHERE id = $2`,
+          [item.actualQty, item.stMastId]
+        )
+        
+        // 3. insert stock movement
+        await client.query(
+          `INSERT INTO public.st_mutation (org_id, outlet_id, st_mast_id, tran_type, qty, ref_id, ref_desc, created_by)
+           VALUES ($1, $2, $3, 'OPNAME', $4, $5, $6, $7)`,
+          [orgId, outletId, item.stMastId, diff, opname.id, `Stock Opname ${opnameNumber}`, userId]
+        )
+      }
+    }
+    
+    await client.query(`UPDATE public.stock_opname SET status = 'COMPLETED' WHERE id = $1`, [opname.id])
+    await client.query('COMMIT')
+    res.status(201).json({ ...opname, status: 'COMPLETED' })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    sendPgError(res, error)
+  } finally {
+    client.release()
+  }
+})
+
 app.listen(port, () => {
-  console.log(`POS API listening on http://localhost:${port}`)
+  console.log(`API Server running on port ${port}`)
 })
