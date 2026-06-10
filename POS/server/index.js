@@ -41,9 +41,13 @@ app.use(cors())
 app.use(express.json({ limit: '1mb' }))
 
 // Create uploads directory
-const uploadDir = path.join(__dirname, 'uploads')
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true })
+const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, 'uploads')
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true })
+  }
+} catch (err) {
+  console.error('Failed to create upload dir:', err)
 }
 
 // Configure multer
