@@ -3763,9 +3763,10 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
     if (!values.sku.trim()) nextErrors.sku = 'SKU wajib diisi.'
     if (!values.minPurchase.trim()) nextErrors.minPurchase = 'Minimum pembelian wajib diisi.'
     if (!values.sellPrice.trim()) nextErrors.sellPrice = 'Harga jual wajib diisi.'
-    if (!values.length || !values.width || !values.height || !values.weight) {
-      nextErrors.dimension = 'Dimensi dan berat produk wajib diisi.'
-    }
+    // Optional dimensions
+    // if (!values.length || !values.width || !values.height || !values.weight) {
+    //   nextErrors.dimension = 'Dimensi dan berat produk wajib diisi.'
+    // }
     setErrors(nextErrors)
     const firstField = Object.keys(nextErrors)[0]
     const fieldToRef = {
@@ -3945,7 +3946,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
                 <input value="Rp    0" readOnly />
               </div>
             </FormRow>
-            <FormRow refNode={register('dimension')} guideKey="dimension" currentKey={currentGuide?.key} label="Dimensi Produk*" error={errors.dimension}>
+            <FormRow refNode={register('dimension')} guideKey="dimension" currentKey={currentGuide?.key} label="Dimensi Produk" error={errors.dimension}>
               <div className="dimension-row">
                 <input value={values.length} onChange={(event) => setField('length', event.target.value)} />
                 <input value={values.width} onChange={(event) => setField('width', event.target.value)} />
