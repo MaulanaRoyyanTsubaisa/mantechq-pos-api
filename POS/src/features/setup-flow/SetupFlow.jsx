@@ -52,7 +52,7 @@ import { SelectInput } from '../../shared/ui/SelectInput.jsx'
 import { Toggle } from '../../shared/ui/Toggle.jsx'
 import { FeaturePanel } from '../../shared/ui/FeaturePanel.jsx'
 import { cn } from '../../shared/lib/cn.js'
-import { createProduct, uploadProductPhoto } from '../../shared/api/posApi.js'
+import { createProduct, updateProduct, uploadProductPhoto } from '../../shared/api/posApi.js'
 import { formatRupiah, formatQty, membershipOutletLabel, parseCurrencyInput, parseQuantityInput } from '../../shared/lib/formatters.js'
 import {
   accessRoleOptions,
@@ -123,8 +123,8 @@ const productGuideSteps = [
   },
 ]
 
-function SetupFlow({ type, onClose, outlets, onOutletCreated, posData, session }) {
-  if (type === 'product') return <ProductSetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} />
+function SetupFlow({ type, onClose, outlets, onOutletCreated, posData, session, initialData }) {
+  if (type === 'product') return <ProductSetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} initialData={initialData} />
   if (type === 'category') return <CategorySetupFlow onClose={onClose} outlets={outlets} />
   if (type === 'outlet') return <OutletDetailFlow onClose={onClose} onOutletSaved={onOutletCreated} outlets={outlets} />
   return <SimpleSetupFlow type={type} onClose={onClose} outlets={outlets} onOutletCreated={onOutletCreated} />
@@ -218,7 +218,7 @@ function CategorySetupFlow({ onClose, outlets }) {
   )
 }
 
-function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved }) {
+function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved, initialData }) {
   const outletOptions = memberships.length ? memberships.map(membershipOutletLabel) : outlets
   const defaultMembership = memberships.find((item) => item.outlet_id) || memberships[0]
   const [activeSection, setActiveSection] = useState('Informasi Produk')
@@ -228,18 +228,18 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
   const [saving, setSaving] = useState(false)
   const [values, setValues] = useState({
     outlet: defaultMembership ? membershipOutletLabel(defaultMembership) : outlets[0] || '',
-    productName: '',
-    category: '',
-    unit: '',
-    sku: '',
+    productName: initialData?.item_name || '',
+    category: initialData?.category_name || '',
+    unit: initialData?.unit || '',
+    sku: initialData?.sku || '',
     minPurchase: '1',
-    sellPrice: '',
-    qtyOnHand: '0',
+    sellPrice: initialData?.sell_price || '',
+    qtyOnHand: initialData?.qty_on_hand || '0',
     length: '1',
     width: '1',
     height: '1',
     weight: '100',
-    photoUrl: '',
+    photoUrl: initialData?.photo_url || '',
   })
   const [errors, setErrors] = useState({})
   const refs = useRef({})
@@ -340,7 +340,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
 
     setSaving(true)
     try {
-      await createProduct({
+      const payload = {
         orgId: membership.org_id,
         outletId: membership.outlet_id,
         sku: values.sku.trim(),
@@ -352,7 +352,12 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
         qtyMinimum: 0,
         photoUrl: values.photoUrl,
         createdBy: session?.user?.id,
-      })
+      }
+      if (initialData?.id) {
+        await updateProduct(initialData.id, payload)
+      } else {
+        await createProduct(payload)
+      }
     } catch (error) {
       const message = error.code === '23505'
         ? 'SKU sudah dipakai di outlet ini.'

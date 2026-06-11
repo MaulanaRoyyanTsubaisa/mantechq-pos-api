@@ -1648,8 +1648,7 @@ function BarcodePrintView({ posData }) {
                 <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.item_name}</div>
                   <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>{formatRupiah(item.price || item.sell_price || 0)}</div>
-                  <div style={{ width: '100%', height: 48, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', letterSpacing: 2, fontSize: 14, color: '#0f172a', border: '1px solid #e2e8f0', backgroundImage: 'repeating-linear-gradient(90deg, #1e293b, #1e293b 2px, transparent 2px, transparent 4px, #1e293b 4px, #1e293b 5px, transparent 5px, transparent 8px)', backgroundSize: '100% 70%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>
-                  </div>
+                  <img src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(item.sku || `BRC${String(idx + 1).padStart(4, '0')}`)}&scale=2&height=10&includetext`} alt="Barcode" style={{ width: '100%', height: 60, objectFit: 'contain', background: '#fff', padding: 4 }} />
                   <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>{item.sku || `BRC-${String(item.id || idx).padStart(4, '0')}`}</div>
                 </div>
               ))}
@@ -3076,7 +3075,13 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
   const [editingProduct, setEditingProduct] = useState(null)
 
   const runAction = (action) => {
-    if (action === 'Tambah Produk' || action === 'Tambah Bahan Baku') {
+    if (action === 'Tambah Produk') {
+      if (onStartFlow) onStartFlow('product')
+      else {
+        setEditingProduct(null)
+        setShowAddModal(true)
+      }
+    } else if (action === 'Tambah Bahan Baku') {
       setEditingProduct(null)
       setShowAddModal(true)
     } else if (action.toLowerCase().includes('impor')) {
@@ -3174,8 +3179,12 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                         {isStatus ? <span className="status-pill">{cell}</span> : isAction ? (
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                             <button className="icon-link" onClick={() => {
-                              setEditingProduct(cell.item)
-                              setShowAddModal(true)
+                              if (config.title === 'Daftar Produk' && onStartFlow) {
+                                onStartFlow('product', cell.item)
+                              } else {
+                                setEditingProduct(cell.item)
+                                setShowAddModal(true)
+                              }
                             }} aria-label="Edit Produk"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
                             <button className="icon-link" onClick={async () => {
                               if (confirm('Yakin ingin menghapus produk ini?')) {
@@ -4802,6 +4811,11 @@ function App() {
   const [openGroup, setOpenGroup] = useState('Menu Favorit')
   const [isOpen, setIsOpen] = useState(false)
   const [activeFlow, setActiveFlow] = useState(null)
+  const [flowData, setFlowData] = useState(null)
+  const handleStartFlow = (type, data = null) => {
+    setActiveFlow(type)
+    setFlowData(data)
+  }
   const [outlets, setOutlets] = useState(defaultOutlets)
   const [activeOutlet, setActiveOutlet] = useState(defaultOutlets[0])
   const posData = usePostgresPosData(session)
@@ -4836,7 +4850,7 @@ function App() {
   if (activeFlow) {
     return (
       <>
-        <SetupFlow type={activeFlow} outlets={outlets} onOutletCreated={addOutlet} onClose={() => setActiveFlow(null)} posData={posData} session={session} />
+        <SetupFlow type={activeFlow} initialData={flowData} outlets={outlets} onOutletCreated={addOutlet} onClose={() => setActiveFlow(null)} posData={posData} session={session} />
         <Toaster richColors position="top-right" />
       </>
     )
@@ -4866,13 +4880,13 @@ function App() {
       <div className="main-shell">
         <Topbar activeTab={activeTab} setActiveTab={setActiveTab} setIsOpen={setIsOpen} onSignOut={signOut} />
         {activeTab !== 'Penjualan' ? (
-          <TopModulePage activeTab={activeTab} onStartFlow={setActiveFlow} />
+          <TopModulePage activeTab={activeTab} onStartFlow={handleStartFlow} />
         ) : isFavorite ? (
-          <MenuFavoritePage onStartFlow={setActiveFlow} posData={posData} />
+          <MenuFavoritePage onStartFlow={handleStartFlow} posData={posData} />
         ) : isDashboard ? (
-          <SalesDashboard activeTab={activeTab} onStartFlow={setActiveFlow} posData={posData} />
+          <SalesDashboard activeTab={activeTab} onStartFlow={handleStartFlow} posData={posData} />
         ) : (
-          <ModulePage activePage={activePage} onStartFlow={setActiveFlow} posData={posData} />
+          <ModulePage activePage={activePage} onStartFlow={handleStartFlow} posData={posData} />
         )}
         <TrialBar />
       </div>
