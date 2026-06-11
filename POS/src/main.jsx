@@ -3100,7 +3100,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
           onClose={() => setShowAddModal(false)} 
           onSuccess={() => {
             setShowAddModal(false)
-            window.location.reload()
+            posData?.refresh?.()
           }} 
         />
       )}
@@ -3191,7 +3191,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                                 try {
                                   await deleteProduct(cell.id, cell.orgId)
                                   toast.success('Produk berhasil dihapus')
-                                  window.location.reload()
+                                  posData?.refresh?.()
                                 } catch (e) {
                                   toast.error('Gagal menghapus produk')
                                 }

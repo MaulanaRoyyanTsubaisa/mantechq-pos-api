@@ -122,7 +122,7 @@ function ModulePage({ activePage, onStartFlow, posData }) {
   if (activePage === 'Kelola Stok') return <KelolaStokPage />
 
   // Customer custom pages
-  if (activePage === 'Daftar Pelanggan') return <DaftarPelangganPage posData={posData} onRefresh={() => window.location.reload()} />
+  if (activePage === 'Daftar Pelanggan') return <DaftarPelangganPage posData={posData} onRefresh={() => posData?.refresh?.()} />
 
   return <GenericModulePage activePage={activePage} onStartFlow={onStartFlow} posData={posData} />
 }
