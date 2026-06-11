@@ -70,7 +70,7 @@ import {
 } from '../modules/moduleBlueprints.js'
 import { TourSpotlight, GuideBubble, GuideDone } from './guideComponents.jsx'
 
-const productSections = ['Informasi Produk', 'Varian', 'Ekstra', 'Resep', 'majoo Order']
+const productSections = ['Informasi Produk', 'Varian', 'Ekstra', 'Resep', 'ManTechQ Order']
 
 const productGuideSteps = [
   {
@@ -576,8 +576,8 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
             </FormRow>
           </section>
 
-          <section ref={register('section-majoo Order')} className="flow-card compact-flow-card">
-            <h2>majoo Order</h2>
+          <section ref={register('section-ManTechQ Order')} className="flow-card compact-flow-card">
+            <h2>ManTechQ Order</h2>
             <div className="integration-empty">
               <Store size={92} />
               <p>Outlet ini belum terintegrasi dengan marketplace, silakan lakukan proses integrasi terlebih dahulu untuk menggunakan fitur ini</p>

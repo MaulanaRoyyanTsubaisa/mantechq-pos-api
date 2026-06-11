@@ -969,7 +969,7 @@ const orderTypeOptions = [
   'Jasa',
   'Kiosk',
   'Lainnya',
-  'majoo Order',
+  'ManTechQ Order',
   'Ojek Online',
   'Quick Service',
   'Reservasi',
