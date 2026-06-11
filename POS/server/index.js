@@ -261,7 +261,7 @@ app.delete('/api/products/:id', async (req, res) => {
   } catch (error) {
     // Soft delete if foreign key violation
     if (error.code === '23503') {
-      await pool.query(`update public.st_mast set is_active = false where id = $1 and org_id = $2`, [req.params.id, orgId])
+      await pool.query(`update public.st_mast set is_deleted = true where id = $1 and org_id = $2`, [req.params.id, orgId])
       return res.json({ success: true, softDeleted: true })
     }
     sendPgError(res, error)
@@ -328,7 +328,7 @@ app.get('/api/pos-data', async (req, res) => {
          order by created_at`,
         membershipParams,
       ),
-      pool.query('select * from public.st_mast order by item_name'),
+      pool.query('select * from public.st_mast where is_deleted = false order by item_name'),
       pool.query(
         `select t.*, row_to_json(s.*) as m_stran
          from public.m_tran t
