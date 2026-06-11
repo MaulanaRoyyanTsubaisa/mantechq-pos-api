@@ -3871,11 +3871,10 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
                       reader.readAsDataURL(file);
                     }
                   }} 
-                  className="border border-gray-300 rounded px-3 py-2 mt-2 w-full max-w-sm"
-                  style={{ minHeight: '40px', borderColor: '#cbd2d9', borderRadius: '7px' }}
+                  style={{ minHeight: '40px', borderColor: '#cbd2d9', borderRadius: '7px', marginTop: '8px' }}
                 />
-                {values.photoUrl && values.photoUrl.startsWith('data:image') && (
-                  <img src={values.photoUrl} alt="Preview" className="mt-2 h-24 object-contain rounded border" />
+                {values.photoUrl && (
+                  <img src={values.photoUrl} alt="Preview" style={{ height: '96px', objectFit: 'contain', marginTop: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                 )}
               </div>
             </FormRow>
