@@ -368,7 +368,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
     }
     setSaving(false)
 
-    toast.success('Produk berhasil disimpan ke PostgreSQL')
+    toast.success(initialData?.id ? 'Produk berhasil diperbarui' : 'Produk berhasil ditambahkan')
     await onSaved?.()
     onClose()
     return true
@@ -376,7 +376,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
 
   return (
     <div className="setup-flow">
-      <FlowHeader title="Tambahkan Produk" onClose={onClose} />
+      <FlowHeader title={initialData?.id ? 'Edit Produk' : 'Tambahkan Produk'} onClose={onClose} />
       {currentGuide ? <TourSpotlight rect={guideRect} /> : null}
       <div className="flow-body">
         <aside className="flow-sidebar">

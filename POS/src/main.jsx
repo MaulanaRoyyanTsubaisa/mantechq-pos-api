@@ -56,7 +56,7 @@ import {
   getStoredSession,
   signInWithEmail,
 } from './lib/api.js'
-import { deleteProduct } from './shared/api/posApi.js'
+import { deleteProduct, updateProduct } from './shared/api/posApi.js'
 import { PosApp } from './features/pos/PosApp.jsx'
 import { ProductFormModal } from './features/modules/ProductFormModal.jsx'
 import capitalVisual from './assets/capital-visual.png'
@@ -3663,7 +3663,7 @@ function CategorySetupFlow({ onClose, outlets }) {
   )
 }
 
-function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved }) {
+function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved, initialData }) {
   const outletOptions = memberships.length ? memberships.map(membershipOutletLabel) : outlets
   const defaultMembership = memberships.find((item) => item.outlet_id) || memberships[0]
   const [activeSection, setActiveSection] = useState('Informasi Produk')
@@ -3673,17 +3673,17 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
   const [saving, setSaving] = useState(false)
   const [values, setValues] = useState({
     outlet: defaultMembership ? membershipOutletLabel(defaultMembership) : outlets[0] || '',
-    productName: '',
-    category: '',
-    unit: '',
-    sku: '',
+    productName: initialData?.item_name || '',
+    category: initialData?.category_name || '',
+    unit: initialData?.unit || '',
+    sku: initialData?.sku || '',
     minPurchase: '1',
-    sellPrice: '',
-    qtyOnHand: '0',
+    sellPrice: initialData?.sell_price || '',
+    qtyOnHand: initialData?.qty_on_hand || '0',
     length: '1',
     weight: '100',
     variants: [],
-    photoUrl: '',
+    photoUrl: initialData?.photo_url || '',
     monitorPersediaan: false,
     izinkanTidakDijual: false,
     ubahHargaJual: false,
@@ -3805,7 +3805,11 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
         createdBy: session?.user?.id,
         variants: values.variants,
       }
-      await createProduct(payload)
+      if (initialData?.id) {
+        await updateProduct(initialData.id, payload)
+      } else {
+        await createProduct(payload)
+      }
     } catch (error) {
       const message = error.code === '23505'
         ? 'SKU sudah dipakai di outlet ini.'
@@ -3816,7 +3820,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
     }
     setSaving(false)
 
-    toast.success('Produk berhasil disimpan ke PostgreSQL')
+    toast.success(initialData?.id ? 'Produk berhasil diperbarui' : 'Produk berhasil ditambahkan')
     await onSaved?.()
     onClose()
     return true
@@ -3824,7 +3828,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
 
   return (
     <div className="setup-flow">
-      <FlowHeader title="Tambahkan Produk" onClose={onClose} />
+      <FlowHeader title={initialData?.id ? 'Edit Produk' : 'Tambahkan Produk'} onClose={onClose} />
       {currentGuide ? <TourSpotlight rect={guideRect} /> : null}
       <div className="flow-body">
         <aside className="flow-sidebar">
