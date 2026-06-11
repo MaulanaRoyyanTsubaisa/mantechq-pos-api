@@ -431,7 +431,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
                     />
                   </label>
                   {values.photoUrl && (
-                    <img src={values.photoUrl} alt="Preview" style={{ height: '90px', width: '90px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                    <img src={values.photoUrl} alt="Preview" loading="lazy" decoding="async" style={{ height: '90px', width: '90px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
                   )}
                 </div>
               </div>

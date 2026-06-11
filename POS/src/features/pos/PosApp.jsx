@@ -593,7 +593,7 @@ Terima kasih telah berbelanja!`
                 <div key={item.id} className="pos-product-card" onClick={() => handleProductClick(item)}>
                   <div className="pos-product-img-wrapper" style={{ width: '100%', height: '120px', backgroundColor: '#f1f5f9', borderRadius: '8px', marginBottom: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {item.photo_url ? (
-                      <img src={item.photo_url} alt={item.item_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={item.photo_url} alt={item.item_name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <Store size={32} color="#cbd5e1" />
                     )}

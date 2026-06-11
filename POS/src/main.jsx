@@ -3875,7 +3875,7 @@ function ProductSetupFlow({ onClose, outlets, memberships = [], session, onSaved
                   style={{ minHeight: '40px', borderColor: '#cbd2d9', borderRadius: '7px', marginTop: '8px' }}
                 />
                 {values.photoUrl && (
-                  <img src={values.photoUrl} alt="Preview" style={{ height: '96px', objectFit: 'contain', marginTop: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                  <img src={values.photoUrl} alt="Preview" loading="lazy" decoding="async" style={{ height: '96px', objectFit: 'contain', marginTop: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                 )}
               </div>
             </FormRow>
