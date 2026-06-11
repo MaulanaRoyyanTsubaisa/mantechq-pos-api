@@ -3568,11 +3568,11 @@ const productGuideSteps = [
   },
 ]
 
-function SetupFlow({ type, onClose, outlets, onOutletCreated, posData, session }) {
-  if (type === 'product') return <ProductSetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} />
+function SetupFlow({ type, onClose, outlets, onOutletCreated, posData, session, initialData }) {
+  if (type === 'product') return <ProductSetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} initialData={initialData} />
   if (type === 'category') return <CategorySetupFlow onClose={onClose} outlets={outlets} />
   if (type === 'outlet') return <OutletDetailFlow onClose={onClose} onOutletSaved={onOutletCreated} outlets={outlets} />
-  return <SimpleSetupFlow type={type} onClose={onClose} outlets={outlets} onOutletCreated={onOutletCreated} />
+  return <SimpleSetupFlow type={type} onClose={onClose} outlets={outlets} onOutletCreated={onOutletCreated} initialData={initialData} />
 }
 
 function CategorySetupFlow({ onClose, outlets }) {
