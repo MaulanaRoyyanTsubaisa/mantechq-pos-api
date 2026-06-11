@@ -544,7 +544,7 @@ Terima kasih telah berbelanja!`
           </div>
           <button className="pos-close-btn" onClick={() => setIsClosingShift(true)} style={{ color: '#e11d48', background: '#fff1f2', padding: '6px 12px', borderRadius: '6px', fontWeight: 600 }}>
             <LogOut size={14} />
-            Tutup Shift
+            <span>Tutup Shift</span>
           </button>
         </div>
       </header>

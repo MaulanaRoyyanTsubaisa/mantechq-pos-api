@@ -700,3 +700,30 @@
   }
 }
 
+/* Mobile Header Fix */
+@media (max-width: 640px) {
+  .pos-header {
+    padding: 0 8px;
+  }
+  .pos-header-left {
+    gap: 8px;
+  }
+  .pos-header-right {
+    gap: 8px;
+  }
+  .pos-brand {
+    font-size: 15px;
+  }
+  .pos-close-btn {
+    padding: 8px;
+  }
+  .pos-close-btn span {
+    display: none;
+  }
+  .pos-outlet-badge {
+    max-width: 80px;
+    font-size: 12px;
+    padding: 4px 6px;
+  }
+}
+
