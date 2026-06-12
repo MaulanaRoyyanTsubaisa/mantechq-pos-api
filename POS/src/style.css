@@ -3891,10 +3891,12 @@ button {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  z-index: 40;
+  z-index: 99;
   display: grid;
   grid-template-columns: 160px 280px 280px 210px;
-  width: min(930px, calc(100vw - 340px));
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  overflow-x: auto;
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);

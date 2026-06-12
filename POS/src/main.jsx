@@ -1940,8 +1940,9 @@ function DateRangePicker({ open, range, onToggle, onProcess, onCancel }) {
         {range.label}
       </button>
       {open ? (
-        <div className="date-popover">
-          <div className="date-presets">
+        <div className="modal-backdrop" style={{ zIndex: 9998 }}>
+          <div className="date-popover" style={{ position: 'relative', top: 0, left: 0, transform: 'none' }}>
+            <div className="date-presets">
             {presets.map((preset) => (
               <button key={preset[0]} onClick={() => choosePreset(preset)}>{preset[0]}</button>
             ))}
@@ -1961,6 +1962,7 @@ function DateRangePicker({ open, range, onToggle, onProcess, onCancel }) {
               <Button onClick={() => onProcess(draft)}>Proses</Button>
             </div>
           </footer>
+          </div>
         </div>
       ) : null}
     </div>
