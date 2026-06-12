@@ -3838,7 +3838,7 @@ function CategorySetupFlow({ onClose, outlets, memberships = [], session, onSave
         is_active: values.visible
       })
       toast.success('Kategori berhasil disimpan!')
-      if (onSaved) onSaved()
+      if (onSaved) await onSaved()
       onClose()
     } catch (error) {
       toast.error(error.message || 'Gagal menyimpan kategori')
@@ -5015,6 +5015,7 @@ function usePostgresPosData(session) {
     salesDetails: [],
     stockMutations: [],
     shifts: [],
+    categories: [],
   })
 
   const refresh = async () => {
@@ -5036,6 +5037,7 @@ function usePostgresPosData(session) {
       salesDetails: data.salesDetails || [],
       stockMutations: data.stockMutations || [],
       shifts: data.shifts || [],
+      categories: data.categories || [],
     })
   }
 
