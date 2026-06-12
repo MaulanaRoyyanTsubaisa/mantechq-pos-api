@@ -130,6 +130,18 @@ async function initDb() {
         status text default 'open',
         created_at timestamptz default now()
       );
+
+      CREATE TABLE IF NOT EXISTS public.pos_product_categories (
+        id uuid primary key default gen_random_uuid(),
+        org_id uuid not null,
+        outlet_id uuid not null,
+        name text not null,
+        sequence integer default 0,
+        department text,
+        is_active boolean default true,
+        created_at timestamptz default now(),
+        updated_at timestamptz default now()
+      );
     `)
     console.log('Database tables verified.')
   } catch (err) {
@@ -178,6 +190,58 @@ app.get('/api/memberships', async (req, res) => {
       params,
     )
     res.json(result.rows)
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.get('/api/categories', async (req, res) => {
+  try {
+    const result = await pool.query('select * from public.pos_product_categories order by sequence asc')
+    res.json(result.rows)
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.post('/api/categories', async (req, res) => {
+  const { orgId, outletId, name, sequence, department, is_active } = req.body
+  try {
+    const result = await pool.query(
+      `insert into public.pos_product_categories (org_id, outlet_id, name, sequence, department, is_active)
+       values ($1, $2, $3, $4, $5, $6)
+       returning *`,
+      [orgId, outletId, name, sequence || 0, department || null, is_active !== false]
+    )
+    res.status(201).json(result.rows[0])
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.put('/api/categories/:id', async (req, res) => {
+  const { orgId, outletId, name, sequence, department, is_active } = req.body
+  try {
+    const result = await pool.query(
+      `update public.pos_product_categories set
+        name = $1, sequence = $2, department = $3, is_active = $4, updated_at = now()
+       where id = $5 and org_id = $6
+       returning *`,
+      [name, sequence || 0, department || null, is_active !== false, req.params.id, orgId]
+    )
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
+    res.json(result.rows[0])
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.delete('/api/categories/:id', async (req, res) => {
+  const orgId = req.query.orgId
+  try {
+    const result = await pool.query(`delete from public.pos_product_categories where id = $1 and org_id = $2 returning id`, [req.params.id, orgId])
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
+    res.json({ success: true })
   } catch (error) {
     sendPgError(res, error)
   }
@@ -321,7 +385,7 @@ app.get('/api/pos-data', async (req, res) => {
     const membershipUserFilter = req.query.userId ? 'and user_id = $1' : ''
     if (req.query.userId) membershipParams.push(req.query.userId)
 
-    const [memberships, stockItems, sales, salesDetails, stockMutations, customers, shifts] = await Promise.all([
+    const [memberships, stockItems, sales, salesDetails, stockMutations, customers, shifts, categories] = await Promise.all([
       pool.query(
         `select * from public.pos_team_members
          where is_active = true ${membershipUserFilter}
@@ -357,7 +421,8 @@ app.get('/api/pos-data', async (req, res) => {
          ${req.query.userId ? 'where user_id = $1' : ''}
          order by created_at desc`,
         req.query.userId ? [req.query.userId] : []
-      ).catch(() => ({ rows: [] }))
+      ).catch(() => ({ rows: [] })),
+      pool.query('select * from public.pos_product_categories order by sequence asc').catch(() => ({ rows: [] }))
     ])
 
     res.json({
@@ -368,6 +433,7 @@ app.get('/api/pos-data', async (req, res) => {
       stockMutations: stockMutations.rows,
       customers: customers.rows,
       shifts: shifts.rows,
+      categories: categories.rows,
     })
   } catch (error) {
     sendPgError(res, error)

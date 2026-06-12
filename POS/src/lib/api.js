@@ -61,6 +61,26 @@ export function createProduct(product) {
   });
 }
 
+export function createCategory(category) {
+  return apiRequest("/categories", {
+    method: "POST",
+    body: JSON.stringify(category),
+  });
+}
+
+export function updateCategory(id, category) {
+  return apiRequest(`/categories/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(category),
+  });
+}
+
+export function deleteCategory(id, orgId) {
+  return apiRequest(`/categories/${id}?orgId=${encodeURIComponent(orgId)}`, {
+    method: "DELETE",
+  });
+}
+
 export function createSale(sale) {
   return apiRequest("/sales", {
     method: "POST",

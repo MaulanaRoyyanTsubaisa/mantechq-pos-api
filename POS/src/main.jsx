@@ -52,6 +52,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import {
   clearStoredSession,
   createProduct,
+  createCategory,
   createSale,
   getPosData,
   getStoredSession,
@@ -908,7 +909,21 @@ function buildChartPath(buckets, maxValue) {
 function getRowsForPage(page, posData) {
   const stockItems = posData.stockItems || []
   const salesDetails = posData.salesDetails || []
+  const categories = posData.categories || []
 
+  if (page === 'Daftar Kategori') {
+    return categories.map(cat => {
+      const productCount = stockItems.filter(p => p.category_name === cat.name).length
+      return [
+        cat.name,
+        String(cat.sequence || 0),
+        `${productCount} item`,
+        cat.department || '-',
+        cat.is_active ? 'Tampil di Menu' : 'Sembunyi',
+        ''
+      ]
+    })
+  }
   if (page === 'Daftar Produk') return mapStockToProductRows(stockItems)
   if (page === 'Cetak Barcode') return mapStockToBarcodeRows(stockItems)
   if (['Kelola Stok', 'Daftar Bahan Baku', 'Lap. Ringkasan Persediaan', 'Lap. Detail Persediaan'].includes(page)) {
@@ -3770,14 +3785,18 @@ const productGuideSteps = [
 
 function SetupFlow({ type, onClose, outlets, onOutletCreated, posData, session, initialData }) {
   if (type === 'product') return <ProductSetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} initialData={initialData} />
-  if (type === 'category') return <CategorySetupFlow onClose={onClose} outlets={outlets} />
+  if (type === 'category') return <CategorySetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} />
   if (type === 'outlet') return <OutletDetailFlow onClose={onClose} onOutletSaved={onOutletCreated} outlets={outlets} />
   return <SimpleSetupFlow type={type} onClose={onClose} outlets={outlets} onOutletCreated={onOutletCreated} initialData={initialData} />
 }
 
-function CategorySetupFlow({ onClose, outlets }) {
+function CategorySetupFlow({ onClose, outlets, memberships = [], session, onSaved }) {
+  const outletOptions = memberships.length ? memberships.map(membershipOutletLabel) : outlets
+  const defaultMembership = memberships.find((item) => item.outlet_id) || memberships[0]
+  
+  const [saving, setSaving] = useState(false)
   const [values, setValues] = useState({
-    outlet: outlets[0] || '',
+    outlet: defaultMembership ? membershipOutletLabel(defaultMembership) : outlets[0] || '',
     name: '',
     order: '',
     department: '',
@@ -3794,17 +3813,39 @@ function CategorySetupFlow({ onClose, outlets }) {
       return next
     })
   }
-  const validate = () => {
+  const validate = async () => {
     const nextErrors = {}
     if (!values.outlet) nextErrors.outlet = 'Outlet wajib dipilih.'
     if (!values.name.trim()) nextErrors.name = 'Nama kategori wajib diisi.'
-    if (!values.order.trim()) nextErrors.order = 'Urutan wajib diisi.'
+    if (!values.order.trim() || isNaN(Number(values.order))) nextErrors.order = 'Urutan wajib diisi dengan angka.'
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) {
       toast.error(Object.values(nextErrors)[0])
       return false
     }
-    toast.success('Kategori berhasil divalidasi dan siap disimpan')
+    
+    setSaving(true)
+    try {
+      const selectedMembership = memberships.find((m) => membershipOutletLabel(m) === values.outlet)
+      const orgId = selectedMembership?.org_id || session?.user?.id
+      const outletId = selectedMembership?.outlet_id || 'dee31aef-a313-4fb7-aaa3-55c2fc2c4c3e'
+      
+      await createCategory({
+        orgId,
+        outletId,
+        name: values.name.trim(),
+        sequence: Number(values.order),
+        department: values.department || null,
+        is_active: values.visible
+      })
+      toast.success('Kategori berhasil disimpan!')
+      if (onSaved) onSaved()
+      onClose()
+    } catch (error) {
+      toast.error(error.message || 'Gagal menyimpan kategori')
+    } finally {
+      setSaving(false)
+    }
     return true
   }
 
@@ -3843,7 +3884,7 @@ function CategorySetupFlow({ onClose, outlets }) {
           </FormRow>
         </section>
       </main>
-      <FlowFooter simple onCancel={() => setConfirmClose(true)} onSave={validate} />
+      <FlowFooter simple onCancel={() => setConfirmClose(true)} onSave={validate} saving={saving} />
       {confirmClose ? (
         <div className="modal-scrim">
           <div className="confirm-dialog">
