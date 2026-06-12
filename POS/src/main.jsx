@@ -2186,6 +2186,14 @@ function SalesDetailReportPage({ posData }) {
     })
   }
 
+  const sortedSales = useMemo(() => {
+    return [...sales].sort((a, b) => {
+      const timeA = new Date(a.m_stran?.tran_date || a.created_at).getTime()
+      const timeB = new Date(b.m_stran?.tran_date || b.created_at).getTime()
+      return timeBasis === 'Waktu Order' ? timeB - timeA : timeA - timeB
+    })
+  }, [sales, timeBasis])
+
   return (
     <main className="content report-summary-page sales-detail-page">
       <CapitalBanner compact />
@@ -2214,29 +2222,16 @@ function SalesDetailReportPage({ posData }) {
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari ..." />
           </label>
           <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
-          <div className="select-dropdown-wrap">
-            <button className="select-button detail-time-select" onClick={() => setTimeOpen((value) => !value)}>
-              <span>{timeBasis}</span>
-              <ChevronDown size={15} />
-            </button>
-            {timeOpen ? (
-              <div className="simple-select-menu">
-                {['Waktu Order', 'Waktu Bayar'].map((item) => (
-                  <button
-                    key={item}
-                    className={item === timeBasis ? 'active' : ''}
-                    onClick={() => {
-                      setTimeBasis(item)
-                      setTimeOpen(false)
-                      toast.info(`Basis tanggal: ${item}`)
-                    }}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          <ReportSelectDropdown
+            value={timeBasis}
+            options={['Waktu Order', 'Waktu Bayar']}
+            open={timeOpen}
+            setOpen={setTimeOpen}
+            onSelect={(value) => {
+              setTimeBasis(value)
+              toast.info(`Basis tanggal: ${value}`)
+            }}
+          />
         </div>
 
         <div className="detail-metrics-grid">
@@ -2258,9 +2253,9 @@ function SalesDetailReportPage({ posData }) {
                 <th />
               </tr>
             </thead>
-            {sales.length > 0 && (
+            {sortedSales.length > 0 && (
               <tbody>
-                {sales.map((sale) => (
+                {sortedSales.map((sale) => (
                   <tr key={sale.id}>
                     {visibleColumns.includes('NO TRANSAKSI') && <td>{sale.m_stran?.tran_no || sale.tran_no || '-'}</td>}
                     {visibleColumns.includes('WAKTU ORDER') && <td>{new Date(sale.m_stran?.tran_date || sale.created_at).toLocaleString('id-ID')}</td>}
@@ -2700,8 +2695,24 @@ function SalesPeriodReportPage({ posData }) {
 }
 
 function ReportSelectDropdown({ value, options, open, setOpen, onSelect, wide }) {
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [open, setOpen])
+
   return (
-    <div className={cn('select-dropdown-wrap', wide && 'wide-select-wrap')}>
+    <div className={cn('select-dropdown-wrap', wide && 'wide-select-wrap')} ref={dropdownRef}>
       <button className="select-button detail-time-select" onClick={() => setOpen((current) => !current)}>
         <span>{value}</span>
         <ChevronDown size={15} />
