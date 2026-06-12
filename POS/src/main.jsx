@@ -692,8 +692,7 @@ const productPageConfigs = {
     addLabel: 'Tambah Kategori',
     addFlow: 'category',
     columns: ['NAMA KATEGORI', 'URUTAN', 'JUMLAH PRODUK', 'DEPARTEMEN', 'STATUS', ''],
-    rows: [['IT', '1', '0 item', 'IT', 'Tampil di Menu', '']],
-    pagination: 'Ditampilkan 1 - 1 dari 1 data',
+    rows: [],
   },
   'Daftar Produk': {
     title: 'Daftar Produk',
