@@ -1926,22 +1926,40 @@ function DateRangePicker({ open, range, onToggle, onProcess, onCancel }) {
   const juneDays = Array.from({ length: 30 }, (_, index) => index + 1)
   const mayDays = Array.from({ length: 31 }, (_, index) => index + 1)
 
+  const [pickStep, setPickStep] = useState(0)
+
   useEffect(() => {
-    if (open) setDraft(range)
+    if (open) {
+      setDraft(range)
+      setPickStep(0)
+    }
   }, [open, range])
 
   const choosePreset = ([, label, display]) => {
     setDraft((current) => ({ ...current, label, display }))
+    setPickStep(0)
   }
 
   const handleSelectDate = (day, monthTitle) => {
-    toast.success(`Tanggal ${day} ${monthTitle} dipilih.`)
-    // In a real app, you would parse the dates and construct the new range string
-    setDraft(current => ({
-      ...current,
-      label: `Kustom (${day} ${monthTitle.split(' ')[0]})`,
-      display: `${day} ${monthTitle} - ${day} ${monthTitle}`
-    }))
+    if (pickStep === 0) {
+      toast.success(`Tanggal Mulai: ${day} ${monthTitle}`)
+      setDraft(current => ({
+        ...current,
+        label: `Kustom (${day} ${monthTitle.split(' ')[0]})`,
+        display: `${day} ${monthTitle} - ${day} ${monthTitle}`
+      }))
+      setPickStep(1)
+    } else {
+      toast.success(`Tanggal Akhir: ${day} ${monthTitle}`)
+      setDraft(current => {
+        const startStr = current.display.split(' - ')[0]
+        return {
+          ...current,
+          display: `${startStr} - ${day} ${monthTitle}`
+        }
+      })
+      setPickStep(0)
+    }
   }
 
   const parseDate = (dateStr) => {
@@ -1960,8 +1978,18 @@ function DateRangePicker({ open, range, onToggle, onProcess, onCancel }) {
     const currentMonthIdx = monthNames.indexOf(month) + (year * 12);
     
     const parts = draft.display.split(' - ');
-    const start = parseDate(parts[0]);
-    const end = parseDate(parts[1] || parts[0]);
+    let start = parseDate(parts[0]);
+    let end = parseDate(parts[1] || parts[0]);
+
+    if (start && end) {
+      const startVal = start.year * 10000 + monthNames.indexOf(start.month) * 100 + start.day;
+      const endVal = end.year * 10000 + monthNames.indexOf(end.month) * 100 + end.day;
+      if (startVal > endVal) {
+        const temp = start;
+        start = end;
+        end = temp;
+      }
+    }
 
     const startMonthIdx = start ? monthNames.indexOf(start.month) + (start.year * 12) : null;
     const endMonthIdx = end ? monthNames.indexOf(end.month) + (end.year * 12) : null;
@@ -2040,7 +2068,10 @@ function MiniMonth({ title, days, selectedStart, selectedEnd, rangeStart, rangeE
       <div className="days-grid">
         {days.map((day) => {
           const selected = day === selectedStart || day === selectedEnd
-          const inRange = rangeStart && rangeEnd && day >= rangeStart && day <= rangeEnd
+          const minRange = rangeStart !== null && rangeEnd !== null ? Math.min(rangeStart, rangeEnd) : null
+          const maxRange = rangeStart !== null && rangeEnd !== null ? Math.max(rangeStart, rangeEnd) : null
+          const inRange = minRange !== null && maxRange !== null && day >= minRange && day <= maxRange
+          
           return (
             <button 
               key={day} 
