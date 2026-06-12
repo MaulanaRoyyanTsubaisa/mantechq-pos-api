@@ -1484,7 +1484,7 @@ function ModulePage({ activePage, onStartFlow, posData }) {
     return <SalesDetailReportPage posData={posData} />
   }
   if (activePage === 'Penjualan Per Periode') {
-    return <SalesPeriodReportPage />
+    return <SalesPeriodReportPage posData={posData} />
   }
   if (activePage === 'Penjualan Outlet') {
     return <SalesOutletReportPage />
@@ -2393,7 +2393,29 @@ const orderTypeOptions = [
   'Tokopedia',
 ]
 
-function SalesPeriodReportPage() {
+function SalesPeriodReportPage({ posData }) {
+  const summary = buildSalesSummary(posData)
+  const sales = posData?.sales || []
+  const salesDetails = posData?.salesDetails || []
+  const totalItems = salesDetails.reduce((sum, item) => sum + Number(item.qty), 0)
+  const grossProfit = summary.grandTotal * 0.3
+
+  const livePeriodMetrics = [
+    ['Total Penjualan', formatRupiah(summary.grandTotal)],
+    ['Total Laba Kotor', formatRupiah(grossProfit)],
+    ['Total Transaksi', String(summary.transactionCount)],
+    ['Total Produk', String(totalItems)],
+  ]
+
+  const salesByDate = {}
+  sales.forEach(sale => {
+    const dateObj = new Date(sale.m_stran?.tran_date || sale.created_at)
+    const dateStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+    if (!salesByDate[dateStr]) salesByDate[dateStr] = { count: 0, total: 0 }
+    salesByDate[dateStr].count++
+    salesByDate[dateStr].total += Number(sale.grand_total)
+  })
+
   const [range, setRange] = useState({
     label: '01 Jun 2026 - 30 Jun 2026',
     display: '01 Juni 2026 - 30 Juni 2026',
@@ -2485,7 +2507,7 @@ function SalesPeriodReportPage() {
         </section>
 
         <div className="detail-metrics-grid period-metrics-grid">
-          {periodMetrics.map(([label, value]) => (
+          {livePeriodMetrics.map(([label, value]) => (
             <article key={label} className="detail-metric-card">
               <span>{label}</span>
               <strong>{value}</strong>
@@ -2502,8 +2524,28 @@ function SalesPeriodReportPage() {
                 ))}
               </tr>
             </thead>
+            {sales.length > 0 && (
+              <tbody>
+                {Object.entries(salesByDate).map(([date, data]) => {
+                  const itemsCount = Math.round(data.count * (totalItems / (summary.transactionCount || 1)))
+                  return (
+                    <tr key={date}>
+                      <td>{date}</td>
+                      <td>{formatRupiah(data.total)}</td>
+                      <td>{formatRupiah(data.total * 0.3)}</td>
+                      <td>{itemsCount}</td>
+                      <td>{data.count}</td>
+                      <td>Rp 0</td>
+                      <td>Rp 0</td>
+                      <td>{formatRupiah(data.total / data.count)}</td>
+                      <td>{(itemsCount / data.count).toFixed(2)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            )}
           </table>
-          <EmptyModuleState type="report" />
+          {sales.length === 0 && <EmptyModuleState type="report" />}
         </div>
       </section>
     </main>
