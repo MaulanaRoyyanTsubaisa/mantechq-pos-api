@@ -1933,43 +1933,54 @@ function DateRangePicker({ open, range, onToggle, onProcess, onCancel }) {
     setDraft((current) => ({ ...current, label, display }))
   }
 
+  const handleSelectDate = (day, monthTitle) => {
+    toast.success(`Tanggal ${day} ${monthTitle} dipilih.`)
+    // In a real app, you would parse the dates and construct the new range string
+    setDraft(current => ({
+      ...current,
+      label: `Kustom (${day} ${monthTitle.split(' ')[0]})`,
+      display: `${day} ${monthTitle} - ${day} ${monthTitle}`
+    }))
+  }
+
   return (
-    <div className="date-picker-wrap">
+    <div className="date-picker-wrap" style={{ position: 'relative' }}>
       <button className="date-trigger" onClick={onToggle}>
         <CalendarDays size={18} />
         {range.label}
       </button>
       {open ? (
-        <div className="modal-backdrop" style={{ zIndex: 9998 }}>
-          <div className="date-popover" style={{ position: 'relative', top: 0, left: 0, transform: 'none' }}>
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 98 }} onClick={onCancel} />
+          <div className="date-popover">
             <div className="date-presets">
-            {presets.map((preset) => (
-              <button key={preset[0]} onClick={() => choosePreset(preset)}>{preset[0]}</button>
-            ))}
-          </div>
-          <MiniMonth title="Mei 2026" days={mayDays} mutedFrom={31} />
-          <MiniMonth title="Juni 2026" days={juneDays} selectedStart={1} selectedEnd={30} rangeStart={1} rangeEnd={30} />
-          <div className="date-time-panel">
-            <label>Dari Tanggal<span>{draft.display.split(' - ')[0]}</span></label>
-            <label>Dari Pukul<input value={draft.startTime} onChange={(event) => setDraft((current) => ({ ...current, startTime: event.target.value }))} /></label>
-            <label>Hingga Tanggal<span>{draft.display.split(' - ')[1]}</span></label>
-            <label>Hingga Pukul<input value={draft.endTime} onChange={(event) => setDraft((current) => ({ ...current, endTime: event.target.value }))} /></label>
-          </div>
-          <footer>
-            <strong>{draft.display}</strong>
-            <div>
-              <button onClick={onCancel}>Batal</button>
-              <Button onClick={() => onProcess(draft)}>Proses</Button>
+              {presets.map((preset) => (
+                <button key={preset[0]} onClick={() => choosePreset(preset)}>{preset[0]}</button>
+              ))}
             </div>
-          </footer>
+            <MiniMonth title="Mei 2026" days={mayDays} mutedFrom={31} onSelectDate={handleSelectDate} />
+            <MiniMonth title="Juni 2026" days={juneDays} selectedStart={1} selectedEnd={30} rangeStart={1} rangeEnd={30} onSelectDate={handleSelectDate} />
+            <div className="date-time-panel">
+              <label>Dari Tanggal<span>{draft.display.split(' - ')[0]}</span></label>
+              <label>Dari Pukul<input value={draft.startTime} onChange={(event) => setDraft((current) => ({ ...current, startTime: event.target.value }))} /></label>
+              <label>Hingga Tanggal<span>{draft.display.split(' - ')[1] || draft.display.split(' - ')[0]}</span></label>
+              <label>Hingga Pukul<input value={draft.endTime} onChange={(event) => setDraft((current) => ({ ...current, endTime: event.target.value }))} /></label>
+            </div>
+            <footer>
+              <strong>{draft.display}</strong>
+              <div>
+                <button onClick={onCancel} style={{ border: 0, background: 'transparent', color: '#4b5563', fontWeight: 600, marginRight: 16 }}>Batal</button>
+                <Button onClick={() => onProcess(draft)}>Proses</Button>
+              </div>
+            </footer>
           </div>
-        </div>
+        </>
       ) : null}
     </div>
   )
 }
 
-function MiniMonth({ title, days, selectedStart, selectedEnd, rangeStart, rangeEnd }) {
+function MiniMonth({ title, days, selectedStart, selectedEnd, rangeStart, rangeEnd, onSelectDate }) {
   return (
     <div className="mini-month">
       <header>
@@ -1982,7 +1993,15 @@ function MiniMonth({ title, days, selectedStart, selectedEnd, rangeStart, rangeE
         {days.map((day) => {
           const selected = day === selectedStart || day === selectedEnd
           const inRange = rangeStart && rangeEnd && day >= rangeStart && day <= rangeEnd
-          return <button key={day} className={cn(inRange && 'in-range', selected && 'selected')}>{day}</button>
+          return (
+            <button 
+              key={day} 
+              className={cn(inRange && 'in-range', selected && 'selected')}
+              onClick={() => onSelectDate && onSelectDate(day, title)}
+            >
+              {day}
+            </button>
+          )
         })}
       </div>
     </div>
