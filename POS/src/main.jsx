@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { createPortal } from 'react-dom'
 import { Toaster, toast } from 'sonner'
 import {
   Bell,
@@ -1943,30 +1944,76 @@ function DateRangePicker({ open, range, onToggle, onProcess, onCancel }) {
     }))
   }
 
+  const parseDate = (dateStr) => {
+    if (!dateStr) return null;
+    const match = dateStr.match(/^(\d+)\s+([A-Za-z]+)\s+(\d+)$/);
+    if (match) return { day: parseInt(match[1]), month: match[2], year: parseInt(match[3]) };
+    return null;
+  }
+
+  const getMonthProps = (title) => {
+    const titleMatch = title.match(/^([A-Za-z]+)\s+(\d+)$/);
+    if (!titleMatch) return {};
+    const month = titleMatch[1];
+    const year = parseInt(titleMatch[2]);
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const currentMonthIdx = monthNames.indexOf(month) + (year * 12);
+    
+    const parts = draft.display.split(' - ');
+    const start = parseDate(parts[0]);
+    const end = parseDate(parts[1] || parts[0]);
+
+    const startMonthIdx = start ? monthNames.indexOf(start.month) + (start.year * 12) : null;
+    const endMonthIdx = end ? monthNames.indexOf(end.month) + (end.year * 12) : null;
+
+    let selectedStart = null;
+    let selectedEnd = null;
+    let rangeStart = null;
+    let rangeEnd = null;
+
+    if (start && startMonthIdx === currentMonthIdx) {
+      selectedStart = start.day;
+      rangeStart = start.day;
+    } else if (start && currentMonthIdx > startMonthIdx) {
+      rangeStart = 1;
+    }
+
+    if (end && endMonthIdx === currentMonthIdx) {
+      selectedEnd = end.day;
+      rangeEnd = end.day;
+    } else if (end && currentMonthIdx < endMonthIdx) {
+      rangeEnd = 31;
+    }
+
+    return { selectedStart, selectedEnd, rangeStart, rangeEnd };
+  }
+
+  const meiProps = getMonthProps("Mei 2026");
+  const juniProps = getMonthProps("Juni 2026");
+
   return (
-    <div className="date-picker-wrap" style={{ position: 'relative' }}>
+    <div className="date-picker-wrap">
       <button className="date-trigger" onClick={onToggle}>
         <CalendarDays size={18} />
         {range.label}
       </button>
-      {open ? (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 98 }} onClick={onCancel} />
-          <div className="date-popover">
+      {open ? createPortal(
+        <div className="modal-backdrop" style={{ zIndex: 99998 }} onClick={onCancel}>
+          <div className="date-popover" onClick={(e) => e.stopPropagation()} style={{ position: 'relative', top: 'auto', left: 'auto', right: 'auto', transform: 'none', margin: 'auto' }}>
             <div className="date-presets">
               {presets.map((preset) => (
                 <button key={preset[0]} onClick={() => choosePreset(preset)}>{preset[0]}</button>
               ))}
             </div>
-            <MiniMonth title="Mei 2026" days={mayDays} mutedFrom={31} onSelectDate={handleSelectDate} />
-            <MiniMonth title="Juni 2026" days={juneDays} selectedStart={1} selectedEnd={30} rangeStart={1} rangeEnd={30} onSelectDate={handleSelectDate} />
+            <MiniMonth title="Mei 2026" days={mayDays} mutedFrom={31} {...meiProps} onSelectDate={handleSelectDate} />
+            <MiniMonth title="Juni 2026" days={juneDays} {...juniProps} onSelectDate={handleSelectDate} />
             <div className="date-time-panel">
               <label>Dari Tanggal<span>{draft.display.split(' - ')[0]}</span></label>
               <label>Dari Pukul<input value={draft.startTime} onChange={(event) => setDraft((current) => ({ ...current, startTime: event.target.value }))} /></label>
               <label>Hingga Tanggal<span>{draft.display.split(' - ')[1] || draft.display.split(' - ')[0]}</span></label>
               <label>Hingga Pukul<input value={draft.endTime} onChange={(event) => setDraft((current) => ({ ...current, endTime: event.target.value }))} /></label>
             </div>
-            <footer>
+            <footer style={{ width: '100%' }}>
               <strong>{draft.display}</strong>
               <div>
                 <button onClick={onCancel} style={{ border: 0, background: 'transparent', color: '#4b5563', fontWeight: 600, marginRight: 16 }}>Batal</button>
@@ -1974,7 +2021,8 @@ function DateRangePicker({ open, range, onToggle, onProcess, onCancel }) {
               </div>
             </footer>
           </div>
-        </>
+        </div>,
+        document.body
       ) : null}
     </div>
   )
