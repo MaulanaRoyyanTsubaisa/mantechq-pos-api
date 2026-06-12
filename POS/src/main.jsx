@@ -2542,6 +2542,15 @@ function SalesPeriodReportPage({ posData }) {
     toast.success(`Ekspor Penjualan Per Periode ${format} disiapkan`)
   }
 
+  const chartData = Object.entries(salesByDate)
+    .map(([date, data]) => ({
+      dateObj: new Date(date),
+      label: date.split(' ')[0] + ' ' + date.split(' ')[1],
+      sales: data.total,
+      profit: data.total * 0.3
+    }))
+    .sort((a, b) => a.dateObj - b.dateObj);
+
   return (
     <main className="content report-summary-page sales-period-page">
       <CapitalBanner compact />
@@ -2592,15 +2601,53 @@ function SalesPeriodReportPage({ posData }) {
             <ChevronDown size={18} />
           </button>
           {chartOpen ? (
-            <div className="period-chart-box" aria-label="Grafik Penjualan Per Periode">
-              <div className="chart-grid-lines">
-                <span>1</span>
-                <span>0.5</span>
-                <span>0</span>
-              </div>
-              <div className="chart-legend">
-                <span><i /> Total Penjualan</span>
-                <span><i /> Laba Kotor</span>
+            <div className="period-chart-box" aria-label="Grafik Penjualan Per Periode" style={{ height: 320, padding: '24px 0 0 0' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                  <XAxis 
+                    dataKey="label" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 11, fill: '#666' }} 
+                    dy={10} 
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tickFormatter={(value) => value > 0 ? `Rp ${(value / 1000).toLocaleString('id-ID')}rb` : 'Rp 0'} 
+                    tick={{ fontSize: 11, fill: '#666' }}
+                    width={80}
+                  />
+                  <Tooltip 
+                    formatter={(value, name) => [formatRupiah(value), name === 'sales' ? 'Total Penjualan' : 'Laba Kotor']} 
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="sales" 
+                    stroke="#06b98f" 
+                    strokeWidth={3} 
+                    dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#06b98f' }} 
+                    activeDot={{ r: 6, strokeWidth: 0, fill: '#06b98f' }} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="profit" 
+                    stroke="#0090ff" 
+                    strokeWidth={3} 
+                    dot={{ r: 4, strokeWidth: 2, fill: '#fff', stroke: '#0090ff' }} 
+                    activeDot={{ r: 6, strokeWidth: 0, fill: '#0090ff' }} 
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="chart-legend" style={{ display: 'flex', justifyContent: 'center', gap: 24, paddingBottom: 16 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <i style={{ width: 10, height: 10, borderRadius: '50%', background: '#06b98f' }} /> Total Penjualan
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <i style={{ width: 10, height: 10, borderRadius: '50%', background: '#0090ff' }} /> Laba Kotor
+                </span>
               </div>
             </div>
           ) : null}
