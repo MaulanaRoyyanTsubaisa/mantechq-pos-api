@@ -1555,6 +1555,9 @@ function ModulePage({ activePage, onStartFlow, posData }) {
   if (activePage === 'Penjualan Outlet') {
     return <SalesOutletReportPage posData={posData} />
   }
+  if (activePage === 'Laporan Uang Muka') {
+    return <SalesDownPaymentReportPage posData={posData} />
+  }
   if (reportPageConfigs[activePage]) {
     return <MajooGenericReportPage config={reportPageConfigs[activePage]} posData={posData} />
   }
@@ -3150,6 +3153,191 @@ function SalesOutletReportPage({ posData }) {
             )}
           </table>
           {salesByOutlet.length === 0 && <EmptyModuleState type="report" />}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function SalesDownPaymentReportPage({ posData }) {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [chartOpen, setChartOpen] = useState(true)
+  const [periodType, setPeriodType] = useState('Hari')
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const [chartMetric, setChartMetric] = useState('Penjualan')
+  const [metricOpen, setMetricOpen] = useState(false)
+
+  // Aggregation Logic
+  const sales = posData?.sales || []
+  const dpSales = useMemo(() => {
+    return sales.filter(s => {
+      const paid = Number(s.paid_total || 0)
+      const grand = Number(s.grand_total || 0)
+      return paid > 0 && paid < grand
+    })
+  }, [sales])
+
+  const filteredSales = useMemo(() => {
+    return dpSales.filter(sale => {
+      const noTrans = sale.m_stran?.tran_no || sale.tran_no || ''
+      const customer = sale.m_stran?.customer_id ? `Pelanggan ${shortId(sale.m_stran.customer_id)}` : 'Umum'
+      return noTrans.toLowerCase().includes(query.toLowerCase()) || customer.toLowerCase().includes(query.toLowerCase())
+    })
+  }, [dpSales, query])
+
+  const totalDp = dpSales.reduce((sum, s) => sum + Number(s.paid_total || 0), 0)
+
+  // Group by date for the chart
+  const dpByDate = useMemo(() => {
+    const grouped = dpSales.reduce((acc, sale) => {
+      const dateObj = new Date(sale.m_stran?.tran_date || sale.created_at)
+      const dateStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+      if (!acc[dateStr]) {
+        acc[dateStr] = { date: dateStr, value: 0 }
+      }
+      acc[dateStr].value += Number(sale.paid_total || 0)
+      return acc
+    }, {})
+    return Object.values(grouped)
+  }, [dpSales])
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setCalendarOpen(false)
+    toast.success(`Laporan Uang Muka diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Laporan Uang Muka ${format} disiapkan`)
+  }
+
+  return (
+    <main className="content report-summary-page sales-outlet-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card sales-outlet-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Laporan Uang Muka</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="detail-filter-line outlet-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari Pelanggan/Transaksi ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+        </div>
+
+        <section className="outlet-kpi-strip" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="outlet-main-kpi">
+            <h2>{dpSales.length}</h2>
+            <p>Total Transaksi Uang Muka</p>
+          </div>
+          <div>
+            <strong style={{ color: 'var(--brand)', fontSize: 24 }}>{formatRupiah(totalDp)}</strong>
+            <span>Total Penerimaan Uang Muka</span>
+          </div>
+        </section>
+
+        <section className="period-chart-section outlet-chart-section">
+          <button className="period-chart-toggle" onClick={() => setChartOpen((value) => !value)}>
+            <span>Grafik Laporan Uang Muka</span>
+            <strong>{chartOpen ? 'Sembunyikan' : 'Tampilkan'}</strong>
+            <ChevronDown size={18} />
+          </button>
+          {chartOpen ? (
+            <div className="outlet-chart-body">
+              <div className="outlet-chart-controls">
+                <ReportSelectDropdown
+                  value={periodType}
+                  options={['Jam', 'Hari', 'Minggu', 'Bulan', 'Tahun']}
+                  open={periodOpen}
+                  setOpen={setPeriodOpen}
+                  onSelect={(value) => {
+                    setPeriodType(value)
+                    toast.info(`Grafik: ${value}`)
+                  }}
+                />
+                <ReportSelectDropdown
+                  value={chartMetric}
+                  options={['Penjualan', 'Transaksi']}
+                  open={metricOpen}
+                  setOpen={setMetricOpen}
+                  onSelect={(value) => {
+                    setChartMetric(value)
+                    toast.info(`Metrik grafik: ${value}`)
+                  }}
+                />
+              </div>
+              <div className="period-chart-box outlet-chart-box" aria-label="Grafik Laporan Uang Muka" style={{ height: 320, padding: '24px 0 0 0', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dpByDate} margin={{ top: 20, right: 30, left: 10, bottom: 20 }} barSize={40}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 11, fill: '#666' }} 
+                      dy={10} 
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tickFormatter={(value) => value > 0 ? `Rp ${(value / 1000).toLocaleString('id-ID')}rb` : '0'} 
+                      tick={{ fontSize: 11, fill: '#666' }}
+                      width={80}
+                    />
+                    <Tooltip 
+                      formatter={(value) => [formatRupiah(value), 'Total DP']} 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    />
+                    <Bar dataKey="value" fill="var(--brand)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        <div className="detail-table-wrap">
+          <table className="detail-report-table outlet-report-table">
+            <thead>
+              <tr>
+                {reportPageConfigs['Laporan Uang Muka'].columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            {filteredSales.length > 0 && (
+              <tbody>
+                {filteredSales.map((sale, idx) => (
+                  <tr key={idx}>
+                    <td>{sale.m_stran?.tran_no || sale.tran_no || '-'}</td>
+                    <td>{new Date(sale.m_stran?.tran_date || sale.created_at).toLocaleString('id-ID')}</td>
+                    <td>{sale.m_stran?.customer_id ? `Pelanggan ${shortId(sale.m_stran.customer_id)}` : 'Umum'}</td>
+                    <td>{sale.m_stran?.created_by || 'Admin'}</td>
+                    <td>{formatRupiah(sale.paid_total)}</td>
+                    <td>{sale.m_stran?.outlet_id ? `Outlet ${shortId(sale.m_stran.outlet_id)}` : 'Software House'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+          {filteredSales.length === 0 && <EmptyModuleState type="report" />}
         </div>
       </section>
     </main>
