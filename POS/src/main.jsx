@@ -1558,6 +1558,9 @@ function ModulePage({ activePage, onStartFlow, posData }) {
   if (activePage === 'Laporan Uang Muka') {
     return <SalesDownPaymentReportPage posData={posData} />
   }
+  if (activePage === 'Laporan Jenis Bayar') {
+    return <SalesPaymentMethodReportPage posData={posData} />
+  }
   if (reportPageConfigs[activePage]) {
     return <MajooGenericReportPage config={reportPageConfigs[activePage]} posData={posData} />
   }
@@ -3338,6 +3341,281 @@ function SalesDownPaymentReportPage({ posData }) {
             )}
           </table>
           {filteredSales.length === 0 && <EmptyModuleState type="report" />}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function getPaymentMethod(sale) {
+  const note = sale.note || ''
+  if (note.includes('Split:')) return 'Split Payment'
+  if (note.includes('DP / Uang Muka:')) return note.split('DP / Uang Muka: ')[1]?.split(' |')[0]?.trim() || 'Tunai'
+  if (note.includes('Pembayaran:')) return note.split('Pembayaran: ')[1]?.split(' |')[0]?.trim() || 'Tunai'
+  if (note.includes('Metode bayar:')) return note.split('Metode bayar: ')[1]?.split(' |')[0]?.trim() || 'Tunai'
+  return 'Tunai'
+}
+
+function SalesPaymentMethodReportPage({ posData }) {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [chartOpen, setChartOpen] = useState(true)
+  const [periodType, setPeriodType] = useState('Hari')
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const [chartMetric, setChartMetric] = useState('Penjualan')
+  const [metricOpen, setMetricOpen] = useState(false)
+
+  // Aggregation Logic
+  const sales = posData?.sales || []
+  
+  // Group by payment method
+  const { paymentStats, totalMetrics, chartData } = useMemo(() => {
+    const stats = {}
+    let totalTransactions = 0
+    let totalSales = 0
+    let totalDpCount = 0
+    let totalDpSales = 0
+    let totalDpReceived = 0
+    
+    // For chart
+    const byDate = {}
+
+    sales.forEach(sale => {
+      const method = getPaymentMethod(sale)
+      const grandTotal = Number(sale.grand_total || 0)
+      const paidTotal = Number(sale.paid_total || 0)
+      
+      const isDp = paidTotal > 0 && paidTotal < grandTotal
+      
+      if (!stats[method]) {
+        stats[method] = {
+          method,
+          trxCount: 0,
+          trxDepositCount: 0,
+          trxDpCount: 0,
+          salesRp: 0,
+          salesDepositRp: 0,
+          dpReceivedRp: 0,
+        }
+      }
+      
+      stats[method].trxCount += 1
+      stats[method].salesRp += grandTotal
+      totalTransactions += 1
+      totalSales += grandTotal
+      
+      if (isDp) {
+        stats[method].trxDpCount += 1
+        stats[method].dpReceivedRp += paidTotal
+        totalDpCount += 1
+        totalDpSales += grandTotal
+        totalDpReceived += paidTotal
+      }
+      
+      const dateObj = new Date(sale.m_stran?.tran_date || sale.created_at)
+      if (Number.isNaN(dateObj.getTime())) return
+      const dateStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+      if (!byDate[dateStr]) {
+        byDate[dateStr] = { name: dateStr, Tunai: 0, QRIS: 0, Transfer: 0, 'Split Payment': 0 }
+      }
+      if (byDate[dateStr][method] === undefined) byDate[dateStr][method] = 0
+      byDate[dateStr][method] += (chartMetric === 'Transaksi' ? 1 : grandTotal)
+    })
+    
+    const statsArray = Object.values(stats).map(item => ({
+      ...item,
+      trxPercent: totalTransactions > 0 ? (item.trxCount / totalTransactions) * 100 : 0,
+      salesPercent: totalSales > 0 ? (item.salesRp / totalSales) * 100 : 0,
+    }))
+    
+    statsArray.sort((a, b) => b.salesRp - a.salesRp)
+    
+    return {
+      paymentStats: statsArray,
+      totalMetrics: {
+        trxCount: totalTransactions,
+        salesRp: totalSales,
+        methodCount: Object.keys(stats).length,
+        trxDpCount: totalDpCount,
+        dpSalesRp: totalDpSales,
+        dpReceivedRp: totalDpReceived,
+      },
+      chartData: Object.values(byDate)
+    }
+  }, [sales, chartMetric])
+
+  const filteredStats = useMemo(() => {
+    return paymentStats.filter(stat => stat.method.toLowerCase().includes(query.toLowerCase()))
+  }, [paymentStats, query])
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setCalendarOpen(false)
+    toast.success(`Laporan Jenis Bayar diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Laporan Jenis Bayar ${format} disiapkan`)
+  }
+
+  const COLORS = {
+    Tunai: '#08a88c',
+    QRIS: '#3b82f6',
+    Transfer: '#8b5cf6',
+    'Split Payment': '#f59e0b',
+  }
+
+  return (
+    <main className="content report-summary-page sales-outlet-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card sales-outlet-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Laporan Jenis Bayar</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="detail-filter-line outlet-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari Jenis Pembayaran ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+        </div>
+
+        <section className="outlet-kpi-strip" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: 8, overflowX: 'auto' }}>
+          <div className="outlet-main-kpi" style={{ minWidth: 150 }}>
+            <h2 style={{ fontSize: 20 }}>{totalMetrics.trxCount}</h2>
+            <p style={{ fontSize: 11 }}>Total Transaksi Terbayar</p>
+          </div>
+          <div style={{ minWidth: 150 }}>
+            <strong style={{ color: '#eab308', fontSize: 20 }}>{formatRupiah(totalMetrics.salesRp)}</strong>
+            <span style={{ fontSize: 11 }}>Total Penjualan Terbayar</span>
+          </div>
+          <div style={{ minWidth: 150 }}>
+            <strong style={{ color: '#3b82f6', fontSize: 20 }}>{totalMetrics.methodCount}</strong>
+            <span style={{ fontSize: 11 }}>Total Jenis Pembayaran</span>
+          </div>
+          <div style={{ minWidth: 150 }}>
+            <strong style={{ color: '#06b6d4', fontSize: 20 }}>0</strong>
+            <span style={{ fontSize: 11 }}>Total Transaksi Deposit</span>
+          </div>
+          <div style={{ minWidth: 150 }}>
+            <strong style={{ color: '#ef4444', fontSize: 20 }}>{totalMetrics.trxDpCount}</strong>
+            <span style={{ fontSize: 11 }}>Total Transaksi Uang Muka</span>
+          </div>
+          <div style={{ minWidth: 150 }}>
+            <strong style={{ color: '#a855f7', fontSize: 20 }}>Rp 0</strong>
+            <span style={{ fontSize: 11 }}>Total Penjualan Deposit</span>
+          </div>
+          <div style={{ minWidth: 150 }}>
+            <strong style={{ color: '#f97316', fontSize: 20 }}>{formatRupiah(totalMetrics.dpReceivedRp)}</strong>
+            <span style={{ fontSize: 11 }}>Total Penerimaan Uang Muka</span>
+          </div>
+        </section>
+
+        <section className="period-chart-section outlet-chart-section">
+          <button className="period-chart-toggle" onClick={() => setChartOpen((value) => !value)}>
+            <span>Grafik Jenis Pembayaran</span>
+            <strong>{chartOpen ? 'Sembunyikan' : 'Tampilkan'}</strong>
+            <ChevronDown size={18} />
+          </button>
+          {chartOpen ? (
+            <div className="outlet-chart-body">
+              <div className="outlet-chart-controls">
+                <ReportSelectDropdown
+                  value={periodType}
+                  options={['Jam', 'Hari', 'Minggu', 'Bulan', 'Tahun']}
+                  open={periodOpen}
+                  setOpen={setPeriodOpen}
+                  onSelect={(value) => {
+                    setPeriodType(value)
+                    toast.info(`Grafik: ${value}`)
+                  }}
+                />
+                <ReportSelectDropdown
+                  value={chartMetric}
+                  options={['Penjualan', 'Transaksi']}
+                  open={metricOpen}
+                  setOpen={setMetricOpen}
+                  onSelect={(value) => {
+                    setChartMetric(value)
+                    toast.info(`Metrik grafik: ${value}`)
+                  }}
+                />
+              </div>
+              <div className="period-chart-box outlet-chart-box" aria-label="Grafik Jenis Pembayaran" style={{ height: 320, padding: '24px 0 0 0', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }} barSize={30}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 11, fill: '#666' }} 
+                      dy={10} 
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tickFormatter={(value) => chartMetric === 'Penjualan' ? (value > 0 ? `Rp ${(value / 1000).toLocaleString('id-ID')}rb` : '0') : value} 
+                      tick={{ fontSize: 11, fill: '#666' }}
+                      width={80}
+                    />
+                    <Tooltip 
+                      formatter={(value, name) => [chartMetric === 'Penjualan' ? formatRupiah(value) : value, name]} 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    />
+                    {Object.keys(COLORS).map(key => (
+                      <Bar key={key} dataKey={key} stackId="a" fill={COLORS[key]} radius={[0, 0, 0, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        <div className="detail-table-wrap">
+          <table className="detail-report-table outlet-report-table">
+            <thead>
+              <tr>
+                {reportPageConfigs['Laporan Jenis Bayar'].columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            {filteredStats.length > 0 && (
+              <tbody>
+                {filteredStats.map((stat, idx) => (
+                  <tr key={idx}>
+                    <td>{stat.method}</td>
+                    <td>{stat.trxCount}</td>
+                    <td>{stat.trxPercent.toFixed(2)}%</td>
+                    <td>{stat.trxDepositCount}</td>
+                    <td>{stat.trxDpCount}</td>
+                    <td>{formatRupiah(stat.salesRp)}</td>
+                    <td>{stat.salesPercent.toFixed(2)}%</td>
+                    <td>{formatRupiah(stat.salesDepositRp)}</td>
+                    <td>{formatRupiah(stat.dpReceivedRp)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+          {filteredStats.length === 0 && <EmptyModuleState type="report" />}
         </div>
       </section>
     </main>
