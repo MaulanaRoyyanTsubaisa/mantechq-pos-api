@@ -130,7 +130,7 @@ const sidebarGroups = [
       },
       {
         label: 'Laporan Produk',
-        children: ['Penjualan Produk', 'Penjualan Departemen', 'Penjualan Kategori', 'Penjualan Ekstra', 'Penjualan Sub Ekstra'],
+        children: ['Penjualan Produk', 'Penjualan Kategori', 'Penjualan Ekstra', 'Penjualan Sub Ekstra'],
       },
       'Laporan Promo & Loyalti',
       {
@@ -1562,6 +1562,9 @@ function ModulePage({ activePage, onStartFlow, posData }) {
   }
   if (activePage === 'Penjualan Produk') {
     return <ProductSalesReportPage posData={posData} />
+  }
+  if (activePage === 'Penjualan Kategori') {
+    return <CategorySalesReportPage posData={posData} />
   }
   if (reportPageConfigs[activePage]) {
     return <MajooGenericReportPage config={reportPageConfigs[activePage]} posData={posData} />
@@ -4610,6 +4613,237 @@ function ProductSalesReportPage({ posData }) {
                     <td>{formatRupiah(item.salesRp)}</td>
                     <td>{item.refundQty}</td>
                     <td>{formatRupiah(item.refundRp)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+          {filteredData.length === 0 && <EmptyModuleState type="report" />}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function CategorySalesReportPage({ posData }) {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [chartOpen, setChartOpen] = useState(true)
+  const [periodType, setPeriodType] = useState('Hari')
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const [chartMetric, setChartMetric] = useState('Penjualan')
+  const [metricOpen, setMetricOpen] = useState(false)
+
+  const sales = posData?.sales || []
+  const allDetails = posData?.salesDetails || []
+  
+  const { categorySales, totalMetrics, chartData } = useMemo(() => {
+    const stats = {}
+    let totalSales = 0
+    let totalQty = 0
+    let totalCategories = 0
+    const byDate = {}
+
+    sales.forEach(sale => {
+      if (sale.m_stran?.status === 'void') return
+
+      const dateObj = new Date(sale.m_stran?.tran_date || sale.created_at)
+      if (Number.isNaN(dateObj.getTime())) return
+      const dateStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+      
+      const isRefunded = sale.m_stran?.status === 'refund' || sale.payment_status === 'refunded'
+      const saleDetails = allDetails.filter(d => d.stran_id === sale.stran_id || d.m_stran_id === sale.id)
+
+      saleDetails.forEach(detail => {
+        if (isRefunded) return // skip refunds for categorical analysis
+        
+        const category = detail.m_product?.m_category?.name || 'Umum'
+        const qty = Number(detail.qty || 1)
+        const price = Number(detail.price || 0)
+        const basePrice = Number(detail.m_product?.base_price || 0)
+        const total = price * qty
+        const hpp = basePrice * qty
+
+        if (!stats[category]) {
+          stats[category] = {
+            category,
+            qty: 0,
+            salesRp: 0,
+            hpp: 0
+          }
+        }
+
+        stats[category].qty += qty
+        stats[category].salesRp += total
+        stats[category].hpp += hpp
+        
+        totalQty += qty
+        totalSales += total
+
+        if (!byDate[dateStr]) {
+          byDate[dateStr] = { name: dateStr, sales: 0, qty: 0 }
+        }
+        byDate[dateStr].sales += total
+        byDate[dateStr].qty += qty
+      })
+    })
+
+    const categoriesArray = Object.values(stats).map(item => ({
+      ...item,
+      qtyPercent: totalQty > 0 ? ((item.qty / totalQty) * 100).toFixed(2) : 0,
+      salesPercent: totalSales > 0 ? ((item.salesRp / totalSales) * 100).toFixed(2) : 0,
+    })).sort((a, b) => b.salesRp - a.salesRp)
+
+    totalCategories = categoriesArray.length
+    
+    return {
+      categorySales: categoriesArray,
+      totalMetrics: {
+        totalSales,
+        totalQty,
+        totalCategories
+      },
+      chartData: Object.values(byDate)
+    }
+  }, [sales, allDetails])
+
+  const filteredData = useMemo(() => {
+    return categorySales.filter(item => 
+      item.category.toLowerCase().includes(query.toLowerCase())
+    )
+  }, [categorySales, query])
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setCalendarOpen(false)
+    toast.success(`Laporan diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Laporan disiapkan`)
+  }
+
+  return (
+    <main className="content report-summary-page sales-outlet-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card sales-outlet-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Penjualan Kategori</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="detail-filter-line outlet-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari Kategori ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+        </div>
+
+        <section className="outlet-kpi-strip" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div>
+            <strong style={{ color: '#08a88c', fontSize: 24 }}>{totalMetrics.totalCategories}</strong>
+            <span>Total Kategori</span>
+          </div>
+          <div className="outlet-main-kpi">
+            <h2>{formatRupiah(totalMetrics.totalSales)}</h2>
+            <p>Total Penjualan Kategori</p>
+          </div>
+        </section>
+
+        <section className="period-chart-section outlet-chart-section">
+          <button className="period-chart-toggle" onClick={() => setChartOpen((value) => !value)}>
+            <span>Grafik Penjualan Kategori</span>
+            <strong>{chartOpen ? 'Sembunyikan' : 'Tampilkan'}</strong>
+            <ChevronDown size={18} />
+          </button>
+          {chartOpen ? (
+            <div className="outlet-chart-body">
+              <div className="outlet-chart-controls">
+                <ReportSelectDropdown
+                  value={periodType}
+                  options={['Jam', 'Hari', 'Minggu', 'Bulan', 'Tahun']}
+                  open={periodOpen}
+                  setOpen={setPeriodOpen}
+                  onSelect={(value) => {
+                    setPeriodType(value)
+                    toast.info(`Grafik: ${value}`)
+                  }}
+                />
+                <ReportSelectDropdown
+                  value={chartMetric}
+                  options={['Penjualan', 'Kuantitas']}
+                  open={metricOpen}
+                  setOpen={setMetricOpen}
+                  onSelect={(value) => {
+                    setChartMetric(value)
+                    toast.info(`Metrik grafik: ${value}`)
+                  }}
+                />
+              </div>
+              <div className="period-chart-box outlet-chart-box" aria-label="Grafik Penjualan" style={{ height: 320, padding: '24px 0 0 0', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }} barSize={30}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 11, fill: '#666' }} 
+                      dy={10} 
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tickFormatter={(value) => chartMetric === 'Penjualan' ? (value > 0 ? `Rp ${(value / 1000).toLocaleString('id-ID')}rb` : '0') : value} 
+                      tick={{ fontSize: 11, fill: '#666' }}
+                      width={80}
+                    />
+                    <Tooltip 
+                      formatter={(value, name) => [chartMetric === 'Penjualan' ? formatRupiah(value) : value, chartMetric]} 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      cursor={{fill: 'rgba(0,0,0,0.05)'}}
+                    />
+                    <Bar dataKey={chartMetric === 'Penjualan' ? 'sales' : 'qty'} fill={chartMetric === 'Penjualan' ? '#08a88c' : '#3b82f6'} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        <div className="detail-table-wrap" style={{ marginTop: 24 }}>
+          <table className="detail-report-table outlet-report-table">
+            <thead>
+              <tr>
+                {reportPageConfigs['Penjualan Kategori'].columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            {filteredData.length > 0 && (
+              <tbody>
+                {filteredData.map((item, idx) => (
+                  <tr key={idx}>
+                    <td style={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.category}</td>
+                    <td>{item.qty}</td>
+                    <td>{item.qtyPercent}%</td>
+                    <td>{formatRupiah(item.salesRp)}</td>
+                    <td>{item.salesPercent}%</td>
+                    <td>{formatRupiah(item.hpp)}</td>
                   </tr>
                 ))}
               </tbody>
