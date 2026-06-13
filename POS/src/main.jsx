@@ -3811,22 +3811,22 @@ const productGuideSteps = [
 
 function SetupFlow({ type, onClose, outlets, onOutletCreated, posData, session, initialData }) {
   if (type === 'product') return <ProductSetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} initialData={initialData} />
-  if (type === 'category') return <CategorySetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} />
+  if (type === 'category') return <CategorySetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} initialData={initialData} />
   if (type === 'outlet') return <OutletDetailFlow onClose={onClose} onOutletSaved={onOutletCreated} outlets={outlets} />
   return <SimpleSetupFlow type={type} onClose={onClose} outlets={outlets} onOutletCreated={onOutletCreated} initialData={initialData} />
 }
 
-function CategorySetupFlow({ onClose, outlets, memberships = [], session, onSaved }) {
+function CategorySetupFlow({ onClose, outlets, memberships = [], session, onSaved, initialData }) {
   const outletOptions = memberships.length ? memberships.map(membershipOutletLabel) : outlets
   const defaultMembership = memberships.find((item) => item.outlet_id) || memberships[0]
   
   const [saving, setSaving] = useState(false)
   const [values, setValues] = useState({
     outlet: defaultMembership ? membershipOutletLabel(defaultMembership) : outlets[0] || '',
-    name: '',
-    order: '',
-    department: '',
-    visible: true,
+    name: initialData?.name || '',
+    order: initialData?.sequence ? String(initialData.sequence) : '',
+    department: initialData?.department || '',
+    visible: initialData?.is_active ?? true,
   })
   const [errors, setErrors] = useState({})
   const [confirmClose, setConfirmClose] = useState(false)
@@ -3856,15 +3856,23 @@ function CategorySetupFlow({ onClose, outlets, memberships = [], session, onSave
       const orgId = selectedMembership?.org_id || session?.user?.id
       const outletId = selectedMembership?.outlet_id || 'dee31aef-a313-4fb7-aaa3-55c2fc2c4c3e'
       
-      await createCategory({
+      const payload = {
         orgId,
         outletId,
         name: values.name.trim(),
         sequence: Number(values.order),
         department: values.department || null,
         is_active: values.visible
-      })
-      toast.success('Kategori berhasil disimpan!')
+      }
+
+      if (initialData?.id) {
+        await updateCategory(initialData.id, payload)
+        toast.success('Kategori berhasil diperbarui!')
+      } else {
+        await createCategory(payload)
+        toast.success('Kategori berhasil disimpan!')
+      }
+
       if (onSaved) await onSaved()
       onClose()
     } catch (error) {

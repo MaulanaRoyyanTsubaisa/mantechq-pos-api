@@ -207,6 +207,14 @@ app.get('/api/categories', async (req, res) => {
 app.post('/api/categories', async (req, res) => {
   const { orgId, outletId, name, sequence, department, is_active } = req.body
   try {
+    const existing = await pool.query(
+      `select id from public.pos_product_categories where org_id = $1 and lower(name) = lower($2)`,
+      [orgId, name]
+    )
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: `Kategori dengan nama "${name}" sudah ada` })
+    }
+
     const result = await pool.query(
       `insert into public.pos_product_categories (org_id, outlet_id, name, sequence, department, is_active)
        values ($1, $2, $3, $4, $5, $6)
@@ -222,6 +230,14 @@ app.post('/api/categories', async (req, res) => {
 app.put('/api/categories/:id', async (req, res) => {
   const { orgId, outletId, name, sequence, department, is_active } = req.body
   try {
+    const existing = await pool.query(
+      `select id from public.pos_product_categories where org_id = $1 and lower(name) = lower($2) and id != $3`,
+      [orgId, name, req.params.id]
+    )
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: `Kategori dengan nama "${name}" sudah ada` })
+    }
+
     const result = await pool.query(
       `update public.pos_product_categories set
         name = $1, sequence = $2, department = $3, is_active = $4, updated_at = now()
