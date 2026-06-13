@@ -1693,45 +1693,160 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
   )
 }
 
+
+/** 
+ * BarcodeLabel renders one barcode label using JsBarcode via an SVG ref.
+ * The barcode encodes the SKU so the POS scanner can look it up on Enter.
+ */
+function BarcodeLabel({ item }) {
+  const svgRef = useRef(null)
+  const barcodeValue = (item.sku || `SKU-${String(item.id || '').slice(0, 8)}`).trim()
+
+  useEffect(() => {
+    if (!svgRef.current) return
+    try {
+      import('jsbarcode').then(({ default: JsBarcode }) => {
+        JsBarcode(svgRef.current, barcodeValue, {
+          format: 'CODE128',
+          width: 2,
+          height: 50,
+          displayValue: false,
+          margin: 4,
+          background: '#ffffff',
+          lineColor: '#000000',
+        })
+      })
+    } catch (e) {
+      console.warn('Barcode error:', e)
+    }
+  }, [barcodeValue])
+
+  return (
+    <div className="bc-label">
+      <div className="bc-product-name">{item.item_name}</div>
+      <div className="bc-price">{formatRupiah(item.sell_price || 0)}</div>
+      <svg ref={svgRef} className="bc-svg" />
+      <div className="bc-sku">{barcodeValue}</div>
+    </div>
+  )
+}
+
 function BarcodePrintView({ posData }) {
   const stockItems = posData?.stockItems || []
+  const [selected, setSelected] = useState(() => new Set(stockItems.map((_, i) => i)))
+  const [copies, setCopies] = useState(1)
+
+  const toggleItem = (idx) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(idx)) next.delete(idx)
+      else next.add(idx)
+      return next
+    })
+  }
+
+  const toggleAll = () => {
+    if (selected.size === stockItems.length) setSelected(new Set())
+    else setSelected(new Set(stockItems.map((_, i) => i)))
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const selectedItems = stockItems.filter((_, i) => selected.has(i))
+  const printItems = []
+  for (let c = 0; c < copies; c++) selectedItems.forEach(item => printItems.push(item))
+
   return (
-    <main className="content">
-      <CapitalBanner compact />
-      <section className="panel module-page">
-        <div className="majoo-page-head">
-          <div className="majoo-title">
-            <h1>Cetak Barcode</h1>
-            <p>Pilih dan cetak barcode untuk label produk di toko fisik Anda.</p>
-          </div>
-          <div className="top-actions">
-            <Button onClick={() => window.print()}><Printer size={16} /> Cetak (A4)</Button>
-          </div>
-        </div>
-        <div style={{ padding: 24, background: '#f8fafc', borderBottom: '1px solid var(--line)' }}>
-          <div style={{ background: '#fff', border: '1px dashed #cbd5e1', padding: 32, borderRadius: 12, minHeight: 600 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '24px 16px' }}>
-              {stockItems.map((item, idx) => (
-                <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.item_name}</div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>{formatRupiah(item.price || item.sell_price || 0)}</div>
-                  <img src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(item.sku || `BRC${String(idx + 1).padStart(4, '0')}`)}&scale=2&height=10&includetext`} alt="Barcode" style={{ width: '100%', height: 60, objectFit: 'contain', background: '#fff', padding: 4 }} />
-                  <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>{item.sku || `BRC-${String(item.id || idx).padStart(4, '0')}`}</div>
-                </div>
-              ))}
-              {stockItems.length === 0 && (
-                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-                  <ScanBarcode size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                  <p>Tidak ada produk untuk dicetak.</p>
-                </div>
-              )}
+    <main className="content bc-page">
+      {/* ── Screen: header + selector ── */}
+      <div className="bc-screen-only">
+        <CapitalBanner compact />
+        <section className="panel module-page">
+          <div className="majoo-page-head">
+            <div className="majoo-title">
+              <h1>Cetak Barcode</h1>
+              <p>Pilih produk lalu cetak. Scan barcode di kasir → produk langsung masuk keranjang.</p>
+            </div>
+            <div className="top-actions" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <label style={{ fontSize: 13, color: '#64748b', display: 'flex', alignItems: 'center', gap: 8 }}>
+                Salinan:
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={copies}
+                  onChange={e => setCopies(Math.max(1, Math.min(10, Number(e.target.value))))}
+                  style={{ width: 60, padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: 600 }}
+                />
+              </label>
+              <Button onClick={handlePrint} disabled={selected.size === 0}>
+                <Printer size={16} /> Cetak (A4) {selected.size > 0 ? `· ${selected.size} produk` : ''}
+              </Button>
             </div>
           </div>
+
+          {/* Info banner */}
+          <div style={{ margin: '0 24px 16px', padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, display: 'flex', gap: 10, alignItems: 'center', fontSize: 13, color: '#166534' }}>
+            <ScanBarcode size={18} color="#16a34a" />
+            <span>Barcode dikodekan berdasarkan <strong>SKU</strong> produk. Kasir cukup scan → produk otomatis masuk keranjang belanja.</span>
+          </div>
+
+          {/* Selector table */}
+          <div style={{ padding: '0 24px 24px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', width: 40 }}>
+                    <input type="checkbox" checked={selected.size === stockItems.length && stockItems.length > 0} onChange={toggleAll} />
+                  </th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Nama Produk</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>SKU (Barcode)</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Harga Jual</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#475569' }}>Preview</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stockItems.length === 0 && (
+                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: 48, color: '#94a3b8' }}>
+                    <ScanBarcode size={40} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+                    <p>Belum ada produk. Tambahkan produk di Daftar Produk terlebih dahulu.</p>
+                  </td></tr>
+                )}
+                {stockItems.map((item, idx) => (
+                  <tr key={item.id || idx} style={{ borderBottom: '1px solid #f1f5f9', background: selected.has(idx) ? '#f0fdf4' : 'transparent' }}>
+                    <td style={{ padding: '10px 12px' }}>
+                      <input type="checkbox" checked={selected.has(idx)} onChange={() => toggleItem(idx)} />
+                    </td>
+                    <td style={{ padding: '10px 12px', fontWeight: 500, color: '#1e293b' }}>{item.item_name}</td>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: '#0891b2', fontSize: 12 }}>
+                      {item.sku || <span style={{ color: '#f59e0b' }}>⚠ Belum ada SKU</span>}
+                    </td>
+                    <td style={{ padding: '10px 12px', color: '#64748b' }}>{formatRupiah(item.sell_price || 0)}</td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <BarcodeLabel item={item} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      {/* ── Print-only: grid of labels ── */}
+      <div className="bc-print-only">
+        <div className="bc-print-grid">
+          {printItems.map((item, idx) => (
+            <BarcodeLabel key={idx} item={item} />
+          ))}
         </div>
-      </section>
+      </div>
     </main>
   )
 }
+
 
 const summaryMetricCards = [
   ['Total Pendapatan', 'Rp 0', 'green'],

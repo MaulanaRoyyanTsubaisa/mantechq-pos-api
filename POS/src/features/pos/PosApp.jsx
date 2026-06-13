@@ -563,7 +563,11 @@ Terima kasih telah berbelanja!`
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && query.trim() !== '') {
-                    const exactMatch = allStock.find(item => item.sku === query.trim() || item.barcode === query.trim())
+                    const q = query.trim()
+                    const exactMatch = allStock.find(item => {
+                      const fallbackSku = `SKU-${String(item.id || '').slice(0, 8)}`
+                      return item.sku === q || item.barcode === q || fallbackSku === q
+                    })
                     if (exactMatch) {
                       handleProductClick(exactMatch)
                       setQuery('')
