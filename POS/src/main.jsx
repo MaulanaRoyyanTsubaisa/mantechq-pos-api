@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { createPortal } from 'react-dom'
 import { Toaster, toast } from 'sonner'
 import {
+  AlertTriangle,
   Bell,
   Boxes,
   CalendarDays,
@@ -65,6 +66,41 @@ import { PosApp } from './features/pos/PosApp.jsx'
 import { ProductFormModal } from './features/modules/ProductFormModal.jsx'
 import capitalVisual from './assets/capital-visual.png'
 import './style.css'
+
+/**
+ * ConfirmModal – replaces native browser confirm() with a styled modal.
+ * Props:
+ *   open       – boolean, controls visibility
+ *   title      – string, modal heading
+ *   message    – string | ReactNode, body text
+ *   icon       – ReactNode, optional icon (defaults to warning triangle)
+ *   confirmLabel – string (default 'Ya, Lanjutkan')
+ *   cancelLabel  – string (default 'Batal')
+ *   variant    – 'danger' | 'warning' | 'primary' (default 'danger')
+ *   onConfirm  – callback when user clicks confirm
+ *   onCancel   – callback when user clicks cancel / overlay
+ */
+function ConfirmModal({ open, title, message, icon, confirmLabel = 'Ya, Lanjutkan', cancelLabel = 'Batal', variant = 'danger', onConfirm, onCancel }) {
+  if (!open) return null
+  const variantColor = variant === 'danger' ? '#ef4444' : variant === 'warning' ? '#f59e0b' : 'var(--primary-color)'
+  const iconBg = variant === 'danger' ? '#fef2f2' : variant === 'warning' ? '#fffbeb' : '#eff6ff'
+  return createPortal(
+    <div className="cm-scrim" onClick={onCancel}>
+      <div className="cm-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="cm-icon-wrap" style={{ background: iconBg }}>
+          {icon || <AlertTriangle size={26} color={variantColor} />}
+        </div>
+        <h2 className="cm-title">{title}</h2>
+        <p className="cm-message">{message}</p>
+        <div className="cm-footer">
+          <button className="cm-btn cm-btn-cancel" onClick={onCancel}>{cancelLabel}</button>
+          <button className="cm-btn cm-btn-confirm" style={{ background: variantColor }} onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
 
 const sidebarGroups = [
   { label: 'Menu Favorit', icon: Star, children: [] },
@@ -3307,6 +3343,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null) // { id, orgId, type: 'kategori'|'produk', name }
 
   const runAction = (action) => {
     if (action === 'Tambah Produk') {
@@ -3422,21 +3459,13 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                                 setShowAddModal(true)
                               }
                             }} aria-label="Edit Produk"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
-                            <button className="icon-link" onClick={async () => {
-                              if (confirm('Yakin ingin menghapus item ini?')) {
-                                try {
-                                  if (config.title === 'Daftar Kategori') {
-                                    await deleteCategory(cell.id, cell.orgId)
-                                    toast.success('Kategori berhasil dihapus')
-                                  } else {
-                                    await deleteProduct(cell.id, cell.orgId)
-                                    toast.success('Produk berhasil dihapus')
-                                  }
-                                  posData?.refresh?.()
-                                } catch (e) {
-                                  toast.error('Gagal menghapus item')
-                                }
-                              }
+                            <button className="icon-link" onClick={() => {
+                              setConfirmDelete({
+                                id: cell.id,
+                                orgId: cell.orgId,
+                                type: config.title === 'Daftar Kategori' ? 'kategori' : 'produk',
+                                name: cell.name || cell.item?.item_name || cell.item?.name || 'item ini',
+                              })
                             }} aria-label="Hapus Item"><Trash2 size={16} color="#ef4444" /></button>
                           </div>
                         ) : cell}
@@ -3448,6 +3477,31 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
             </tbody>
           </table>
           {!rows.length ? <EmptyModuleState type="master" /> : null}
+          <ConfirmModal
+            open={!!confirmDelete}
+            title={`Hapus ${confirmDelete?.type === 'kategori' ? 'Kategori' : 'Produk'}?`}
+            message={<>Anda akan menghapus <strong>"{confirmDelete?.name}"</strong>. Tindakan ini tidak dapat dibatalkan.</>}
+            confirmLabel="Ya, Hapus"
+            cancelLabel="Batal"
+            variant="danger"
+            onCancel={() => setConfirmDelete(null)}
+            onConfirm={async () => {
+              const target = confirmDelete
+              setConfirmDelete(null)
+              try {
+                if (target.type === 'kategori') {
+                  await deleteCategory(target.id, target.orgId)
+                  toast.success('Kategori berhasil dihapus')
+                } else {
+                  await deleteProduct(target.id, target.orgId)
+                  toast.success('Produk berhasil dihapus')
+                }
+                posData?.refresh?.()
+              } catch (e) {
+                toast.error(`Gagal menghapus ${target.type}`)
+              }
+            }}
+          />
         </div>
 
         <footer className="product-pagination">

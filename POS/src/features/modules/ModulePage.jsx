@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { createPortal, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  AlertTriangle,
   Bell,
   Boxes,
   CalendarDays,
@@ -69,6 +70,28 @@ import {
 import { DaftarBahanBakuPage, PemesananStokPage, DaftarStokPage, DaftarPemasokPage, KelolaStokPage } from './InventoryPages.jsx'
 import { ProductFormModal } from './ProductFormModal.jsx'
 import { DaftarPelangganPage } from './CustomerPages.jsx'
+
+function ConfirmModal({ open, title, message, icon, confirmLabel = 'Ya, Lanjutkan', cancelLabel = 'Batal', variant = 'danger', onConfirm, onCancel }) {
+  if (!open) return null
+  const variantColor = variant === 'danger' ? '#ef4444' : variant === 'warning' ? '#f59e0b' : 'var(--primary-color)'
+  const iconBg = variant === 'danger' ? '#fef2f2' : variant === 'warning' ? '#fffbeb' : '#eff6ff'
+  return createPortal(
+    <div className="cm-scrim" onClick={onCancel}>
+      <div className="cm-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="cm-icon-wrap" style={{ background: iconBg }}>
+          {icon || <AlertTriangle size={26} color={variantColor} />}
+        </div>
+        <h2 className="cm-title">{title}</h2>
+        <p className="cm-message">{message}</p>
+        <div className="cm-footer">
+          <button className="cm-btn cm-btn-cancel" onClick={onCancel}>{cancelLabel}</button>
+          <button className="cm-btn cm-btn-confirm" style={{ background: variantColor }} onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
 
 function Metric({ label, value }) {
   return (
@@ -1659,6 +1682,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null) // { id, orgId, name }
 
   const runAction = (action) => {
     if (action === 'Tambah Produk' || action === 'Tambah Bahan Baku') {
@@ -1772,16 +1796,12 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                               setEditingProduct(cell.item)
                               setShowAddModal(true)
                             }} aria-label="Edit Produk"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
-                            <button className="icon-link" onClick={async () => {
-                              if (confirm('Yakin ingin menghapus produk ini?')) {
-                                try {
-                                  await deleteProduct(cell.id, cell.orgId)
-                                  toast.success('Produk berhasil dihapus')
-                                  if (posData?.refresh) await posData.refresh()
-                                } catch (e) {
-                                  toast.error('Gagal menghapus produk')
-                                }
-                              }
+                            <button className="icon-link" onClick={() => {
+                              setConfirmDelete({
+                                id: cell.id,
+                                orgId: cell.orgId,
+                                name: cell.item?.item_name || 'produk ini',
+                              })
                             }} aria-label="Hapus Produk"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg></button>
                           </div>
                         ) : cell?.type === 'photo' ? (
@@ -1795,6 +1815,26 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
             </tbody>
           </table>
           {!rows.length ? <EmptyModuleState type="master" /> : null}
+          <ConfirmModal
+            open={!!confirmDelete}
+            title="Hapus Produk?"
+            message={<>Anda akan menghapus <strong>"{confirmDelete?.name}"</strong>. Tindakan ini tidak dapat dibatalkan.</>}
+            confirmLabel="Ya, Hapus"
+            cancelLabel="Batal"
+            variant="danger"
+            onCancel={() => setConfirmDelete(null)}
+            onConfirm={async () => {
+              const target = confirmDelete
+              setConfirmDelete(null)
+              try {
+                await deleteProduct(target.id, target.orgId)
+                toast.success('Produk berhasil dihapus')
+                if (posData?.refresh) await posData.refresh()
+              } catch (e) {
+                toast.error('Gagal menghapus produk')
+              }
+            }}
+          />
         </div>
 
         <footer className="product-pagination">
