@@ -4418,7 +4418,7 @@ function ProductSalesReportPage({ posData }) {
       saleDetails.forEach(detail => {
         const product = detail.item_name || detail.m_product?.name || 'Produk'
         const sku = detail.m_product?.sku || '-'
-        const category = detail.m_product?.m_category?.name || 'Umum'
+        const category = detail.category_name || 'Umum'
         const department = detail.m_product?.department || 'Umum'
         const productType = detail.m_product?.type || 'Produk Barang'
         
@@ -4664,7 +4664,7 @@ function CategorySalesReportPage({ posData }) {
       saleDetails.forEach(detail => {
         if (isRefunded) return // skip refunds for categorical analysis
         
-        const category = detail.m_product?.m_category?.name || 'Umum'
+        const category = detail.category_name || 'Umum'
         const qty = Number(detail.qty || 1)
         const price = Number(detail.price || 0)
         const basePrice = Number(detail.m_product?.base_price || 0)
