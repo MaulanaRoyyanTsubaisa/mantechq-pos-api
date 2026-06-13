@@ -67,6 +67,52 @@ import { ProductFormModal } from './features/modules/ProductFormModal.jsx'
 import capitalVisual from './assets/capital-visual.png'
 import './style.css'
 
+const monthMapIndo = {
+  'Januari': 0, 'Februari': 1, 'Maret': 2, 'April': 3, 'Mei': 4, 'Juni': 5,
+  'Juli': 6, 'Agustus': 7, 'September': 8, 'Oktober': 9, 'November': 10, 'Desember': 11,
+  'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'Mei': 4, 'Jun': 5,
+  'Jul': 6, 'Agu': 7, 'Sep': 8, 'Okt': 9, 'Nov': 10, 'Des': 11
+};
+
+export function isDateWithinRange(dateStr, range) {
+  if (!dateStr || !range?.display) return true;
+  
+  const targetDate = new Date(dateStr);
+  if (isNaN(targetDate.getTime())) return true;
+
+  const parts = range.display.split(' - ');
+  if (parts.length !== 2) return true;
+
+  const parseIndoStr = (str) => {
+    const match = str.trim().match(/^(\d+)\s+([A-Za-z]+)\s+(\d+)$/);
+    if (!match) return null;
+    const d = parseInt(match[1], 10);
+    const m = monthMapIndo[match[2]];
+    const y = parseInt(match[3], 10);
+    if (m === undefined) return null;
+    return new Date(y, m, d);
+  };
+
+  const startDate = parseIndoStr(parts[0]);
+  const endDate = parseIndoStr(parts[1]);
+
+  if (!startDate || !endDate) return true;
+
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+
+  if (range.startTime) {
+    const [h, m] = range.startTime.split(':');
+    if (h !== undefined && m !== undefined) startDate.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+  }
+  if (range.endTime) {
+    const [h, m] = range.endTime.split(':');
+    if (h !== undefined && m !== undefined) endDate.setHours(parseInt(h, 10), parseInt(m, 10), 59, 999);
+  }
+
+  return targetDate >= startDate && targetDate <= endDate;
+}
+
 /**
  * ConfirmModal – replaces native browser confirm() with a styled modal.
  * Props:
@@ -1925,7 +1971,21 @@ const summaryBreakdowns = [
 ]
 
 function SalesSummaryReportPage({ posData }) {
-  const summary = buildSalesSummary(posData)
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    const salesIds = new Set(sales.map(s => s.stran_id))
+    const salesDetails = posData?.salesDetails?.filter(d => salesIds.has(d.stran_id)) || []
+    return { ...posData, sales, salesDetails }
+  }, [posData, range])
+
+  const summary = useMemo(() => buildSalesSummary(filteredPosData), [filteredPosData])
   const liveMetricCards = [
     ['Total Transaksi', formatQty(summary.transactionCount), 'green'],
     ['Total Penjualan Kotor', formatRupiah(summary.grandTotal), 'yellow'],
@@ -1986,12 +2046,6 @@ function SalesSummaryReportPage({ posData }) {
       }
     }
     return section
-  })
-  const [range, setRange] = useState({
-    label: '01 Jun 2026 - 30 Jun 2026',
-    display: '01 Juni 2026 - 30 Juni 2026',
-    startTime: '00:00',
-    endTime: '23:59',
   })
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
@@ -2324,8 +2378,22 @@ const detailFilterGroups = {
 }
 
 function SalesDetailReportPage({ posData }) {
-  const summary = buildSalesSummary(posData)
-  const sales = posData.sales || []
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    const salesIds = new Set(sales.map(s => s.stran_id))
+    const salesDetails = posData?.salesDetails?.filter(d => salesIds.has(d.stran_id)) || []
+    return { ...posData, sales, salesDetails }
+  }, [posData, range])
+
+  const summary = useMemo(() => buildSalesSummary(filteredPosData), [filteredPosData])
+  const sales = filteredPosData.sales || []
   const liveDetailMetrics = [
     ['Total Penjualan', formatRupiah(summary.grandTotal)],
     ['Total Transaksi', String(summary.transactionCount)],
@@ -2333,12 +2401,6 @@ function SalesDetailReportPage({ posData }) {
     ['Total Pembayaran', formatRupiah(summary.paidTotal)],
     ['Total Piutang', formatRupiah(summary.unpaidTotal)],
   ]
-  const [range, setRange] = useState({
-    label: '01 Jun 2026 - 30 Jun 2026',
-    display: '01 Juni 2026 - 30 Juni 2026',
-    startTime: '00:00',
-    endTime: '23:59',
-  })
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [timeOpen, setTimeOpen] = useState(false)
@@ -2680,9 +2742,23 @@ const orderTypeOptions = [
 ]
 
 function SalesPeriodReportPage({ posData }) {
-  const summary = buildSalesSummary(posData)
-  const sales = posData?.sales || []
-  const salesDetails = posData?.salesDetails || []
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    const salesIds = new Set(sales.map(s => s.stran_id))
+    const salesDetails = posData?.salesDetails?.filter(d => salesIds.has(d.stran_id)) || []
+    return { ...posData, sales, salesDetails }
+  }, [posData, range])
+
+  const summary = useMemo(() => buildSalesSummary(filteredPosData), [filteredPosData])
+  const sales = filteredPosData.sales || []
+  const salesDetails = filteredPosData.salesDetails || []
   const totalItems = salesDetails.reduce((sum, item) => sum + Number(item.qty), 0)
   const grossProfit = summary.grandTotal * 0.3
 
@@ -2700,13 +2776,6 @@ function SalesPeriodReportPage({ posData }) {
     if (!salesByDate[dateStr]) salesByDate[dateStr] = { count: 0, total: 0 }
     salesByDate[dateStr].count++
     salesByDate[dateStr].total += Number(sale.grand_total)
-  })
-
-  const [range, setRange] = useState({
-    label: '01 Jun 2026 - 30 Jun 2026',
-    display: '01 Juni 2026 - 30 Juni 2026',
-    startTime: '00:00',
-    endTime: '23:59',
   })
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
@@ -2961,8 +3030,15 @@ function SalesOutletReportPage({ posData }) {
   const [chartOpen, setChartOpen] = useState(true)
 
   // Aggregation Logic
-  const sales = posData?.sales || []
-  const salesDetails = posData?.salesDetails || []
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    const salesIds = new Set(sales.map(s => s.stran_id))
+    const salesDetails = posData?.salesDetails?.filter(d => salesIds.has(d.stran_id)) || []
+    return { ...posData, sales, salesDetails }
+  }, [posData, range])
+
+  const sales = filteredPosData.sales || []
+  const salesDetails = filteredPosData.salesDetails || []
 
   const salesByOutlet = useMemo(() => {
     const grouped = sales.reduce((acc, sale) => {
@@ -3184,7 +3260,12 @@ function SalesDownPaymentReportPage({ posData }) {
   const [metricOpen, setMetricOpen] = useState(false)
 
   // Aggregation Logic
-  const sales = posData?.sales || []
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    return { ...posData, sales }
+  }, [posData, range])
+
+  const sales = filteredPosData.sales || []
   const dpSales = useMemo(() => {
     return sales.filter(s => {
       const paid = Number(s.paid_total || 0)
@@ -3378,7 +3459,12 @@ function SalesPaymentMethodReportPage({ posData }) {
   const [metricOpen, setMetricOpen] = useState(false)
 
   // Aggregation Logic
-  const sales = posData?.sales || []
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    return { ...posData, sales }
+  }, [posData, range])
+
+  const sales = filteredPosData.sales || []
   
   // Group by payment method
   const { paymentStats, totalMetrics, chartData } = useMemo(() => {
@@ -3653,7 +3739,12 @@ function SalesOrderTypeReportPage({ posData }) {
   const [metricOpen, setMetricOpen] = useState(false)
 
   // Aggregation Logic
-  const sales = posData?.sales || []
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    return { ...posData, sales }
+  }, [posData, range])
+
+  const sales = filteredPosData.sales || []
   
   // Group by order type
   const { orderStats, totalMetrics, chartData } = useMemo(() => {
@@ -3868,7 +3959,12 @@ function SalesVoidReportPage({ posData }) {
   const [exportOpen, setExportOpen] = useState(false)
   const [query, setQuery] = useState('')
 
-  const sales = posData?.sales || []
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    return { ...posData, sales }
+  }, [posData, range])
+
+  const sales = filteredPosData.sales || []
   
   const { voidSales, totalMetrics } = useMemo(() => {
     let totalVoid = 0
@@ -3989,7 +4085,12 @@ function SalesRefundReportPage({ posData }) {
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState('Semua')
 
-  const sales = posData?.sales || []
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    return { ...posData, sales }
+  }, [posData, range])
+
+  const sales = filteredPosData.sales || []
   
   const { refundSales, totalMetrics } = useMemo(() => {
     let totalRefund = 0
@@ -4126,7 +4227,12 @@ function KitchenOrderProcessReportPage({ posData }) {
   const [exportOpen, setExportOpen] = useState(false)
   const [query, setQuery] = useState('')
 
-  const sales = posData?.sales || []
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    return { ...posData, sales }
+  }, [posData, range])
+
+  const sales = filteredPosData.sales || []
   
   const orderProcessData = useMemo(() => {
     const data = []
@@ -4251,7 +4357,12 @@ function KitchenProductProcessReportPage({ posData }) {
   const [exportOpen, setExportOpen] = useState(false)
   const [query, setQuery] = useState('')
 
-  const sales = posData?.sales || []
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    return { ...posData, sales }
+  }, [posData, range])
+
+  const sales = filteredPosData.sales || []
   
   const productProcessData = useMemo(() => {
     const stats = {}
@@ -4405,7 +4516,9 @@ function ProductSalesReportPage({ posData }) {
     let totalGrossProfit = 0
     const byDate = {}
 
-    sales.forEach(sale => {
+    const filteredSales = sales.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range))
+
+    filteredSales.forEach(sale => {
       // Exclude voided sales entirely
       if (sale.m_stran?.status === 'void') return
 
@@ -4475,7 +4588,7 @@ function ProductSalesReportPage({ posData }) {
         totalGrossProfit
       }
     }
-  }, [sales, allDetails, stockItems])
+  }, [sales, allDetails, stockItems, range])
 
   const chartData = productSales.slice(0, 15).map(c => ({ name: c.product, sales: c.salesRp, qty: c.qty }))
 
@@ -4656,7 +4769,9 @@ function CategorySalesReportPage({ posData }) {
     let totalCategories = 0
     const byDate = {}
 
-    sales.forEach(sale => {
+    const filteredSales = sales.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range))
+
+    filteredSales.forEach(sale => {
       if (sale.m_stran?.status === 'void') return
 
       const dateObj = new Date(sale.m_stran?.tran_date || sale.created_at)
@@ -4717,7 +4832,7 @@ function CategorySalesReportPage({ posData }) {
         totalCategories
       }
     }
-  }, [sales, allDetails, stockItems])
+  }, [sales, allDetails, stockItems, range])
 
   const chartData = categorySales.map(c => ({ name: c.category, sales: c.salesRp, qty: c.qty }))
 
@@ -4896,8 +5011,16 @@ function MajooGenericReportPage({ config, posData }) {
   const [lastUpdated, setLastUpdated] = useState('beberapa detik yang lalu')
 
   // Calculate dynamic rows based on config.title
-  const sales = posData?.sales || []
-  const shifts = posData?.shifts || []
+  const filteredPosData = useMemo(() => {
+    const sales = posData?.sales?.filter(s => isDateWithinRange(s.m_stran?.tran_date || s.created_at, range)) || []
+    const salesIds = new Set(sales.map(s => s.stran_id))
+    const salesDetails = posData?.salesDetails?.filter(d => salesIds.has(d.stran_id)) || []
+    const shifts = posData?.shifts?.filter(s => isDateWithinRange(s.created_at || s.started_at, range)) || []
+    return { ...posData, sales, salesDetails, shifts }
+  }, [posData, range])
+
+  const sales = filteredPosData.sales || []
+  const shifts = filteredPosData.shifts || []
   
   let liveRows = config.rows || []
   let liveMetrics = config.metrics || []
