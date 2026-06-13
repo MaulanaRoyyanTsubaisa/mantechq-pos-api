@@ -4396,6 +4396,7 @@ function ProductSalesReportPage({ posData }) {
 
   const sales = posData?.sales || []
   const allDetails = posData?.salesDetails || []
+  const stockItems = posData?.stockItems || []
   
   const { productSales, totalMetrics, chartData } = useMemo(() => {
     const stats = {}
@@ -4416,11 +4417,13 @@ function ProductSalesReportPage({ posData }) {
       const saleDetails = allDetails.filter(d => d.stran_id === sale.stran_id || d.m_stran_id === sale.id)
 
       saleDetails.forEach(detail => {
-        const product = detail.item_name || detail.m_product?.name || 'Produk'
-        const sku = detail.m_product?.sku || '-'
-        const category = detail.category_name || 'Umum'
-        const department = detail.m_product?.department || 'Umum'
-        const productType = detail.m_product?.type || 'Produk Barang'
+        const stockItem = stockItems.find(s => s.id === detail.st_mast_id || s.id === detail.m_product_id)
+        
+        const product = detail.item_name || stockItem?.item_name || detail.m_product?.name || 'Produk'
+        const sku = stockItem?.sku || detail.m_product?.sku || '-'
+        const category = stockItem?.category_name || detail.m_product?.m_category?.name || 'Umum'
+        const department = stockItem?.department || detail.m_product?.department || 'Umum'
+        const productType = stockItem?.type || detail.m_product?.type || 'Produk Barang'
         
         const qty = Number(detail.qty || 1)
         const price = Number(detail.price || 0)
@@ -4643,6 +4646,7 @@ function CategorySalesReportPage({ posData }) {
 
   const sales = posData?.sales || []
   const allDetails = posData?.salesDetails || []
+  const stockItems = posData?.stockItems || []
   
   const { categorySales, totalMetrics, chartData } = useMemo(() => {
     const stats = {}
@@ -4664,7 +4668,8 @@ function CategorySalesReportPage({ posData }) {
       saleDetails.forEach(detail => {
         if (isRefunded) return // skip refunds for categorical analysis
         
-        const category = detail.category_name || 'Umum'
+        const stockItem = stockItems.find(s => s.id === detail.st_mast_id || s.id === detail.m_product_id)
+        const category = stockItem?.category_name || detail.m_product?.m_category?.name || 'Umum'
         const qty = Number(detail.qty || 1)
         const price = Number(detail.price || 0)
         const basePrice = Number(detail.m_product?.base_price || 0)
