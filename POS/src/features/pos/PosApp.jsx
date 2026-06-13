@@ -30,6 +30,7 @@ export function PosApp({ posData, onClose, session }) {
   
   // Split Payment State
   const [isSplit, setIsSplit] = useState(false)
+  const [isDp, setIsDp] = useState(false)
   const [splitMethod1, setSplitMethod1] = useState('Tunai')
   const [splitMethod2, setSplitMethod2] = useState('QRIS')
   const [splitAmount1, setSplitAmount1] = useState('')
@@ -213,14 +214,21 @@ export function PosApp({ posData, onClose, session }) {
     setPaymentMethod('Tunai')
     setCashReceived('')
     setIsSplit(false)
+    setIsDp(false)
     setSplitAmount1('')
     setIsCartOpen(false)
   }
 
   const handleCheckout = async () => {
     if (!cart.length) return toast.error('Keranjang kosong.')
-    if (!isSplit && paymentMethod === 'Tunai' && cashValue < grandTotal) {
+    if (!isSplit && !isDp && paymentMethod === 'Tunai' && cashValue < grandTotal) {
       return toast.error('Uang tunai kurang dari total bayar.')
+    }
+    if (isDp && cashValue >= grandTotal) {
+      return toast.error('Untuk Uang Muka, uang tunai harus kurang dari total bayar.')
+    }
+    if (isDp && cashValue <= 0) {
+      return toast.error('Uang Muka tidak boleh kosong.')
     }
     if (isSplit && splitValue1 <= 0) {
       return toast.error('Nominal split tidak valid.')
@@ -231,12 +239,12 @@ export function PosApp({ posData, onClose, session }) {
       const finalPaymentMethod = isSplit ? `Split (${splitMethod1} & ${splitMethod2})` : paymentMethod
       let amountPaid = grandTotal
       if (!isSplit && paymentMethod === 'Tunai') {
-        amountPaid = cashValue
+        amountPaid = isDp ? cashValue : grandTotal
       }
       
       let uangMasukShift = 0
       if (!isSplit && paymentMethod === 'Tunai') {
-        uangMasukShift = grandTotal
+        uangMasukShift = isDp ? cashValue : grandTotal
       } else if (isSplit) {
         if (splitMethod1 === 'Tunai') uangMasukShift += splitValue1
         if (splitMethod2 === 'Tunai') uangMasukShift += splitValue2
@@ -249,8 +257,8 @@ export function PosApp({ posData, onClose, session }) {
         discount_total: discountValue,
         tax_total: taxValue,
         paid_total: amountPaid,
-        payment_status: 'paid',
-        note: isSplit ? `Split: ${splitMethod1} (${formatRupiah(splitValue1)}) + ${splitMethod2} (${formatRupiah(splitValue2)})` : `Pembayaran: ${paymentMethod}`,
+        payment_status: isDp ? 'partial' : 'paid',
+        note: isSplit ? `Split: ${splitMethod1} (${formatRupiah(splitValue1)}) + ${splitMethod2} (${formatRupiah(splitValue2)})` : isDp ? `DP / Uang Muka: ${paymentMethod}` : `Pembayaran: ${paymentMethod}`,
         userId: session?.user?.id,
       }
       
@@ -706,10 +714,16 @@ Terima kasih telah berbelanja!`
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Metode Bayar</span>
-              <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: '#08a88c', fontWeight: 600 }}>
-                <input type="checkbox" checked={isSplit} onChange={e => setIsSplit(e.target.checked)} />
-                Split Payment
-              </label>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: '#08a88c', fontWeight: 600 }}>
+                  <input type="checkbox" checked={isDp} onChange={e => { setIsDp(e.target.checked); setIsSplit(false) }} />
+                  Uang Muka (DP)
+                </label>
+                <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: '#08a88c', fontWeight: 600 }}>
+                  <input type="checkbox" checked={isSplit} onChange={e => { setIsSplit(e.target.checked); setIsDp(false) }} />
+                  Split Payment
+                </label>
+              </div>
             </div>
 
             {!isSplit ? (
@@ -773,12 +787,14 @@ Terima kasih telah berbelanja!`
 
             <button 
               className="pos-pay-btn" 
-              disabled={cart.length === 0 || saving || (!isSplit && paymentMethod === 'Tunai' && cashValue < grandTotal) || (isSplit && splitValue1 <= 0)}
+              disabled={cart.length === 0 || saving || (!isSplit && !isDp && paymentMethod === 'Tunai' && cashValue < grandTotal) || (isDp && (cashValue <= 0 || cashValue >= grandTotal)) || (isSplit && splitValue1 <= 0)}
               onClick={handleCheckout}
             >
               {saving ? 'Memproses...' : 
-                (!isSplit && paymentMethod === 'Tunai' && cashValue < grandTotal) ? 'Uang Belum Cukup' : 
-                (isSplit && splitValue1 <= 0) ? 'Split Nominal Tidak Valid' : 'Bayar Sekarang'}
+                (!isSplit && !isDp && paymentMethod === 'Tunai' && cashValue < grandTotal) ? 'Uang Belum Cukup' : 
+                (isDp && cashValue <= 0) ? 'Masukkan Nominal DP' :
+                (isDp && cashValue >= grandTotal) ? 'Nominal DP Melebihi Total' :
+                (isSplit && splitValue1 <= 0) ? 'Split Nominal Tidak Valid' : isDp ? 'Simpan Uang Muka' : 'Bayar Sekarang'}
               {!saving && <ChevronRight size={18} />}
             </button>
           </div>
