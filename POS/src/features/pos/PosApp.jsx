@@ -65,7 +65,10 @@ export function PosApp({ posData, onClose, session }) {
 
   const allStock = (posData?.stockItems || []).filter((item) => item.outlet_id === membership?.outlet_id && item.is_active)
   
-  const masterCategories = (posData?.categories || []).map(cat => cat.name).filter(Boolean)
+  const masterCategories = (posData?.categories || [])
+    .filter(cat => cat.is_active !== false)
+    .map(cat => cat.name)
+    .filter(Boolean)
   const categories = ['Semua', ...masterCategories]
 
   const filteredStock = allStock.filter((item) => {
