@@ -3923,10 +3923,10 @@ function CategorySetupFlow({ onClose, outlets, memberships = [], session, onSave
         <div className="modal-scrim">
           <div className="confirm-dialog">
             <header>
-              <h2>Batal Tambah Kategori</h2>
+              <h2>{initialData?.id ? 'Batal Edit Kategori' : 'Batal Tambah Kategori'}</h2>
               <button onClick={() => setConfirmClose(false)}><X size={18} /></button>
             </header>
-            <p>Membatalkan <strong>Tambah Kategori</strong> akan menghapus seluruh data yang telah diinput dan tidak dapat dibatalkan. Lanjutkan?</p>
+            <p>Membatalkan <strong>{initialData?.id ? 'Edit Kategori' : 'Tambah Kategori'}</strong> akan menghapus seluruh data yang telah diinput dan tidak dapat dibatalkan. Lanjutkan?</p>
             <footer>
               <button onClick={() => setConfirmClose(false)}>Batal</button>
               <Button variant="danger" onClick={onClose}>Ya, Lanjutkan</Button>
