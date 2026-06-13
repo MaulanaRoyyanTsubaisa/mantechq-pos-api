@@ -782,6 +782,20 @@ function parseQuantityInput(value) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+function mapCategoryToRows(categories, stockItems) {
+  return categories.map(cat => {
+    const productCount = stockItems.filter(p => p.category_name === cat.name).length
+    return [
+      cat.name,
+      String(cat.sequence || 0),
+      `${productCount} item`,
+      cat.department || '-',
+      cat.is_active ? 'Tampil di Menu' : 'Sembunyi',
+      { id: cat.id, name: cat.name, item: cat }
+    ]
+  })
+}
+
 function mapStockToProductRows(stockItems) {
   return stockItems.map((item) => [
     item.photo_url ? { type: 'photo', url: item.photo_url, name: item.item_name } : { type: 'photo' },

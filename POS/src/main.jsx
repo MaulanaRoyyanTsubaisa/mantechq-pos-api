@@ -57,6 +57,8 @@ import {
   getPosData,
   getStoredSession,
   signInWithEmail,
+  updateCategory,
+  deleteCategory,
 } from './lib/api.js'
 import { deleteProduct, updateProduct } from './shared/api/posApi.js'
 import { PosApp } from './features/pos/PosApp.jsx'
@@ -775,6 +777,20 @@ function parseQuantityInput(value) {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+function mapCategoryToRows(categories, stockItems) {
+  return categories.map(cat => {
+    const productCount = stockItems.filter(p => p.category_name === cat.name).length
+    return [
+      cat.name,
+      String(cat.sequence || 0),
+      `${productCount} item`,
+      cat.department || '-',
+      cat.is_active ? 'Tampil di Menu' : 'Sembunyi',
+      { id: cat.id, name: cat.name, item: cat }
+    ]
+  })
+}
+
 function mapStockToProductRows(stockItems) {
   return stockItems.map((item) => [
     item.item_name,
@@ -919,7 +935,7 @@ function getRowsForPage(page, posData) {
         `${productCount} item`,
         cat.department || '-',
         cat.is_active ? 'Tampil di Menu' : 'Sembunyi',
-        ''
+        { id: cat.id, name: cat.name }
       ]
     })
   }
@@ -3277,7 +3293,11 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Semua')
   const [favorite, setFavorite] = useState(false)
-  const liveRows = config.title === 'Daftar Produk' ? mapStockToProductRows(posData.stockItems || []) : config.rows || []
+  const liveRows = config.title === 'Daftar Produk' 
+    ? mapStockToProductRows(posData.stockItems || []) 
+    : config.title === 'Daftar Kategori' 
+      ? mapCategoryToRows(posData.categories || [], posData.stockItems || [])
+      : config.rows || []
   const rows = liveRows.filter((row) => {
     const matchesQuery = row.join(' ').toLowerCase().includes(query.toLowerCase())
     const statusText = row.join(' ')
@@ -3395,22 +3415,29 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                             <button className="icon-link" onClick={() => {
                               if (config.title === 'Daftar Produk' && onStartFlow) {
                                 onStartFlow('product', cell.item)
+                              } else if (config.title === 'Daftar Kategori' && onStartFlow) {
+                                onStartFlow('category', cell.item)
                               } else {
                                 setEditingProduct(cell.item)
                                 setShowAddModal(true)
                               }
                             }} aria-label="Edit Produk"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
                             <button className="icon-link" onClick={async () => {
-                              if (confirm('Yakin ingin menghapus produk ini?')) {
+                              if (confirm('Yakin ingin menghapus item ini?')) {
                                 try {
-                                  await deleteProduct(cell.id, cell.orgId)
-                                  toast.success('Produk berhasil dihapus')
+                                  if (config.title === 'Daftar Kategori') {
+                                    await deleteCategory(cell.id, posData?.session?.user?.id)
+                                    toast.success('Kategori berhasil dihapus')
+                                  } else {
+                                    await deleteProduct(cell.id, cell.orgId)
+                                    toast.success('Produk berhasil dihapus')
+                                  }
                                   posData?.refresh?.()
                                 } catch (e) {
-                                  toast.error('Gagal menghapus produk')
+                                  toast.error('Gagal menghapus item')
                                 }
                               }
-                            }} aria-label="Hapus Produk"><Trash2 size={16} color="#ef4444" /></button>
+                            }} aria-label="Hapus Item"><Trash2 size={16} color="#ef4444" /></button>
                           </div>
                         ) : cell}
                       </td>
