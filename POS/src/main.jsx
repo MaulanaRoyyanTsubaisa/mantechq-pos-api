@@ -3885,7 +3885,7 @@ function CategorySetupFlow({ onClose, outlets, memberships = [], session, onSave
 
   return (
     <div className="setup-flow category-flow">
-      <FlowHeader title="Tambah Kategori" onClose={() => setConfirmClose(true)} />
+      <FlowHeader title={initialData?.id ? 'Edit Kategori' : 'Tambah Kategori'} onClose={() => setConfirmClose(true)} />
       <main className="category-flow-body">
         <section className="flow-card category-form-card">
           <FormRow label="Atur Outlet*" error={errors.outlet}>
