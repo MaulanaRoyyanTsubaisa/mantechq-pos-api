@@ -1561,6 +1561,9 @@ function ModulePage({ activePage, onStartFlow, posData }) {
   if (activePage === 'Laporan Jenis Bayar') {
     return <SalesPaymentMethodReportPage posData={posData} />
   }
+  if (activePage === 'Laporan Jenis Order') {
+    return <SalesOrderTypeReportPage posData={posData} />
+  }
   if (reportPageConfigs[activePage]) {
     return <MajooGenericReportPage config={reportPageConfigs[activePage]} posData={posData} />
   }
@@ -3610,6 +3613,236 @@ function SalesPaymentMethodReportPage({ posData }) {
                     <td>{stat.salesPercent.toFixed(2)}%</td>
                     <td>{formatRupiah(stat.salesDepositRp)}</td>
                     <td>{formatRupiah(stat.dpReceivedRp)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+          {filteredStats.length === 0 && <EmptyModuleState type="report" />}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function getOrderType(sale) {
+  const note = sale.note || ''
+  if (note.includes('Dine-in') || note.includes('Dine In')) return 'Dine In'
+  if (note.includes('Take Away') || note.includes('Bungkus')) return 'Take Away'
+  if (note.includes('Delivery') || note.includes('Kirim')) return 'Delivery'
+  if (note.includes('Online')) return 'Online Order'
+  return 'Reguler'
+}
+
+function SalesOrderTypeReportPage({ posData }) {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [chartOpen, setChartOpen] = useState(true)
+  const [periodType, setPeriodType] = useState('Hari')
+  const [periodOpen, setPeriodOpen] = useState(false)
+  const [chartMetric, setChartMetric] = useState('Penjualan')
+  const [metricOpen, setMetricOpen] = useState(false)
+
+  // Aggregation Logic
+  const sales = posData?.sales || []
+  
+  // Group by order type
+  const { orderStats, totalMetrics, chartData } = useMemo(() => {
+    const stats = {}
+    let totalTransactions = 0
+    let totalSales = 0
+    
+    // For chart
+    const byDate = {}
+
+    sales.forEach(sale => {
+      const type = getOrderType(sale)
+      const grandTotal = Number(sale.grand_total || 0)
+      
+      if (!stats[type]) {
+        stats[type] = {
+          type,
+          trxCount: 0,
+          salesRp: 0,
+        }
+      }
+      
+      stats[type].trxCount += 1
+      stats[type].salesRp += grandTotal
+      totalTransactions += 1
+      totalSales += grandTotal
+      
+      const dateObj = new Date(sale.m_stran?.tran_date || sale.created_at)
+      if (Number.isNaN(dateObj.getTime())) return
+      const dateStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+      if (!byDate[dateStr]) {
+        byDate[dateStr] = { name: dateStr, 'Dine In': 0, 'Take Away': 0, 'Delivery': 0, 'Online Order': 0, 'Reguler': 0 }
+      }
+      if (byDate[dateStr][type] === undefined) byDate[dateStr][type] = 0
+      byDate[dateStr][type] += (chartMetric === 'Transaksi' ? 1 : grandTotal)
+    })
+    
+    const statsArray = Object.values(stats).map(item => ({
+      ...item,
+      trxPercent: totalTransactions > 0 ? (item.trxCount / totalTransactions) * 100 : 0,
+      salesPercent: totalSales > 0 ? (item.salesRp / totalSales) * 100 : 0,
+    }))
+    
+    statsArray.sort((a, b) => b.salesRp - a.salesRp)
+    
+    return {
+      orderStats: statsArray,
+      totalMetrics: {
+        trxCount: totalTransactions,
+        salesRp: totalSales,
+      },
+      chartData: Object.values(byDate)
+    }
+  }, [sales, chartMetric])
+
+  const filteredStats = useMemo(() => {
+    return orderStats.filter(stat => stat.type.toLowerCase().includes(query.toLowerCase()))
+  }, [orderStats, query])
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setCalendarOpen(false)
+    toast.success(`Laporan Jenis Order diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Laporan Jenis Order ${format} disiapkan`)
+  }
+
+  const COLORS = {
+    'Dine In': '#08a88c',
+    'Take Away': '#3b82f6',
+    'Delivery': '#8b5cf6',
+    'Online Order': '#f59e0b',
+    'Reguler': '#64748b'
+  }
+
+  return (
+    <main className="content report-summary-page sales-outlet-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card sales-outlet-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Laporan Jenis Order</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="detail-filter-line outlet-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari Jenis Order ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+        </div>
+
+        <section className="outlet-kpi-strip" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="outlet-main-kpi">
+            <h2>{totalMetrics.trxCount}</h2>
+            <p>Total Transaksi</p>
+          </div>
+          <div>
+            <strong style={{ color: '#3b82f6', fontSize: 24 }}>{formatRupiah(totalMetrics.salesRp)}</strong>
+            <span>Total Penjualan</span>
+          </div>
+        </section>
+
+        <section className="period-chart-section outlet-chart-section">
+          <button className="period-chart-toggle" onClick={() => setChartOpen((value) => !value)}>
+            <span>Grafik Jenis Order</span>
+            <strong>{chartOpen ? 'Sembunyikan' : 'Tampilkan'}</strong>
+            <ChevronDown size={18} />
+          </button>
+          {chartOpen ? (
+            <div className="outlet-chart-body">
+              <div className="outlet-chart-controls">
+                <ReportSelectDropdown
+                  value={periodType}
+                  options={['Jam', 'Hari', 'Minggu', 'Bulan', 'Tahun']}
+                  open={periodOpen}
+                  setOpen={setPeriodOpen}
+                  onSelect={(value) => {
+                    setPeriodType(value)
+                    toast.info(`Grafik: ${value}`)
+                  }}
+                />
+                <ReportSelectDropdown
+                  value={chartMetric}
+                  options={['Penjualan', 'Transaksi']}
+                  open={metricOpen}
+                  setOpen={setMetricOpen}
+                  onSelect={(value) => {
+                    setChartMetric(value)
+                    toast.info(`Metrik grafik: ${value}`)
+                  }}
+                />
+              </div>
+              <div className="period-chart-box outlet-chart-box" aria-label="Grafik Jenis Order" style={{ height: 320, padding: '24px 0 0 0', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }} barSize={30}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 11, fill: '#666' }} 
+                      dy={10} 
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tickFormatter={(value) => chartMetric === 'Penjualan' ? (value > 0 ? `Rp ${(value / 1000).toLocaleString('id-ID')}rb` : '0') : value} 
+                      tick={{ fontSize: 11, fill: '#666' }}
+                      width={80}
+                    />
+                    <Tooltip 
+                      formatter={(value, name) => [chartMetric === 'Penjualan' ? formatRupiah(value) : value, name]} 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    />
+                    {Object.keys(COLORS).map(key => (
+                      <Bar key={key} dataKey={key} stackId="a" fill={COLORS[key]} radius={[0, 0, 0, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        <div className="detail-table-wrap">
+          <table className="detail-report-table outlet-report-table">
+            <thead>
+              <tr>
+                {reportPageConfigs['Laporan Jenis Order'].columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            {filteredStats.length > 0 && (
+              <tbody>
+                {filteredStats.map((stat, idx) => (
+                  <tr key={idx}>
+                    <td>{stat.type}</td>
+                    <td>{stat.trxCount}</td>
+                    <td>{stat.trxPercent.toFixed(2)}%</td>
+                    <td>{formatRupiah(stat.salesRp)}</td>
+                    <td>{stat.salesPercent.toFixed(2)}%</td>
                   </tr>
                 ))}
               </tbody>

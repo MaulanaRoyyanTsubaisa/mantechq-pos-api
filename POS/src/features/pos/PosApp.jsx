@@ -40,6 +40,9 @@ export function PosApp({ posData, onClose, session }) {
   
   // Variant Selection State
   const [selectedProductForVariant, setSelectedProductForVariant] = useState(null)
+  
+  // Order Type State
+  const [orderType, setOrderType] = useState('Dine In')
 
   const membership = posData?.memberships?.find((item) => membershipOutletLabel(item) === selectedOutlet) || posData?.memberships?.[0]
 
@@ -216,6 +219,7 @@ export function PosApp({ posData, onClose, session }) {
     setIsSplit(false)
     setIsDp(false)
     setSplitAmount1('')
+    setOrderType('Dine In')
     setIsCartOpen(false)
   }
 
@@ -258,7 +262,7 @@ export function PosApp({ posData, onClose, session }) {
         tax_total: taxValue,
         paid_total: amountPaid,
         payment_status: isDp ? 'partial' : 'paid',
-        note: isSplit ? `Split: ${splitMethod1} (${formatRupiah(splitValue1)}) + ${splitMethod2} (${formatRupiah(splitValue2)})` : isDp ? `DP / Uang Muka: ${paymentMethod}` : `Pembayaran: ${paymentMethod}`,
+        note: (isSplit ? `Split: ${splitMethod1} (${formatRupiah(splitValue1)}) + ${splitMethod2} (${formatRupiah(splitValue2)})` : isDp ? `DP / Uang Muka: ${paymentMethod}` : `Pembayaran: ${paymentMethod}`) + ` | ${orderType}`,
         userId: session?.user?.id,
       }
       
@@ -712,7 +716,18 @@ Terima kasih telah berbelanja!`
               <span>{formatRupiah(grandTotal)}</span>
             </div>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Jenis Order</span>
+              <select className="pos-cash-input" style={{ width: '50%', padding: '6px 8px', fontSize: 13 }} value={orderType} onChange={e => setOrderType(e.target.value)}>
+                <option>Dine In</option>
+                <option>Take Away</option>
+                <option>Delivery</option>
+                <option>Online Order</option>
+                <option>Reguler</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Metode Bayar</span>
               <div style={{ display: 'flex', gap: 12 }}>
                 <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', color: '#08a88c', fontWeight: 600 }}>
