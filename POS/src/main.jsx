@@ -4140,6 +4140,8 @@ function KitchenOrderProcessReportPage({ posData }) {
   
   const orderProcessData = useMemo(() => {
     const data = []
+    const allDetails = posData?.salesDetails || []
+
     sales.forEach(sale => {
       const orderedAt = new Date(sale.m_stran?.tran_date || sale.created_at)
       
@@ -4147,8 +4149,10 @@ function KitchenOrderProcessReportPage({ posData }) {
       const processToFinishOrder = sale.kds_completed_at ? (new Date(sale.kds_completed_at) - new Date(sale.kds_processed_at)) / 60000 : 0
       const totalOrderTime = orderToProcessOrder + processToFinishOrder
 
-      if (sale.sale_details?.length > 0) {
-        sale.sale_details.forEach(detail => {
+      const saleDetails = allDetails.filter(d => d.stran_id === sale.stran_id || d.m_stran_id === sale.id)
+
+      if (saleDetails.length > 0) {
+        saleDetails.forEach(detail => {
           const productToProcess = detail.kds_processed_at ? (new Date(detail.kds_processed_at) - orderedAt) / 60000 : 0
           const processToFinishProduct = detail.kds_completed_at ? (new Date(detail.kds_completed_at) - new Date(detail.kds_processed_at)) / 60000 : 0
           const totalProductTime = productToProcess + processToFinishProduct
@@ -4156,7 +4160,7 @@ function KitchenOrderProcessReportPage({ posData }) {
           data.push({
             noOrder: sale.m_stran?.receipt_no || sale.id,
             period: orderedAt.toLocaleString('id-ID'),
-            product: detail.m_product?.name || 'Produk',
+            product: detail.item_name || detail.m_product?.name || 'Produk',
             qty: detail.qty || 1,
             productToProcess,
             processToFinishProduct,
@@ -4169,7 +4173,7 @@ function KitchenOrderProcessReportPage({ posData }) {
       }
     })
     return data
-  }, [sales])
+  }, [sales, posData])
 
   const filteredData = useMemo(() => {
     return orderProcessData.filter(item => 
@@ -4261,13 +4265,15 @@ function KitchenProductProcessReportPage({ posData }) {
   
   const productProcessData = useMemo(() => {
     const stats = {}
+    const allDetails = posData?.salesDetails || []
     
     sales.forEach(sale => {
       const orderedAt = new Date(sale.m_stran?.tran_date || sale.created_at)
+      const saleDetails = allDetails.filter(d => d.stran_id === sale.stran_id || d.m_stran_id === sale.id)
 
-      if (sale.sale_details?.length > 0) {
-        sale.sale_details.forEach(detail => {
-          const product = detail.m_product?.name || 'Produk'
+      if (saleDetails.length > 0) {
+        saleDetails.forEach(detail => {
+          const product = detail.item_name || detail.m_product?.name || 'Produk'
           const qty = detail.qty || 1
           
           const productToProcess = detail.kds_processed_at ? (new Date(detail.kds_processed_at) - orderedAt) / 60000 : 0
@@ -4309,7 +4315,7 @@ function KitchenProductProcessReportPage({ posData }) {
       avgProcessToFinish: item.count > 0 ? item.sumProcessToFinish / item.count : 0,
       avgTotalTime: item.count > 0 ? item.sumTotalTime / item.count : 0,
     })).sort((a, b) => b.totalQty - a.totalQty)
-  }, [sales])
+  }, [sales, posData])
 
   const filteredData = useMemo(() => {
     return productProcessData.filter(item => 
