@@ -78,7 +78,12 @@ export function ProductFormModal({ posData, onClose, onSuccess, initialData }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
             <div style={{ display: 'grid', gap: 6 }}>
               <label style={{ fontSize: 13, fontWeight: 700, color: '#343941' }}>Kategori</label>
-              <input name="category_name" value={formData.category_name} onChange={handleChange} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 6, outline: 'none' }} placeholder="Contoh: Minuman" />
+              <select name="category_name" value={formData.category_name} onChange={handleChange} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 6, outline: 'none', backgroundColor: '#fff' }}>
+                <option value="">-- Pilih Kategori --</option>
+                {(posData?.categories || []).map(cat => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+              </select>
             </div>
             <div style={{ display: 'grid', gap: 6 }}>
               <label style={{ fontSize: 13, fontWeight: 700, color: '#343941' }}>Harga Jual (Rp) <span style={{ color: 'red' }}>*</span></label>
