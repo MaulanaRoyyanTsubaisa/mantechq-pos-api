@@ -4398,7 +4398,7 @@ function ProductSalesReportPage({ posData }) {
   const allDetails = posData?.salesDetails || []
   const stockItems = posData?.stockItems || []
   
-  const { productSales, totalMetrics, chartData } = useMemo(() => {
+  const { productSales, totalMetrics } = useMemo(() => {
     const stats = {}
     let totalSales = 0
     let totalQty = 0
@@ -4473,10 +4473,11 @@ function ProductSalesReportPage({ posData }) {
         totalSales,
         totalQty,
         totalGrossProfit
-      },
-      chartData: Object.values(byDate)
+      }
     }
-  }, [sales, allDetails])
+  }, [sales, allDetails, stockItems])
+
+  const chartData = productSales.slice(0, 15).map(c => ({ name: c.product, sales: c.salesRp, qty: c.qty }))
 
   const filteredData = useMemo(() => {
     return productSales.filter(item => 
@@ -4648,7 +4649,7 @@ function CategorySalesReportPage({ posData }) {
   const allDetails = posData?.salesDetails || []
   const stockItems = posData?.stockItems || []
   
-  const { categorySales, totalMetrics, chartData } = useMemo(() => {
+  const { categorySales, totalMetrics } = useMemo(() => {
     const stats = {}
     let totalSales = 0
     let totalQty = 0
@@ -4714,10 +4715,11 @@ function CategorySalesReportPage({ posData }) {
         totalSales,
         totalQty,
         totalCategories
-      },
-      chartData: Object.values(byDate)
+      }
     }
-  }, [sales, allDetails])
+  }, [sales, allDetails, stockItems])
+
+  const chartData = categorySales.map(c => ({ name: c.category, sales: c.salesRp, qty: c.qty }))
 
   const filteredData = useMemo(() => {
     return categorySales.filter(item => 
