@@ -5091,11 +5091,11 @@ function App() {
   const [activePage, setActivePage] = useState('Menu Favorit')
   const [openGroup, setOpenGroup] = useState('Menu Favorit')
   const [isOpen, setIsOpen] = useState(false)
-  const [activeFlow, setActiveFlow] = useState(null)
-  const [flowData, setFlowData] = useState(null)
+  const [flowState, setFlowState] = useState({ activeFlow: null, flowData: null })
+  const activeFlow = flowState.activeFlow
+  const flowData = flowState.flowData
   const handleStartFlow = (type, data = null) => {
-    setActiveFlow(type)
-    setFlowData(data)
+    setFlowState({ activeFlow: type, flowData: data })
   }
   const [outlets, setOutlets] = useState(defaultOutlets)
   const [activeOutlet, setActiveOutlet] = useState(defaultOutlets[0])
@@ -5131,7 +5131,7 @@ function App() {
   if (activeFlow) {
     return (
       <>
-        <SetupFlow type={activeFlow} initialData={flowData} outlets={outlets} onOutletCreated={addOutlet} onClose={() => setActiveFlow(null)} posData={posData} session={session} />
+        <SetupFlow type={activeFlow} initialData={flowData} outlets={outlets} onOutletCreated={addOutlet} onClose={() => setFlowState({ activeFlow: null, flowData: null })} posData={posData} session={session} />
         <Toaster richColors position="top-right" />
       </>
     )
