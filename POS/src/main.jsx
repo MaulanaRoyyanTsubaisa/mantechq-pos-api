@@ -165,8 +165,6 @@ const sidebarGroups = [
     children: [
       'Daftar Kategori',
       'Daftar Produk',
-      'Penjadwalan Harga',
-      'Harga Berdasarkan Waktu',
       'Cetak Barcode',
       'Daftar Kategori Catatan',
       'Master Resep',
