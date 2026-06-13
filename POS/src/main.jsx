@@ -5223,6 +5223,30 @@ function MajooGenericReportPage({ config, posData }) {
     ]
   }
 
+  const chartData = useMemo(() => {
+    const byDate = {}
+    sales.forEach(sale => {
+      const dateObj = new Date(sale.m_stran?.tran_date || sale.created_at)
+      const dateStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
+      if (!byDate[dateStr]) {
+        byDate[dateStr] = { name: dateStr, sales: 0, count: 0, items: 0, profit: 0 }
+      }
+      byDate[dateStr].sales += Number(sale.grand_total || 0)
+      byDate[dateStr].count += 1
+      byDate[dateStr].items += sale.items?.length || 1
+      byDate[dateStr].profit += Number(sale.grand_total || 0) * 0.3 // Mock profit assumption
+    })
+    return Object.values(byDate)
+  }, [sales])
+
+  const getChartDataKey = () => {
+    if (metricType === 'Penjualan') return 'sales'
+    if (metricType === 'Laba Kotor') return 'profit'
+    if (metricType === 'Transaksi') return 'count'
+    if (metricType === 'Produk') return 'items'
+    return 'sales'
+  }
+
   useEffect(() => {
     setRange(defaultRange)
     setVisibleColumns(config.columns)
@@ -5293,10 +5317,11 @@ function MajooGenericReportPage({ config, posData }) {
           </div>
         </section>
         <section className="panel report-summary-card sales-period-card generic-report-card">
-          <GenericReportHeader config={{ ...config, title: 'Riwayat Saldo' }} range={range} exportOpen={exportOpen} setExportOpen={setExportOpen} exportReport={exportReport} hideExport />
+          <GenericReportHeader config={config} range={range} exportOpen={exportOpen} setExportOpen={setExportOpen} exportReport={exportReport} onTable={() => setTableOpen(true)} hideExport />
           <GenericReportFilters config={config} query={query} setQuery={setQuery} range={range} calendarOpen={calendarOpen} setCalendarOpen={setCalendarOpen} processRange={processRange} renderFilter={renderFilter} />
-          <GenericMetrics metrics={config.metrics} />
-          <GenericReportTable columns={visibleColumns} />
+          <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a92a6' }}>
+            Belum ada transaksi online
+          </div>
         </section>
       </main>
     )
@@ -5338,17 +5363,32 @@ function MajooGenericReportPage({ config, posData }) {
                   <ReportSelectDropdown value={periodType} options={['Jam', 'Hari', 'Minggu', 'Bulan', 'Tahun']} open={periodOpen} setOpen={setPeriodOpen} onSelect={setPeriodType} />
                   <ReportSelectDropdown value={metricType} options={['Penjualan', 'Laba Kotor', 'Transaksi', 'Produk']} open={metricOpen} setOpen={setMetricOpen} onSelect={setMetricType} />
                 </div>
-                <div className="period-chart-box generic-chart-box" aria-label={config.chartTitle || `Grafik ${config.title}`}>
-                  <div className="chart-grid-lines">
-                    <span>Rp 200</span>
-                    <span>Rp 150</span>
-                    <span>Rp 100</span>
-                    <span>Rp 50</span>
-                    <span>0</span>
-                  </div>
-                  <div className="chart-dates">
-                    {['01 Jun', '03 Jun', '05 Jun', '07 Jun', '09 Jun', '11 Jun', '13 Jun', '15 Jun', '17 Jun', '19 Jun', '21 Jun', '23 Jun', '25 Jun', '27 Jun', '30 Jun'].map((day) => <span key={day}>{day}</span>)}
-                  </div>
+                <div className="period-chart-box generic-chart-box" aria-label={config.chartTitle || `Grafik ${config.title}`} style={{ height: 320, padding: '24px 0 0 0', width: '100%', display: 'flex' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                      <XAxis 
+                        dataKey="name" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 11, fill: '#666' }} 
+                        dy={10} 
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickFormatter={(value) => metricType === 'Penjualan' || metricType === 'Laba Kotor' ? (value > 0 ? `Rp ${(value / 1000).toLocaleString('id-ID')}rb` : '0') : value} 
+                        tick={{ fontSize: 11, fill: '#666' }}
+                        width={80}
+                      />
+                      <Tooltip 
+                        formatter={(value) => [metricType === 'Penjualan' || metricType === 'Laba Kotor' ? formatRupiah(value) : value, metricType]} 
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        cursor={{stroke: 'rgba(0,0,0,0.05)', strokeWidth: 32}}
+                      />
+                      <Line type="monotone" dataKey={getChartDataKey()} stroke="#00d09c" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 6, fill: '#00d09c', stroke: '#fff', strokeWidth: 2 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             ) : null}
