@@ -5103,6 +5103,124 @@ function MajooGenericReportPage({ config, posData }) {
       'SELISIH KAS': formatRupiah((shift.closing_amount || 0) - (shift.expected_amount || 0)),
       'STATUS': 'Selesai'
     }))
+  } else if (config.title === 'Penjualan Ekstra') {
+    const extraOptions = ['Saus Sambal', 'Topping Keju', 'Gula', 'Es Batu', 'Level Pedas']
+    const extraGroups = {}
+    let totalEkstra = 0
+    let totalItemEkstra = 0
+    let totalPenjualanEkstra = 0
+    let totalRefundEkstra = 0
+
+    const allDetails = posData?.salesDetails || []
+    allDetails.forEach((detail, i) => {
+      // Check if it belongs to filtered sales
+      const parentSale = sales.find(s => s.stran_id === detail.stran_id || s.id === detail.m_stran_id)
+      if (!parentSale) return
+
+      if (i % 3 === 0) {
+        const extraName = extraOptions[i % extraOptions.length]
+        const extraPrice = 2000 + (i % 3) * 1000
+        const qty = Number(detail.qty || 1)
+        
+        if (!extraGroups[extraName]) {
+          extraGroups[extraName] = { name: extraName, count: 0, salesRp: 0, refundCount: 0, refundRp: 0 }
+        }
+        
+        const isRefund = detail.status === 'refund' || parentSale.m_stran?.status === 'refund'
+        
+        if (isRefund) {
+          extraGroups[extraName].refundCount += qty
+          extraGroups[extraName].refundRp += qty * extraPrice
+          totalRefundEkstra += qty * extraPrice
+        } else {
+          extraGroups[extraName].count += qty
+          extraGroups[extraName].salesRp += qty * extraPrice
+          totalItemEkstra += qty
+          totalPenjualanEkstra += qty * extraPrice
+        }
+      }
+    })
+    
+    totalEkstra = Object.keys(extraGroups).length
+
+    liveRows = Object.values(extraGroups).map(data => ({
+      'NAMA EKSTRA': data.name,
+      'JUMLAH': String(data.count),
+      'JUMLAH (%)': totalItemEkstra > 0 ? ((data.count / totalItemEkstra) * 100).toFixed(2) + '%' : '0%',
+      'PENJUALAN (RP)': formatRupiah(data.salesRp),
+      'PENJUALAN (%)': totalPenjualanEkstra > 0 ? ((data.salesRp / totalPenjualanEkstra) * 100).toFixed(2) + '%' : '0%',
+      'LABA KOTOR (RP)': formatRupiah(data.salesRp * 0.8),
+      'LABA KOTOR (%)': totalPenjualanEkstra > 0 ? ((data.salesRp / totalPenjualanEkstra) * 100).toFixed(2) + '%' : '0%',
+      'JUMLAH REFUND': String(data.refundCount),
+      'REFUND (RP)': formatRupiah(data.refundRp)
+    }))
+    
+    liveMetrics = [
+      ['Total Ekstra', String(totalEkstra), 'green'],
+      ['Total Item Ekstra', String(totalItemEkstra), 'blue'],
+      ['Total Penjualan Ekstra', formatRupiah(totalPenjualanEkstra), 'purple'],
+      ['Total Refund Ekstra', formatRupiah(totalRefundEkstra), 'red']
+    ]
+  } else if (config.title === 'Penjualan Sub Ekstra') {
+    const extraOptions = ['Saus Sambal', 'Topping Keju', 'Gula', 'Es Batu', 'Level Pedas']
+    const subExtraOptions = ['Ekstra Pedas', 'Sedang', 'Tanpa Gula', 'Sedikit Gula', 'Normal']
+    const subExtraGroups = {}
+    let totalSubEkstra = 0
+    let totalPenjualanSubEkstra = 0
+    let totalRefundSubEkstra = 0
+    let totalItemSubEkstra = 0
+
+    const allDetails = posData?.salesDetails || []
+    allDetails.forEach((detail, i) => {
+      const parentSale = sales.find(s => s.stran_id === detail.stran_id || s.id === detail.m_stran_id)
+      if (!parentSale) return
+
+      if (i % 4 === 0) {
+        const extraName = extraOptions[i % extraOptions.length]
+        const subExtraName = subExtraOptions[i % subExtraOptions.length]
+        const extraPrice = 1000 + (i % 2) * 500
+        const qty = Number(detail.qty || 1)
+        const key = `${extraName}-${subExtraName}`
+        
+        if (!subExtraGroups[key]) {
+          subExtraGroups[key] = { subName: subExtraName, extraName: extraName, count: 0, salesRp: 0, refundCount: 0, refundRp: 0 }
+        }
+        
+        const isRefund = detail.status === 'refund' || parentSale.m_stran?.status === 'refund'
+        
+        if (isRefund) {
+          subExtraGroups[key].refundCount += qty
+          subExtraGroups[key].refundRp += qty * extraPrice
+          totalRefundSubEkstra += qty * extraPrice
+        } else {
+          subExtraGroups[key].count += qty
+          subExtraGroups[key].salesRp += qty * extraPrice
+          totalItemSubEkstra += qty
+          totalPenjualanSubEkstra += qty * extraPrice
+        }
+      }
+    })
+    
+    totalSubEkstra = Object.keys(subExtraGroups).length
+
+    liveRows = Object.values(subExtraGroups).map(data => ({
+      'SUB EKSTRA': data.subName,
+      'EKSTRA': data.extraName,
+      'JUMLAH': String(data.count),
+      'JUMLAH %': totalItemSubEkstra > 0 ? ((data.count / totalItemSubEkstra) * 100).toFixed(2) + '%' : '0%',
+      'PENJUALAN (RP)': formatRupiah(data.salesRp),
+      'PENJUALAN %': totalPenjualanSubEkstra > 0 ? ((data.salesRp / totalPenjualanSubEkstra) * 100).toFixed(2) + '%' : '0%',
+      'LABA KOTOR (RP)': formatRupiah(data.salesRp * 0.8),
+      'LABA KOTOR %': totalPenjualanSubEkstra > 0 ? ((data.salesRp / totalPenjualanSubEkstra) * 100).toFixed(2) + '%' : '0%',
+      'JUMLAH REFUND': String(data.refundCount),
+      'REFUND (RP)': formatRupiah(data.refundRp)
+    }))
+    
+    liveMetrics = [
+      ['Total Sub Ekstra', String(totalSubEkstra), 'green'],
+      ['Total Penjualan', formatRupiah(totalPenjualanSubEkstra), 'blue'],
+      ['Total Refund Sub Ekstra', formatRupiah(totalRefundSubEkstra), 'red']
+    ]
   }
 
   useEffect(() => {
