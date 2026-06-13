@@ -53,6 +53,7 @@ import { Toggle } from '../../shared/ui/Toggle.jsx'
 import { FeaturePanel } from '../../shared/ui/FeaturePanel.jsx'
 import { cn } from '../../shared/lib/cn.js'
 import { createProduct, updateProduct, uploadProductPhoto } from '../../shared/api/posApi.js'
+import { createCategory, updateCategory } from '../../lib/api.js'
 import { formatRupiah, formatQty, membershipOutletLabel, parseCurrencyInput, parseQuantityInput } from '../../shared/lib/formatters.js'
 import {
   accessRoleOptions,
@@ -125,18 +126,22 @@ const productGuideSteps = [
 
 function SetupFlow({ type, onClose, outlets, onOutletCreated, posData, session, initialData }) {
   if (type === 'product') return <ProductSetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} initialData={initialData} />
-  if (type === 'category') return <CategorySetupFlow onClose={onClose} outlets={outlets} />
+  if (type === 'category') return <CategorySetupFlow onClose={onClose} outlets={outlets} memberships={posData.memberships} session={session} onSaved={posData.refresh} initialData={initialData} />
   if (type === 'outlet') return <OutletDetailFlow onClose={onClose} onOutletSaved={onOutletCreated} outlets={outlets} />
   return <SimpleSetupFlow type={type} onClose={onClose} outlets={outlets} onOutletCreated={onOutletCreated} />
 }
 
-function CategorySetupFlow({ onClose, outlets }) {
+function CategorySetupFlow({ onClose, outlets, memberships = [], session, onSaved, initialData }) {
+  const outletOptions = memberships.length ? memberships.map(membershipOutletLabel) : outlets
+  const defaultMembership = memberships.find((item) => item.outlet_id) || memberships[0]
+
+  const [saving, setSaving] = useState(false)
   const [values, setValues] = useState({
-    outlet: outlets[0] || '',
-    name: '',
-    order: '',
-    department: '',
-    visible: true,
+    outlet: defaultMembership ? membershipOutletLabel(defaultMembership) : outlets[0] || '',
+    name: initialData?.name || '',
+    order: initialData?.sequence ? String(initialData.sequence) : '',
+    department: initialData?.department || '',
+    visible: initialData?.is_active ?? true,
   })
   const [errors, setErrors] = useState({})
   const [confirmClose, setConfirmClose] = useState(false)
@@ -149,23 +154,53 @@ function CategorySetupFlow({ onClose, outlets }) {
       return next
     })
   }
-  const validate = () => {
+  const validate = async () => {
     const nextErrors = {}
     if (!values.outlet) nextErrors.outlet = 'Outlet wajib dipilih.'
     if (!values.name.trim()) nextErrors.name = 'Nama kategori wajib diisi.'
-    if (!values.order.trim()) nextErrors.order = 'Urutan wajib diisi.'
+    if (!values.order.trim() || isNaN(Number(values.order))) nextErrors.order = 'Urutan wajib diisi dengan angka.'
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) {
       toast.error(Object.values(nextErrors)[0])
       return false
     }
-    toast.success('Kategori berhasil divalidasi dan siap disimpan')
+
+    setSaving(true)
+    try {
+      const selectedMembership = memberships.find((m) => membershipOutletLabel(m) === values.outlet)
+      const orgId = selectedMembership?.org_id || session?.user?.id
+      const outletId = selectedMembership?.outlet_id || 'dee31aef-a313-4fb7-aaa3-55c2fc2c4c3e'
+
+      const payload = {
+        orgId,
+        outletId,
+        name: values.name.trim(),
+        sequence: Number(values.order),
+        department: values.department || null,
+        is_active: values.visible
+      }
+
+      if (initialData?.id) {
+        await updateCategory(initialData.id, payload)
+        toast.success('Kategori berhasil diperbarui!')
+      } else {
+        await createCategory(payload)
+        toast.success('Kategori berhasil disimpan!')
+      }
+
+      if (onSaved) await onSaved()
+      onClose()
+    } catch (error) {
+      toast.error(error.message || 'Gagal menyimpan kategori')
+    } finally {
+      setSaving(false)
+    }
     return true
   }
 
   return (
     <div className="setup-flow category-flow">
-      <FlowHeader title="Tambah Kategori" onClose={() => setConfirmClose(true)} />
+      <FlowHeader title={initialData?.id || initialData?.name ? 'Edit Kategori' : 'Tambah Kategori'} onClose={() => setConfirmClose(true)} />
       <main className="category-flow-body">
         <section className="flow-card category-form-card">
           <FormRow label="Atur Outlet*" error={errors.outlet}>
@@ -198,15 +233,15 @@ function CategorySetupFlow({ onClose, outlets }) {
           </FormRow>
         </section>
       </main>
-      <FlowFooter simple onCancel={() => setConfirmClose(true)} onSave={validate} />
+      <FlowFooter simple onCancel={() => setConfirmClose(true)} onSave={validate} saving={saving} />
       {confirmClose ? (
         <div className="modal-scrim">
           <div className="confirm-dialog">
             <header>
-              <h2>Batal Tambah Kategori</h2>
+              <h2>{initialData?.id || initialData?.name ? 'Batal Edit Kategori' : 'Batal Tambah Kategori'}</h2>
               <button onClick={() => setConfirmClose(false)}><X size={18} /></button>
             </header>
-            <p>Membatalkan <strong>Tambah Kategori</strong> akan menghapus seluruh data yang telah diinput dan tidak dapat dibatalkan. Lanjutkan?</p>
+            <p>Membatalkan <strong>{initialData?.id || initialData?.name ? 'Edit Kategori' : 'Tambah Kategori'}</strong> akan menghapus seluruh data yang telah diinput dan tidak dapat dibatalkan. Lanjutkan?</p>
             <footer>
               <button onClick={() => setConfirmClose(false)}>Batal</button>
               <Button variant="danger" onClick={onClose}>Ya, Lanjutkan</Button>
