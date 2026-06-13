@@ -132,30 +132,14 @@ const sidebarGroups = [
         label: 'Laporan Produk',
         children: ['Penjualan Produk', 'Penjualan Departemen', 'Penjualan Kategori', 'Penjualan Ekstra', 'Penjualan Sub Ekstra'],
       },
-      {
-        label: 'Laporan Jasa',
-        children: ['Laporan Jasa', 'Laporan Reservasi', 'Laporan Reservasi & Utilisasi'],
-      },
-      'Laporan Fasilitas',
       'Laporan Promo & Loyalti',
-      'Laporan Pajak',
       {
         label: 'Laporan Kasir',
         children: ['Laporan Kas Kasir', 'Penjualan Per Kasir', 'Penjualan Per Terminal', 'Laporan Tutup Kasir', 'Laporan Tutup Toko'],
       },
       {
-        label: 'Laporan Deposit',
-        children: ['Penjualan Deposit', 'Deposit Kedaluwarsa', 'Sisa Deposit'],
-      },
-      'Laporan Pelanggan',
-      'Laporan Karyawan',
-      {
         label: 'Laporan Persediaan',
         children: ['Lap. Ringkasan Persediaan', 'Lap. Detail Persediaan', 'Laporan Stok Kedaluwarsa', 'Laporan Serial Number', 'Laporan Batch Number'],
-      },
-      {
-        label: 'Laporan Settlement',
-        children: ['QRIS', 'Order Online'],
       },
     ],
   },
