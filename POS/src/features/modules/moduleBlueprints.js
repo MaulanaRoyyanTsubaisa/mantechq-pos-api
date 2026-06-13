@@ -791,7 +791,7 @@ function mapCategoryToRows(categories, stockItems) {
       `${productCount} item`,
       cat.department || '-',
       cat.is_active ? 'Tampil di Menu' : 'Sembunyi',
-      { id: cat.id, name: cat.name, item: cat }
+      { id: cat.id, orgId: cat.org_id, name: cat.name, item: cat }
     ]
   })
 }

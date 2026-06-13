@@ -786,7 +786,7 @@ function mapCategoryToRows(categories, stockItems) {
       `${productCount} item`,
       cat.department || '-',
       cat.is_active ? 'Tampil di Menu' : 'Sembunyi',
-      { id: cat.id, name: cat.name, item: cat }
+      { id: cat.id, orgId: cat.org_id, name: cat.name, item: cat }
     ]
   })
 }
@@ -3426,7 +3426,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                               if (confirm('Yakin ingin menghapus item ini?')) {
                                 try {
                                   if (config.title === 'Daftar Kategori') {
-                                    await deleteCategory(cell.id, posData?.session?.user?.id)
+                                    await deleteCategory(cell.id, cell.orgId)
                                     toast.success('Kategori berhasil dihapus')
                                   } else {
                                     await deleteProduct(cell.id, cell.orgId)
