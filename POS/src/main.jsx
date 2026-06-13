@@ -49,7 +49,7 @@ import {
   Printer,
   ScanBarcode,
 } from 'lucide-react'
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell } from 'recharts'
 import {
   clearStoredSession,
   createProduct,
@@ -1553,7 +1553,7 @@ function ModulePage({ activePage, onStartFlow, posData }) {
     return <SalesPeriodReportPage posData={posData} />
   }
   if (activePage === 'Penjualan Outlet') {
-    return <SalesOutletReportPage />
+    return <SalesOutletReportPage posData={posData} />
   }
   if (reportPageConfigs[activePage]) {
     return <MajooGenericReportPage config={reportPageConfigs[activePage]} posData={posData} />
@@ -2931,7 +2931,7 @@ const outletReportColumns = [
   'PRODUK/TRANSAKSI',
 ]
 
-function SalesOutletReportPage() {
+function SalesOutletReportPage({ posData }) {
   const [range, setRange] = useState({
     label: '01 Jun 2026 - 30 Jun 2026',
     display: '01 Juni 2026 - 30 Juni 2026',
@@ -2948,6 +2948,55 @@ function SalesOutletReportPage() {
   const [chartMetric, setChartMetric] = useState('Penjualan')
   const [query, setQuery] = useState('')
   const [chartOpen, setChartOpen] = useState(true)
+
+  // Aggregation Logic
+  const sales = posData?.sales || []
+  const salesDetails = posData?.salesDetails || []
+
+  const salesByOutlet = useMemo(() => {
+    const grouped = sales.reduce((acc, sale) => {
+      const outletId = sale.m_stran?.outlet_id || 'Unknown'
+      const outletName = sale.m_stran?.outlet_id ? `Outlet ${shortId(sale.m_stran.outlet_id)}` : 'Software House'
+      
+      if (!acc[outletId]) {
+        acc[outletId] = {
+          name: outletName,
+          totalPenjualan: 0,
+          labaKotor: 0,
+          jumlahTransaksi: 0,
+          jumlahProduk: 0
+        }
+      }
+      
+      const saleTotal = Number(sale.grand_total || 0)
+      acc[outletId].totalPenjualan += saleTotal
+      acc[outletId].jumlahTransaksi += 1
+
+      // Qty & Profit
+      const details = salesDetails.filter(d => d.stran_id === sale.stran_id || d.m_stran_id === sale.id)
+      const saleQty = details.reduce((sum, d) => sum + Number(d.qty || 0), 0)
+      acc[outletId].jumlahProduk += saleQty
+      
+      // Calculate profit if buy_price exists, else rough 30% mock for visualization
+      const saleProfit = details.reduce((sum, d) => sum + (Number(d.qty || 0) * (Number(d.price || 0) - Number(d.buy_price || d.price * 0.7))), 0)
+      acc[outletId].labaKotor += saleProfit
+
+      return acc
+    }, {})
+
+    return Object.values(grouped).filter(outlet => outlet.name.toLowerCase().includes(query.toLowerCase()))
+  }, [sales, salesDetails, query])
+
+  const overallPenjualan = salesByOutlet.reduce((sum, o) => sum + o.totalPenjualan, 0)
+  const overallLaba = salesByOutlet.reduce((sum, o) => sum + o.labaKotor, 0)
+  const overallTransaksi = salesByOutlet.reduce((sum, o) => sum + o.jumlahTransaksi, 0)
+  const overallProduk = salesByOutlet.reduce((sum, o) => sum + o.jumlahProduk, 0)
+
+  // Chart data
+  const chartData = salesByOutlet.map(o => ({
+    name: o.name,
+    value: chartMetric === 'Penjualan' ? o.totalPenjualan : chartMetric === 'Laba' ? o.labaKotor : chartMetric === 'Transaksi' ? o.jumlahTransaksi : o.jumlahProduk
+  }))
 
   const processRange = (nextRange) => {
     setRange(nextRange)
@@ -2995,19 +3044,19 @@ function SalesOutletReportPage() {
 
         <section className="outlet-kpi-strip">
           <div className="outlet-main-kpi">
-            <h2>Rp 0</h2>
+            <h2>{formatRupiah(overallPenjualan)}</h2>
             <p>Total Penjualan</p>
           </div>
           <div>
-            <strong>Rp 0</strong>
+            <strong>{formatRupiah(overallLaba)}</strong>
             <span>Laba Kotor</span>
           </div>
           <div>
-            <strong>0</strong>
+            <strong>{overallTransaksi}</strong>
             <span>Transaksi</span>
           </div>
           <div>
-            <strong>0</strong>
+            <strong>{overallProduk}</strong>
             <span>Produk Terjual</span>
           </div>
         </section>
@@ -3022,16 +3071,6 @@ function SalesOutletReportPage() {
             <div className="outlet-chart-body">
               <div className="outlet-chart-controls">
                 <ReportSelectDropdown
-                  value={periodType}
-                  options={['Jam', 'Hari', 'Minggu', 'Bulan', 'Tahun']}
-                  open={periodOpen}
-                  setOpen={setPeriodOpen}
-                  onSelect={(value) => {
-                    setPeriodType(value)
-                    toast.info(`Grafik: ${value}`)
-                  }}
-                />
-                <ReportSelectDropdown
                   value={chartMetric}
                   options={['Penjualan', 'Laba', 'Transaksi', 'Produk']}
                   open={metricOpen}
@@ -3042,16 +3081,31 @@ function SalesOutletReportPage() {
                   }}
                 />
               </div>
-              <div className="period-chart-box outlet-chart-box" aria-label="Grafik Penjualan Outlet">
-                <div className="chart-grid-lines">
-                  <span>1</span>
-                  <span>0.5</span>
-                  <span>0</span>
-                </div>
-                <div className="chart-legend">
-                  <span><i /> {chartMetric}</span>
-                  <span><i /> Software House</span>
-                </div>
+              <div className="period-chart-box outlet-chart-box" aria-label="Grafik Penjualan Outlet" style={{ height: 320, padding: '24px 0 0 0', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }} barSize={40}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 11, fill: '#666' }} 
+                      dy={10} 
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tickFormatter={(value) => (chartMetric === 'Penjualan' || chartMetric === 'Laba') ? (value > 0 ? `Rp ${(value / 1000).toLocaleString('id-ID')}rb` : '0') : value} 
+                      tick={{ fontSize: 11, fill: '#666' }}
+                      width={80}
+                    />
+                    <Tooltip 
+                      formatter={(value) => [(chartMetric === 'Penjualan' || chartMetric === 'Laba') ? formatRupiah(value) : value, chartMetric]} 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    />
+                    <Bar dataKey="value" fill="var(--brand)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           ) : null}
@@ -3066,8 +3120,36 @@ function SalesOutletReportPage() {
                 ))}
               </tr>
             </thead>
+            {salesByOutlet.length > 0 && (
+              <tbody>
+                {salesByOutlet.map((outlet, idx) => {
+                  const pPenjualan = overallPenjualan ? (outlet.totalPenjualan / overallPenjualan) * 100 : 0
+                  const pLaba = overallLaba ? (outlet.labaKotor / overallLaba) * 100 : 0
+                  const pProduk = overallProduk ? (outlet.jumlahProduk / overallProduk) * 100 : 0
+                  const pTransaksi = overallTransaksi ? (outlet.jumlahTransaksi / overallTransaksi) * 100 : 0
+                  const penjualanPerTransaksi = outlet.jumlahTransaksi ? outlet.totalPenjualan / outlet.jumlahTransaksi : 0
+                  const produkPerTransaksi = outlet.jumlahTransaksi ? outlet.jumlahProduk / outlet.jumlahTransaksi : 0
+
+                  return (
+                    <tr key={idx}>
+                      <td>{outlet.name}</td>
+                      <td>{formatRupiah(outlet.totalPenjualan)}</td>
+                      <td>{formatRupiah(outlet.labaKotor)}</td>
+                      <td>{outlet.jumlahProduk}</td>
+                      <td>{outlet.jumlahTransaksi}</td>
+                      <td>{pPenjualan.toFixed(2)}%</td>
+                      <td>{pLaba.toFixed(2)}%</td>
+                      <td>{pProduk.toFixed(2)}%</td>
+                      <td>{pTransaksi.toFixed(2)}%</td>
+                      <td>{formatRupiah(penjualanPerTransaksi)}</td>
+                      <td>{produkPerTransaksi.toFixed(2)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            )}
           </table>
-          <EmptyModuleState type="report" />
+          {salesByOutlet.length === 0 && <EmptyModuleState type="report" />}
         </div>
       </section>
     </main>
