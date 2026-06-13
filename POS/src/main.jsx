@@ -814,7 +814,8 @@ function parseQuantityInput(value) {
 }
 
 function mapCategoryToRows(categories, stockItems) {
-  return categories.map(cat => {
+  const sortedCategories = [...categories].sort((a, b) => (Number(a.sequence) || 0) - (Number(b.sequence) || 0))
+  return sortedCategories.map(cat => {
     const productCount = stockItems.filter(p => p.category_name === cat.name).length
     return [
       cat.name,
