@@ -1570,6 +1570,12 @@ function ModulePage({ activePage, onStartFlow, posData }) {
   if (activePage === 'Laporan Refund') {
     return <SalesRefundReportPage posData={posData} />
   }
+  if (activePage === 'Laporan Proses Order') {
+    return <KitchenOrderProcessReportPage posData={posData} />
+  }
+  if (activePage === 'Laporan Proses Produk') {
+    return <KitchenProductProcessReportPage posData={posData} />
+  }
   if (reportPageConfigs[activePage]) {
     return <MajooGenericReportPage config={reportPageConfigs[activePage]} posData={posData} />
   }
@@ -4104,6 +4110,272 @@ function SalesRefundReportPage({ posData }) {
             )}
           </table>
           {filteredSales.length === 0 && <EmptyModuleState type="report" />}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function formatDuration(minutes) {
+  if (minutes === 0 || isNaN(minutes)) return '0 mnt'
+  const m = Math.floor(minutes)
+  const s = Math.round((minutes - m) * 60)
+  if (m === 0) return `${s} dtk`
+  if (s === 0) return `${m} mnt`
+  return `${m} mnt ${s} dtk`
+}
+
+function KitchenOrderProcessReportPage({ posData }) {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const sales = posData?.sales || []
+  
+  const orderProcessData = useMemo(() => {
+    const data = []
+    sales.forEach(sale => {
+      const orderedAt = new Date(sale.m_stran?.tran_date || sale.created_at)
+      
+      const orderToProcessOrder = sale.kds_processed_at ? (new Date(sale.kds_processed_at) - orderedAt) / 60000 : 0
+      const processToFinishOrder = sale.kds_completed_at ? (new Date(sale.kds_completed_at) - new Date(sale.kds_processed_at)) / 60000 : 0
+      const totalOrderTime = orderToProcessOrder + processToFinishOrder
+
+      if (sale.sale_details?.length > 0) {
+        sale.sale_details.forEach(detail => {
+          const productToProcess = detail.kds_processed_at ? (new Date(detail.kds_processed_at) - orderedAt) / 60000 : 0
+          const processToFinishProduct = detail.kds_completed_at ? (new Date(detail.kds_completed_at) - new Date(detail.kds_processed_at)) / 60000 : 0
+          const totalProductTime = productToProcess + processToFinishProduct
+
+          data.push({
+            noOrder: sale.m_stran?.receipt_no || sale.id,
+            period: orderedAt.toLocaleString('id-ID'),
+            product: detail.m_product?.name || 'Produk',
+            qty: detail.qty || 1,
+            productToProcess,
+            processToFinishProduct,
+            totalProductTime,
+            orderToProcessOrder,
+            processToFinishOrder,
+            totalOrderTime
+          })
+        })
+      }
+    })
+    return data
+  }, [sales])
+
+  const filteredData = useMemo(() => {
+    return orderProcessData.filter(item => 
+      item.noOrder.toLowerCase().includes(query.toLowerCase()) || 
+      item.product.toLowerCase().includes(query.toLowerCase())
+    )
+  }, [orderProcessData, query])
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setCalendarOpen(false)
+    toast.success(`Laporan diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Laporan disiapkan`)
+  }
+
+  return (
+    <main className="content report-summary-page sales-outlet-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card sales-outlet-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Laporan Waktu Proses Order</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="detail-filter-line outlet-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari No Order / Produk ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+        </div>
+
+        <div className="detail-table-wrap" style={{ marginTop: 24 }}>
+          <table className="detail-report-table outlet-report-table">
+            <thead>
+              <tr>
+                {reportPageConfigs['Laporan Proses Order'].columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            {filteredData.length > 0 && (
+              <tbody>
+                {filteredData.map((item, idx) => (
+                  <tr key={idx}>
+                    <td>{item.noOrder}</td>
+                    <td>{item.period}</td>
+                    <td style={{ maxWidth: 150, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.product}</td>
+                    <td>{item.qty}</td>
+                    <td>{formatDuration(item.productToProcess)}</td>
+                    <td>{formatDuration(item.processToFinishProduct)}</td>
+                    <td>{formatDuration(item.totalProductTime)}</td>
+                    <td>{formatDuration(item.orderToProcessOrder)}</td>
+                    <td>{formatDuration(item.processToFinishOrder)}</td>
+                    <td>{formatDuration(item.totalOrderTime)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+          {filteredData.length === 0 && <EmptyModuleState type="report" />}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function KitchenProductProcessReportPage({ posData }) {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const sales = posData?.sales || []
+  
+  const productProcessData = useMemo(() => {
+    const stats = {}
+    
+    sales.forEach(sale => {
+      const orderedAt = new Date(sale.m_stran?.tran_date || sale.created_at)
+
+      if (sale.sale_details?.length > 0) {
+        sale.sale_details.forEach(detail => {
+          const product = detail.m_product?.name || 'Produk'
+          const qty = detail.qty || 1
+          
+          const productToProcess = detail.kds_processed_at ? (new Date(detail.kds_processed_at) - orderedAt) / 60000 : 0
+          const processToFinishProduct = detail.kds_completed_at ? (new Date(detail.kds_completed_at) - new Date(detail.kds_processed_at)) / 60000 : 0
+          const totalProductTime = productToProcess + processToFinishProduct
+
+          if (!stats[product]) {
+            stats[product] = {
+              product,
+              totalQty: 0,
+              sumOrderToProcess: 0,
+              sumProcessToFinish: 0,
+              sumTotalTime: 0,
+              fastestTime: null,
+              slowestTime: null,
+              count: 0
+            }
+          }
+          
+          stats[product].totalQty += qty
+          stats[product].sumOrderToProcess += productToProcess
+          stats[product].sumProcessToFinish += processToFinishProduct
+          stats[product].sumTotalTime += totalProductTime
+          stats[product].count += 1
+          
+          if (stats[product].fastestTime === null || totalProductTime < stats[product].fastestTime) {
+            stats[product].fastestTime = totalProductTime
+          }
+          if (stats[product].slowestTime === null || totalProductTime > stats[product].slowestTime) {
+            stats[product].slowestTime = totalProductTime
+          }
+        })
+      }
+    })
+    
+    return Object.values(stats).map(item => ({
+      ...item,
+      avgOrderToProcess: item.count > 0 ? item.sumOrderToProcess / item.count : 0,
+      avgProcessToFinish: item.count > 0 ? item.sumProcessToFinish / item.count : 0,
+      avgTotalTime: item.count > 0 ? item.sumTotalTime / item.count : 0,
+    })).sort((a, b) => b.totalQty - a.totalQty)
+  }, [sales])
+
+  const filteredData = useMemo(() => {
+    return productProcessData.filter(item => 
+      item.product.toLowerCase().includes(query.toLowerCase())
+    )
+  }, [productProcessData, query])
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setCalendarOpen(false)
+    toast.success(`Laporan diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Laporan disiapkan`)
+  }
+
+  return (
+    <main className="content report-summary-page sales-outlet-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card sales-outlet-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Laporan Waktu Proses Produk</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="detail-filter-line outlet-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari Produk ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+        </div>
+
+        <div className="detail-table-wrap" style={{ marginTop: 24 }}>
+          <table className="detail-report-table outlet-report-table">
+            <thead>
+              <tr>
+                {reportPageConfigs['Laporan Proses Produk'].columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            {filteredData.length > 0 && (
+              <tbody>
+                {filteredData.map((item, idx) => (
+                  <tr key={idx}>
+                    <td style={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.product}</td>
+                    <td>{item.totalQty}</td>
+                    <td>{formatDuration(item.avgOrderToProcess)}</td>
+                    <td>{formatDuration(item.avgProcessToFinish)}</td>
+                    <td>{formatDuration(item.avgTotalTime)}</td>
+                    <td>{formatDuration(item.fastestTime || 0)}</td>
+                    <td>{formatDuration(item.slowestTime || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+          {filteredData.length === 0 && <EmptyModuleState type="report" />}
         </div>
       </section>
     </main>
