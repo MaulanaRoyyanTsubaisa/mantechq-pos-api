@@ -3885,7 +3885,7 @@ function CategorySetupFlow({ onClose, outlets, memberships = [], session, onSave
 
   return (
     <div className="setup-flow category-flow">
-      <FlowHeader title={initialData?.id ? 'Edit Kategori' : 'Tambah Kategori'} onClose={() => setConfirmClose(true)} />
+      <FlowHeader title={initialData?.id || initialData?.name ? 'Edit Kategori' : 'Tambah Kategori'} onClose={() => setConfirmClose(true)} />
       <main className="category-flow-body">
         <section className="flow-card category-form-card">
           <FormRow label="Atur Outlet*" error={errors.outlet}>
@@ -3923,10 +3923,10 @@ function CategorySetupFlow({ onClose, outlets, memberships = [], session, onSave
         <div className="modal-scrim">
           <div className="confirm-dialog">
             <header>
-              <h2>{initialData?.id ? 'Batal Edit Kategori' : 'Batal Tambah Kategori'}</h2>
+              <h2>{initialData?.id || initialData?.name ? 'Batal Edit Kategori' : 'Batal Tambah Kategori'}</h2>
               <button onClick={() => setConfirmClose(false)}><X size={18} /></button>
             </header>
-            <p>Membatalkan <strong>{initialData?.id ? 'Edit Kategori' : 'Tambah Kategori'}</strong> akan menghapus seluruh data yang telah diinput dan tidak dapat dibatalkan. Lanjutkan?</p>
+            <p>Membatalkan <strong>{initialData?.id || initialData?.name ? 'Edit Kategori' : 'Tambah Kategori'}</strong> akan menghapus seluruh data yang telah diinput dan tidak dapat dibatalkan. Lanjutkan?</p>
             <footer>
               <button onClick={() => setConfirmClose(false)}>Batal</button>
               <Button variant="danger" onClick={onClose}>Ya, Lanjutkan</Button>
