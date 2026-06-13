@@ -1564,6 +1564,12 @@ function ModulePage({ activePage, onStartFlow, posData }) {
   if (activePage === 'Laporan Jenis Order') {
     return <SalesOrderTypeReportPage posData={posData} />
   }
+  if (activePage === 'Laporan Void') {
+    return <SalesVoidReportPage posData={posData} />
+  }
+  if (activePage === 'Laporan Refund') {
+    return <SalesRefundReportPage posData={posData} />
+  }
   if (reportPageConfigs[activePage]) {
     return <MajooGenericReportPage config={reportPageConfigs[activePage]} posData={posData} />
   }
@@ -3849,6 +3855,255 @@ function SalesOrderTypeReportPage({ posData }) {
             )}
           </table>
           {filteredStats.length === 0 && <EmptyModuleState type="report" />}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function SalesVoidReportPage({ posData }) {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const sales = posData?.sales || []
+  
+  const { voidSales, totalMetrics } = useMemo(() => {
+    let totalVoid = 0
+    let totalTransactions = 0
+    
+    const filtered = sales.filter(sale => sale.m_stran?.status === 'void')
+    
+    filtered.forEach(sale => {
+      totalVoid += Number(sale.grand_total || 0)
+      totalTransactions += 1
+    })
+    
+    return {
+      voidSales: filtered,
+      totalMetrics: {
+        totalVoid,
+        totalTransactions
+      }
+    }
+  }, [sales])
+
+  const filteredSales = useMemo(() => {
+    return voidSales.filter(sale => 
+      (sale.id || '').toLowerCase().includes(query.toLowerCase()) || 
+      (sale.m_stran?.receipt_no || '').toLowerCase().includes(query.toLowerCase())
+    )
+  }, [voidSales, query])
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setCalendarOpen(false)
+    toast.success(`Laporan Void diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Laporan Void ${format} disiapkan`)
+  }
+
+  return (
+    <main className="content report-summary-page sales-outlet-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card sales-outlet-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Laporan Void</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="detail-filter-line outlet-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari No Nota ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+        </div>
+
+        <section className="outlet-kpi-strip" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div>
+            <strong style={{ color: '#ef4444', fontSize: 24 }}>{formatRupiah(totalMetrics.totalVoid)}</strong>
+            <span>Total Void</span>
+          </div>
+          <div className="outlet-main-kpi">
+            <h2>{totalMetrics.totalTransactions}</h2>
+            <p>Total Transaksi</p>
+          </div>
+        </section>
+
+        <div className="detail-table-wrap" style={{ marginTop: 24 }}>
+          <table className="detail-report-table outlet-report-table">
+            <thead>
+              <tr>
+                {reportPageConfigs['Laporan Void'].columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            {filteredSales.length > 0 && (
+              <tbody>
+                {filteredSales.map((sale, idx) => (
+                  <tr key={idx}>
+                    <td>{sale.m_stran?.receipt_no || sale.id}</td>
+                    <td>{new Date(sale.updated_at || sale.created_at).toLocaleString('id-ID')}</td>
+                    <td>{new Date(sale.m_stran?.tran_date || sale.created_at).toLocaleString('id-ID')}</td>
+                    <td>{sale.m_stran?.created_by || 'Admin'}</td>
+                    <td>{sale.m_stran?.void_by || 'Admin'}</td>
+                    <td style={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {sale.sale_details?.map(d => d.m_product?.name).join(', ') || 'Produk'}
+                    </td>
+                    <td>{formatRupiah(sale.grand_total)}</td>
+                    <td>{getOrderType(sale)}</td>
+                    <td>-</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+          {filteredSales.length === 0 && <EmptyModuleState type="report" />}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+function SalesRefundReportPage({ posData }) {
+  const [range, setRange] = useState({
+    label: '01 Jun 2026 - 30 Jun 2026',
+    display: '01 Juni 2026 - 30 Juni 2026',
+    startTime: '00:00',
+    endTime: '23:59',
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [activeTab, setActiveTab] = useState('Semua')
+
+  const sales = posData?.sales || []
+  
+  const { refundSales, totalMetrics } = useMemo(() => {
+    let totalRefund = 0
+    let totalTransactions = 0
+    
+    let filtered = sales.filter(sale => sale.m_stran?.status === 'refund' || sale.payment_status === 'refunded')
+    
+    if (activeTab === 'Tunai') {
+      filtered = filtered.filter(sale => getPaymentMethod(sale) === 'Tunai')
+    } else if (activeTab === 'Non Tunai') {
+      filtered = filtered.filter(sale => getPaymentMethod(sale) !== 'Tunai')
+    }
+    
+    filtered.forEach(sale => {
+      totalRefund += Number(sale.grand_total || 0)
+      totalTransactions += 1
+    })
+    
+    return {
+      refundSales: filtered,
+      totalMetrics: {
+        totalRefund,
+        totalTransactions
+      }
+    }
+  }, [sales, activeTab])
+
+  const filteredSales = useMemo(() => {
+    return refundSales.filter(sale => 
+      (sale.id || '').toLowerCase().includes(query.toLowerCase()) || 
+      (sale.m_stran?.receipt_no || '').toLowerCase().includes(query.toLowerCase())
+    )
+  }, [refundSales, query])
+
+  const processRange = (nextRange) => {
+    setRange(nextRange)
+    setCalendarOpen(false)
+    toast.success(`Laporan Refund diproses: ${nextRange.display}`)
+  }
+
+  const exportReport = (format) => {
+    setExportOpen(false)
+    toast.success(`Ekspor Laporan Refund ${format} disiapkan`)
+  }
+
+  return (
+    <main className="content report-summary-page sales-outlet-page">
+      <CapitalBanner compact />
+      <section className="panel report-summary-card sales-period-card sales-outlet-card">
+        <div className="sales-detail-head">
+          <div>
+            <h1>Laporan Refund</h1>
+            <p>{range.display}</p>
+          </div>
+          <div className="sales-detail-actions">
+            <ExportDropdown open={exportOpen} onToggle={() => setExportOpen((value) => !value)} onExport={exportReport} />
+          </div>
+        </div>
+
+        <div className="radio-tabs period-tabs outlet-tabs" style={{ marginBottom: 16 }}>
+          {['Semua', 'Tunai', 'Non Tunai'].map((tab) => (
+            <button key={tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="detail-filter-line outlet-filter-line">
+          <label className="detail-search">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari No Transaksi ..." />
+          </label>
+          <DateRangePicker open={calendarOpen} range={range} onToggle={() => setCalendarOpen((value) => !value)} onProcess={processRange} onCancel={() => setCalendarOpen(false)} />
+        </div>
+
+        <section className="outlet-kpi-strip" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="outlet-main-kpi">
+            <h2>{totalMetrics.totalTransactions}</h2>
+            <p>Total Transaksi Refund</p>
+          </div>
+          <div>
+            <strong style={{ color: '#ef4444', fontSize: 24 }}>{formatRupiah(totalMetrics.totalRefund)}</strong>
+            <span>Total Refund</span>
+          </div>
+        </section>
+
+        <div className="detail-table-wrap" style={{ marginTop: 24 }}>
+          <table className="detail-report-table outlet-report-table">
+            <thead>
+              <tr>
+                {reportPageConfigs['Laporan Refund'].columns.map((column) => (
+                  <th key={column}>{column}</th>
+                ))}
+              </tr>
+            </thead>
+            {filteredSales.length > 0 && (
+              <tbody>
+                {filteredSales.map((sale, idx) => (
+                  <tr key={idx}>
+                    <td>{sale.m_stran?.receipt_no || sale.id}</td>
+                    <td>{new Date(sale.updated_at || sale.created_at).toLocaleString('id-ID')}</td>
+                    <td>{formatRupiah(sale.grand_total)}</td>
+                    <td>{getPaymentMethod(sale)}</td>
+                    <td>{sale.m_stran?.outlet_id ? `Outlet ${shortId(sale.m_stran.outlet_id)}` : 'Software House'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+          {filteredSales.length === 0 && <EmptyModuleState type="report" />}
         </div>
       </section>
     </main>
