@@ -1639,6 +1639,8 @@ function GenericMetrics({ metrics = [] }) {
 }
 
 function GenericReportTable({ columns, rows = [] }) {
+  const [detailRow, setDetailRow] = useState(null)
+
   return (
     <div className="detail-table-wrap generic-table-wrap">
       <table className="detail-report-table generic-report-table">
@@ -1657,13 +1659,34 @@ function GenericReportTable({ columns, rows = [] }) {
                 {columns.map((column, j) => (
                   <td key={j}>{row[column] || '-'}</td>
                 ))}
-                <td><button style={{color: 'var(--primary-color)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600}}>Detail</button></td>
+                <td><button onClick={() => setDetailRow(row)} style={{color: 'var(--primary-color)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600}}>Detail</button></td>
               </tr>
             ))}
           </tbody>
         )}
       </table>
       {(!rows || rows.length === 0) && <EmptyModuleState type="report" />}
+
+      {detailRow && createPortal(
+        <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease-out'}}>
+          <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 500, maxHeight: '80vh', overflow: 'auto', position: 'relative', animation: 'slideUp 0.3s ease-out', boxShadow: '0 10px 25px rgba(0,0,0,0.2)'}}>
+            <button onClick={() => setDetailRow(null)} style={{position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer'}}><X size={24} color="#666"/></button>
+            <h3 style={{marginTop: 0, marginBottom: 24, fontSize: 20, color: '#2b2b2b', fontWeight: 700}}>Detail Informasi</h3>
+            <div style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+              {columns.map(col => (
+                <div key={col} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f0', paddingBottom: 12}}>
+                  <span style={{color: '#737373', fontSize: 13, fontWeight: 500}}>{col}</span>
+                  <strong style={{color: '#2b2b2b', fontSize: 14, textAlign: 'right', maxWidth: '60%', wordBreak: 'break-word'}}>{detailRow[col] || '-'}</strong>
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop: 32, display: 'flex', justifyContent: 'flex-end'}}>
+              <Button onClick={() => setDetailRow(null)}>Tutup Detail</Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
