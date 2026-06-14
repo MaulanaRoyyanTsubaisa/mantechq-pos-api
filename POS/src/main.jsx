@@ -61,7 +61,7 @@ import {
   updateCategory,
   deleteCategory,
 } from './lib/api.js'
-import { deleteProduct, updateProduct } from './shared/api/posApi.js'
+import { deleteProduct, updateProduct, deleteNoteCategory, updateNoteCategory, createNoteCategory } from './shared/api/posApi.js'
 import { PosApp } from './features/pos/PosApp.jsx'
 import { ProductFormModal } from './features/modules/ProductFormModal.jsx'
 import capitalVisual from './assets/capital-visual.png'
@@ -1016,7 +1016,7 @@ function getRowsForPage(page, posData) {
       cat.name,
       0, // JUMLAH CATATAN
       cat.status ? 'Tampil di Menu' : 'Tidak Tampil di Menu',
-      cat.id // Hidden column for ID if needed for actions
+      { item: cat, id: cat.id, orgId: cat.org_id }
     ])
   }
   return []
@@ -1767,9 +1767,9 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
   )
 }
 
-function NoteCategoryModal({ onClose, onRefresh }) {
-  const [name, setName] = useState('')
-  const [status, setStatus] = useState(true)
+function NoteCategoryModal({ initialData, onClose, onRefresh }) {
+  const [name, setName] = useState(initialData?.name || '')
+  const [status, setStatus] = useState(initialData ? initialData.status : true)
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (e) => {
@@ -1777,21 +1777,18 @@ function NoteCategoryModal({ onClose, onRefresh }) {
     if (!name) return toast.error('Nama kategori harus diisi')
     setSaving(true)
     try {
-      const payload = {
-        orgId: 'f63d5959-6c12-4765-8d27-2990f7f3139f',
-        name,
-        status
+      if (initialData?.id) {
+        await updateNoteCategory(initialData.id, { name, status })
+        toast.success('Kategori catatan berhasil diperbarui')
+      } else {
+        const payload = {
+          orgId: 'f63d5959-6c12-4765-8d27-2990f7f3139f',
+          name,
+          status
+        }
+        await createNoteCategory(payload)
+        toast.success('Kategori catatan berhasil ditambahkan')
       }
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'}/note-categories`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Gagal menyimpan kategori')
-      }
-      toast.success('Kategori catatan berhasil ditambahkan')
       if (onRefresh) onRefresh()
       onClose()
     } catch (err) {
@@ -1805,7 +1802,7 @@ function NoteCategoryModal({ onClose, onRefresh }) {
     <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
       <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 400}}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
-          <h2 style={{margin: 0, fontSize: 18}}>Tambah Kategori Catatan</h2>
+          <h2 style={{margin: 0, fontSize: 18}}>{initialData ? 'Edit Kategori Catatan' : 'Tambah Kategori Catatan'}</h2>
           <button onClick={onClose} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: 16}}>
@@ -5771,6 +5768,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
       )}
       {showNoteCategoryModal && (
         <NoteCategoryModal 
+          initialData={editingProduct}
           onClose={() => setShowNoteCategoryModal(false)} 
           onRefresh={() => posData?.refresh?.()} 
         />
@@ -5799,6 +5797,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
             ))}
             {config.addLabel ? (
               <Button onClick={() => {
+                setEditingProduct(null)
                 if (config.addLabel === 'Tambah Produk' || config.addLabel === 'Tambah Bahan Baku') {
                   setShowAddModal(true)
                 } else if (config.addLabel === 'Tambah Kategori Catatan') {
@@ -5863,6 +5862,9 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                                 onStartFlow('product', cell.item)
                               } else if (config.title === 'Daftar Kategori' && onStartFlow) {
                                 onStartFlow('category', cell.item)
+                              } else if (config.title === 'Daftar Kategori Catatan') {
+                                setEditingProduct(cell.item)
+                                setShowNoteCategoryModal(true)
                               } else {
                                 setEditingProduct(cell.item)
                                 setShowAddModal(true)
@@ -5872,7 +5874,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                               setConfirmDelete({
                                 id: cell.id,
                                 orgId: cell.orgId,
-                                type: config.title === 'Daftar Kategori' ? 'kategori' : 'produk',
+                                type: config.title === 'Daftar Kategori' ? 'kategori' : config.title === 'Daftar Kategori Catatan' ? 'note-category' : 'produk',
                                 name: cell.name || cell.item?.item_name || cell.item?.name || 'item ini',
                               })
                             }} aria-label="Hapus Item"><Trash2 size={16} color="#ef4444" /></button>
@@ -5901,6 +5903,9 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                 if (target.type === 'kategori') {
                   await deleteCategory(target.id, target.orgId)
                   toast.success('Kategori berhasil dihapus')
+                } else if (target.type === 'note-category') {
+                  await deleteNoteCategory(target.id)
+                  toast.success('Kategori catatan berhasil dihapus')
                 } else {
                   await deleteProduct(target.id, target.orgId)
                   toast.success('Produk berhasil dihapus')
