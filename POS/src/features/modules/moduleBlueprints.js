@@ -951,6 +951,16 @@ function getRowsForPage(page, posData) {
   }
   if (page === 'Detail Penjualan') return mapSalesDetailRows(salesDetails)
   if (page === 'Riwayat Stok') return mapStockMovementRows(stockMutations)
+  if (page === 'Daftar Kategori Catatan') {
+    const noteCategories = posData.noteCategories || []
+    return noteCategories.map(cat => [
+      cat.name,
+      0, // JUMLAH CATATAN
+      cat.status ? 'Tampil di Menu' : 'Tidak Tampil di Menu',
+      cat.id // Hidden column for ID if needed for actions
+    ])
+  }
+
   return []
 }
 

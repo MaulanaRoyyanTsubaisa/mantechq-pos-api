@@ -401,7 +401,7 @@ app.get('/api/pos-data', async (req, res) => {
     const membershipUserFilter = req.query.userId ? 'and user_id = $1' : ''
     if (req.query.userId) membershipParams.push(req.query.userId)
 
-    const [memberships, stockItems, sales, salesDetails, stockMutations, customers, shifts, categories] = await Promise.all([
+    const [memberships, stockItems, sales, salesDetails, stockMutations, customers, shifts, categories, noteCategories] = await Promise.all([
       pool.query(
         `select * from public.pos_team_members
          where is_active = true ${membershipUserFilter}
@@ -438,7 +438,8 @@ app.get('/api/pos-data', async (req, res) => {
          order by created_at desc`,
         req.query.userId ? [req.query.userId] : []
       ).catch(() => ({ rows: [] })),
-      pool.query('select * from public.pos_product_categories order by sequence asc').catch(() => ({ rows: [] }))
+      pool.query('select * from public.pos_product_categories order by sequence asc').catch(() => ({ rows: [] })),
+      pool.query('select * from public.note_categories order by created_at desc').catch(() => ({ rows: [] }))
     ])
 
     res.json({
@@ -450,9 +451,84 @@ app.get('/api/pos-data', async (req, res) => {
       customers: customers.rows,
       shifts: shifts.rows,
       categories: categories.rows,
+      noteCategories: noteCategories.rows,
     })
   } catch (error) {
     sendPgError(res, error)
+  }
+})
+
+app.post('/api/note-categories', async (req, res) => {
+  try {
+    const { orgId, name, status } = req.body
+    if (!orgId || !name) return res.status(400).json({ error: 'orgId and name are required' })
+
+    const result = await pool.query(
+      `insert into public.note_categories (org_id, name, status)
+       values ($1, $2, $3)
+       returning *`,
+      [orgId, name, status ?? true]
+    )
+    res.json(result.rows[0])
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: `Kategori dengan nama "${req.body.name}" sudah ada` })
+    }
+    console.error('Create note category error:', error)
+    res.status(500).json({ error: 'Failed to create note category' })
+  }
+})
+
+app.put('/api/note-categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, status } = req.body
+    
+    const updates = []
+    const values = []
+    let idx = 1
+    
+    if (name !== undefined) {
+      updates.push(`name = $${idx++}`)
+      values.push(name)
+    }
+    if (status !== undefined) {
+      updates.push(`status = $${idx++}`)
+      values.push(status)
+    }
+    
+    if (updates.length === 0) return res.json({ success: true })
+    
+    updates.push(`updated_at = now()`)
+    values.push(id)
+    
+    const result = await pool.query(
+      `update public.note_categories set ${updates.join(', ')} where id = $${idx} returning *`,
+      values
+    )
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Category not found' })
+    res.json(result.rows[0])
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: `Kategori dengan nama "${req.body.name}" sudah ada` })
+    }
+    console.error('Update note category error:', error)
+    res.status(500).json({ error: 'Failed to update note category' })
+  }
+})
+
+app.delete('/api/note-categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const result = await pool.query(
+      'delete from public.note_categories where id = $1 returning *',
+      [id]
+    )
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Category not found' })
+    res.json({ success: true, deleted: result.rows[0] })
+  } catch (error) {
+    console.error('Delete note category error:', error)
+    res.status(500).json({ error: 'Failed to delete note category' })
   }
 })
 

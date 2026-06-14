@@ -105,3 +105,14 @@ export function getStockOpnames(orgId, outletId) {
 export function createStockOpname(payload) {
   return apiRequest('/stock-opname', { method: 'POST', body: JSON.stringify(payload) })
 }
+
+// Note Categories
+export function createNoteCategory(payload) {
+  return apiRequest('/note-categories', { method: 'POST', body: JSON.stringify(payload) })
+}
+export function updateNoteCategory(id, payload) {
+  return apiRequest(`/note-categories/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+export function deleteNoteCategory(id) {
+  return apiRequest(`/note-categories/${id}`, { method: 'DELETE' })
+}

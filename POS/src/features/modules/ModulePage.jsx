@@ -167,15 +167,22 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
   const Icon = parent?.icon || Sparkles
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Semua Status')
+  const [activeTab, setActiveTab] = useState('Semua')
   const controls = blueprint.controls || (blueprint.type === 'report' ? 'date-status' : 'status-tabs')
   const apiRows = getRowsForPage(activePage, posData)
   const rows = apiRows.length > 0 ? apiRows : (blueprint.rows || [])
-  const filteredRows = rows.filter((row) => row.join(' ').toLowerCase().includes(query.toLowerCase()))
+  const filteredRows = rows.filter((row) => {
+    const matchesQuery = row.join(' ').toLowerCase().includes(query.toLowerCase())
+    if (!matchesQuery) return false
+    if (activeTab === 'Semua') return true
+    return row.includes(activeTab)
+  })
   const actionIcon = (action) => {
     if (action.toLowerCase().includes('impor')) return Truck
     if (action.toLowerCase().includes('ekspor')) return FileText
     return Sparkles
   }
+  const [noteCategoryModalOpen, setNoteCategoryModalOpen] = useState(false)
 
   return (
     <main className="content">
@@ -195,6 +202,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
                   variant={action.toLowerCase().includes('tambah') ? 'default' : 'outline'}
                   onClick={() => {
                     if (action === 'Tambah Produk') onStartFlow('product')
+                    else if (action === 'Tambah Kategori Catatan') setNoteCategoryModalOpen(true)
                     else if (action.toLowerCase().includes('ekspor')) {
                       downloadCSV(blueprint.title, blueprint.columns, rows)
                       toast.success(`Berhasil mengekspor ${blueprint.title}`)
@@ -230,7 +238,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
           {controls === 'status-tabs' || controls === 'product' ? (
             <div className="radio-tabs" role="tablist" aria-label="Status tampil">
               {['Semua', 'Tampil di Menu', 'Tidak Tampil di Menu'].map((item) => (
-                <button key={item} className={item === 'Semua' ? 'active' : ''} onClick={() => toast.info(item)}>
+                <button key={item} className={item === activeTab ? 'active' : ''} onClick={() => setActiveTab(item)}>
                   {item}
                 </button>
               ))}
@@ -273,7 +281,69 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
           )}
         </div>
       </section>
+      {noteCategoryModalOpen && <NoteCategoryModal onClose={() => setNoteCategoryModalOpen(false)} onRefresh={() => posData?.refresh?.()} />}
     </main>
+  )
+}
+
+function NoteCategoryModal({ onClose, onRefresh }) {
+  const [name, setName] = useState('')
+  const [status, setStatus] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!name) return toast.error('Nama kategori harus diisi')
+    setSaving(true)
+    try {
+      const payload = {
+        orgId: 'f63d5959-6c12-4765-8d27-2990f7f3139f',
+        name,
+        status
+      }
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/note-categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Gagal menyimpan kategori')
+      }
+      toast.success('Kategori catatan berhasil ditambahkan')
+      onRefresh()
+      onClose()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return createPortal(
+    <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 400}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+          <h2 style={{margin: 0, fontSize: 18}}>Tambah Kategori Catatan</h2>
+          <button onClick={onClose} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+            Nama Kategori
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Contoh: Catatan Dapur" style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required />
+          </label>
+          <label style={{display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer'}}>
+            <input type="checkbox" checked={status} onChange={e => setStatus(e.target.checked)} style={{width: 18, height: 18}} />
+            Tampil di Menu
+          </label>
+          <div style={{marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 12}}>
+            <Button variant="outline" onClick={onClose} type="button">Batal</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Kategori'}</Button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
   )
 }
 

@@ -1010,6 +1010,15 @@ function getRowsForPage(page, posData) {
     return mapStockToInventoryRows(stockItems)
   }
   if (page === 'Detail Penjualan') return mapSalesDetailRows(salesDetails)
+  if (page === 'Daftar Kategori Catatan') {
+    const noteCategories = posData.noteCategories || []
+    return noteCategories.map(cat => [
+      cat.name,
+      0, // JUMLAH CATATAN
+      cat.status ? 'Tampil di Menu' : 'Tidak Tampil di Menu',
+      cat.id // Hidden column for ID if needed for actions
+    ])
+  }
   return []
 }
 
@@ -1642,15 +1651,22 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
   const Icon = parent?.icon || Sparkles
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Semua Status')
+  const [activeTab, setActiveTab] = useState('Semua')
   const controls = blueprint.controls || (blueprint.type === 'report' ? 'date-status' : 'status-tabs')
   const apiRows = getRowsForPage(activePage, posData)
   const rows = apiRows.length > 0 ? apiRows : (blueprint.rows || [])
-  const filteredRows = rows.filter((row) => row.join(' ').toLowerCase().includes(query.toLowerCase()))
+  const filteredRows = rows.filter((row) => {
+    const matchesQuery = row.join(' ').toLowerCase().includes(query.toLowerCase())
+    if (!matchesQuery) return false
+    if (activeTab === 'Semua') return true
+    return row.includes(activeTab)
+  })
   const actionIcon = (action) => {
     if (action.toLowerCase().includes('impor')) return Truck
     if (action.toLowerCase().includes('ekspor')) return FileText
     return Sparkles
   }
+  const [noteCategoryModalOpen, setNoteCategoryModalOpen] = useState(false)
 
   return (
     <main className="content">
@@ -1670,6 +1686,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
                   variant={action.toLowerCase().includes('tambah') ? 'default' : 'outline'}
                   onClick={() => {
                     if (action === 'Tambah Produk') onStartFlow('product')
+                    else if (action === 'Tambah Kategori Catatan') setNoteCategoryModalOpen(true)
                     else toast.success(`${action} ${blueprint.title}`)
                   }}
                 >
@@ -1702,7 +1719,7 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
           {controls === 'status-tabs' || controls === 'product' ? (
             <div className="radio-tabs" role="tablist" aria-label="Status tampil">
               {['Semua', 'Tampil di Menu', 'Tidak Tampil di Menu'].map((item) => (
-                <button key={item} className={item === 'Semua' ? 'active' : ''} onClick={() => toast.info(item)}>
+                <button key={item} className={item === activeTab ? 'active' : ''} onClick={() => setActiveTab(item)}>
                   {item}
                 </button>
               ))}
@@ -1745,7 +1762,69 @@ function GenericModulePage({ activePage, onStartFlow, posData }) {
           )}
         </div>
       </section>
+      {noteCategoryModalOpen && <NoteCategoryModal onClose={() => setNoteCategoryModalOpen(false)} onRefresh={() => posData?.refresh?.()} />}
     </main>
+  )
+}
+
+function NoteCategoryModal({ onClose, onRefresh }) {
+  const [name, setName] = useState('')
+  const [status, setStatus] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!name) return toast.error('Nama kategori harus diisi')
+    setSaving(true)
+    try {
+      const payload = {
+        orgId: 'f63d5959-6c12-4765-8d27-2990f7f3139f',
+        name,
+        status
+      }
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'}/note-categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Gagal menyimpan kategori')
+      }
+      toast.success('Kategori catatan berhasil ditambahkan')
+      if (onRefresh) onRefresh()
+      onClose()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return createPortal(
+    <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 400}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+          <h2 style={{margin: 0, fontSize: 18}}>Tambah Kategori Catatan</h2>
+          <button onClick={onClose} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+            Nama Kategori
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Contoh: Catatan Dapur" style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required />
+          </label>
+          <label style={{display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer'}}>
+            <input type="checkbox" checked={status} onChange={e => setStatus(e.target.checked)} style={{width: 18, height: 18}} />
+            Tampil di Menu
+          </label>
+          <div style={{marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 12}}>
+            <Button variant="outline" onClick={onClose} type="button">Batal</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Kategori'}</Button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
   )
 }
 
@@ -5619,8 +5698,8 @@ function GenericReportTable({ columns, rows = [] }) {
       </table>
       {(!rows || rows.length === 0) && <EmptyModuleState type="report" />}
 
-      {detailRow && (
-        <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease-out'}}>
+      {detailRow && createPortal(
+        <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease-out'}}>
           <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 500, maxHeight: '80vh', overflow: 'auto', position: 'relative', animation: 'slideUp 0.3s ease-out', boxShadow: '0 10px 25px rgba(0,0,0,0.2)'}}>
             <button onClick={() => setDetailRow(null)} style={{position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer'}}><X size={24} color="#666"/></button>
             <h3 style={{marginTop: 0, marginBottom: 24, fontSize: 20, color: '#2b2b2b', fontWeight: 700}}>Detail Informasi</h3>
@@ -5636,7 +5715,8 @@ function GenericReportTable({ columns, rows = [] }) {
               <Button onClick={() => setDetailRow(null)}>Tutup Detail</Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -5646,11 +5726,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Semua')
   const [favorite, setFavorite] = useState(false)
-  const liveRows = config.title === 'Daftar Produk' 
-    ? mapStockToProductRows(posData.stockItems || []) 
-    : config.title === 'Daftar Kategori' 
-      ? mapCategoryToRows(posData.categories || [], posData.stockItems || [])
-      : config.rows || []
+  const liveRows = getRowsForPage(config.title, posData)
   const rows = liveRows.filter((row) => {
     const matchesQuery = row.join(' ').toLowerCase().includes(query.toLowerCase())
     const statusText = row.join(' ')
@@ -5659,6 +5735,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
   })
 
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showNoteCategoryModal, setShowNoteCategoryModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null) // { id, orgId, type: 'kategori'|'produk', name }
 
@@ -5692,6 +5769,12 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
           }} 
         />
       )}
+      {showNoteCategoryModal && (
+        <NoteCategoryModal 
+          onClose={() => setShowNoteCategoryModal(false)} 
+          onRefresh={() => posData?.refresh?.()} 
+        />
+      )}
       <CapitalBanner compact />
       <section className="panel product-directory-card">
         <header className="product-directory-head">
@@ -5715,7 +5798,17 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
               </Button>
             ))}
             {config.addLabel ? (
-              <Button onClick={() => (config.addFlow ? onStartFlow(config.addFlow) : toast.success(config.addLabel))}>
+              <Button onClick={() => {
+                if (config.addLabel === 'Tambah Produk' || config.addLabel === 'Tambah Bahan Baku') {
+                  setShowAddModal(true)
+                } else if (config.addLabel === 'Tambah Kategori Catatan') {
+                  setShowNoteCategoryModal(true)
+                } else if (config.addFlow) {
+                  onStartFlow(config.addFlow)
+                } else {
+                  toast.success(config.addLabel)
+                }
+              }}>
                 <Plus size={18} />
                 {config.addLabel}
               </Button>
@@ -5738,7 +5831,6 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                 className={item === status ? 'active' : ''}
                 onClick={() => {
                   setStatus(item)
-                  toast.info(item)
                 }}
               >
                 {item}
@@ -7422,6 +7514,7 @@ function usePostgresPosData(session) {
     stockMutations: [],
     shifts: [],
     categories: [],
+    noteCategories: [],
   })
 
   const refresh = async () => {
@@ -7444,6 +7537,7 @@ function usePostgresPosData(session) {
       stockMutations: data.stockMutations || [],
       shifts: data.shifts || [],
       categories: data.categories || [],
+      noteCategories: data.noteCategories || [],
     })
   }
 
