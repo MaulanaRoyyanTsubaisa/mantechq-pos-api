@@ -22,6 +22,7 @@ import {
   HeartHandshake,
   HelpCircle,
   Home,
+  Eye,
   Info,
   ListFilter,
   LayoutDashboard,
@@ -251,6 +252,68 @@ function RecipeFormModal({ initialData, posData, onClose, onRefresh }) {
   )
 }
 
+function RecipeDetailModal({ data, onClose }) {
+  if (!data) return null
+  return createPortal(
+    <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto'}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+          <h2 style={{margin: 0, fontSize: 18}}>Detail Resep</h2>
+          <button onClick={onClose} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20} /></button>
+        </div>
+        
+        <div style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+          <div>
+            <span style={{fontSize: 12, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4}}>NAMA RESEP</span>
+            <div style={{fontSize: 15, fontWeight: 500, color: '#0f172a'}}>{data.recipe_name || '-'}</div>
+          </div>
+          <div>
+            <span style={{fontSize: 12, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4}}>PRODUK</span>
+            <div style={{fontSize: 15, fontWeight: 500, color: '#0f172a'}}>{data.product_name || '-'}</div>
+          </div>
+          <div>
+            <span style={{fontSize: 12, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4}}>STATUS</span>
+            <div style={{display: 'inline-block', padding: '4px 8px', borderRadius: 4, fontSize: 12, fontWeight: 600, background: data.status ? '#dcfce7' : '#f1f5f9', color: data.status ? '#16a34a' : '#64748b'}}>
+              {data.status ? 'Aktif' : 'Tidak Aktif'}
+            </div>
+          </div>
+          
+          <div>
+            <span style={{fontSize: 12, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 8}}>DAFTAR BAHAN BAKU</span>
+            <div style={{border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden'}}>
+              <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                <thead style={{background: '#f8fafc'}}>
+                  <tr>
+                    <th style={{padding: '10px 16px', textAlign: 'left', fontSize: 13, color: '#475569', fontWeight: 600, borderBottom: '1px solid #e2e8f0'}}>Nama Bahan</th>
+                    <th style={{padding: '10px 16px', textAlign: 'right', fontSize: 13, color: '#475569', fontWeight: 600, borderBottom: '1px solid #e2e8f0'}}>Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.materials?.map((m, idx) => (
+                    <tr key={idx}>
+                      <td style={{padding: '10px 16px', fontSize: 14, color: '#1e293b', borderBottom: idx < data.materials.length - 1 ? '1px solid #f1f5f9' : 'none'}}>{m.material_name || '-'}</td>
+                      <td style={{padding: '10px 16px', fontSize: 14, color: '#1e293b', textAlign: 'right', fontWeight: 500, borderBottom: idx < data.materials.length - 1 ? '1px solid #f1f5f9' : 'none'}}>{m.quantity || '0'}</td>
+                    </tr>
+                  ))}
+                  {(!data.materials || data.materials.length === 0) && (
+                    <tr>
+                      <td colSpan="2" style={{padding: '16px', textAlign: 'center', fontSize: 14, color: '#94a3b8', fontStyle: 'italic'}}>Belum ada bahan baku</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <div style={{marginTop: 24, display: 'flex', justifyContent: 'flex-end'}}>
+          <button className="btn-primary" onClick={onClose} type="button">Tutup</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
 const sidebarGroups = [
   { label: 'Menu Favorit', icon: Star, children: [] },
   { label: 'Dashboard', icon: LayoutDashboard, children: [] },
@@ -5877,6 +5940,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showNoteCategoryModal, setShowNoteCategoryModal] = useState(false)
   const [showRecipeModal, setShowRecipeModal] = useState(false)
+  const [showRecipeDetailModal, setShowRecipeDetailModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null) // { id, orgId, type: 'kategori'|'produk', name }
 
@@ -5938,6 +6002,12 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
           posData={posData}
           onClose={() => setShowRecipeModal(false)} 
           onRefresh={() => posData?.refresh?.()} 
+        />
+      )}
+      {showRecipeDetailModal && (
+        <RecipeDetailModal 
+          data={editingProduct}
+          onClose={() => setShowRecipeDetailModal(false)} 
         />
       )}
       <CapitalBanner compact />
@@ -6030,6 +6100,12 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                       <td key={`${index}`}>
                         {isStatus ? <span className="status-pill">{cell}</span> : isAction ? (
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            {config.title === 'Master Resep' && (
+                              <button className="icon-link" onClick={() => {
+                                setEditingProduct(cell.item)
+                                setShowRecipeDetailModal(true)
+                              }} aria-label="Lihat Detail Resep"><Eye size={16} color="var(--brand)" /></button>
+                            )}
                             <button className="icon-link" onClick={() => {
                               if (config.title === 'Daftar Produk' && onStartFlow) {
                                 onStartFlow('product', cell.item)
