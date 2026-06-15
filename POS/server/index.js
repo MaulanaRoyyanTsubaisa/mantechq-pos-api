@@ -801,42 +801,41 @@ app.post('/api/shifts', async (req, res) => {
   }
 })
 
-// --- POS Recipes CRUD ---
-app.post('/api/pos-recipes', async (req, res) => {
-  const { orgId, recipeName, productId, materialId, quantity, status } = req.body
+// --- POS Recipes CRUD (Batch grouped by recipeName & productId) ---
+app.post('/api/pos-recipes/batch', async (req, res) => {
+  const { orgId, recipeName, productId, materials, status } = req.body
+  const client = await pool.connect()
   try {
-    const result = await pool.query(
-      `insert into public.pos_recipes (org_id, recipe_name, product_id, material_id, quantity, status)
-       values ($1, $2, $3, $4, $5, $6) returning *`,
-      [orgId, recipeName, productId, materialId, quantity, status]
-    )
-    res.json(result.rows[0])
+    await client.query('BEGIN')
+    // Delete existing materials for this recipe
+    await client.query('delete from public.pos_recipes where recipe_name = $1 and product_id = $2', [recipeName, productId])
+    
+    // Insert new materials
+    const inserted = []
+    for (const mat of materials) {
+      const result = await client.query(
+        `insert into public.pos_recipes (org_id, recipe_name, product_id, material_id, quantity, status)
+         values ($1, $2, $3, $4, $5, $6) returning *`,
+        [orgId, recipeName, productId, mat.materialId, mat.quantity, status]
+      )
+      inserted.push(result.rows[0])
+    }
+    await client.query('COMMIT')
+    res.json(inserted)
   } catch (error) {
+    await client.query('ROLLBACK')
     sendPgError(res, error)
+  } finally {
+    client.release()
   }
 })
 
-app.put('/api/pos-recipes/:id', async (req, res) => {
-  const { recipeName, productId, materialId, quantity, status } = req.body
+app.delete('/api/pos-recipes/batch', async (req, res) => {
+  const { recipeName, productId } = req.query
+  if (!recipeName || !productId) return res.status(400).json({ error: 'recipeName and productId required' })
   try {
-    const result = await pool.query(
-      `update public.pos_recipes set
-        recipe_name = $1, product_id = $2, material_id = $3, quantity = $4, status = $5, updated_at = now()
-       where id = $6 returning *`,
-      [recipeName, productId, materialId, quantity, status, req.params.id]
-    )
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
-    res.json(result.rows[0])
-  } catch (error) {
-    sendPgError(res, error)
-  }
-})
-
-app.delete('/api/pos-recipes/:id', async (req, res) => {
-  try {
-    const result = await pool.query('delete from public.pos_recipes where id = $1 returning id', [req.params.id])
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
-    res.json({ success: true })
+    const result = await pool.query('delete from public.pos_recipes where recipe_name = $1 and product_id = $2 returning id', [recipeName, productId])
+    res.json({ success: true, deletedCount: result.rowCount })
   } catch (error) {
     sendPgError(res, error)
   }

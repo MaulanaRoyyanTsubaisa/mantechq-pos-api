@@ -61,7 +61,7 @@ import {
   updateCategory,
   deleteCategory,
 } from './lib/api.js'
-import { deleteProduct, updateProduct, deleteNoteCategory, updateNoteCategory, createNoteCategory, createPosRecipe, updatePosRecipe, deletePosRecipe } from './shared/api/posApi.js'
+import { deleteProduct, updateProduct, deleteNoteCategory, updateNoteCategory, createNoteCategory, savePosRecipeBatch, deletePosRecipeBatch } from './shared/api/posApi.js'
 import { PosApp } from './features/pos/PosApp.jsx'
 import { ProductFormModal } from './features/modules/ProductFormModal.jsx'
 import capitalVisual from './assets/capital-visual.png'
@@ -151,31 +151,26 @@ function ConfirmModal({ open, title, message, icon, confirmLabel = 'Ya, Lanjutka
 function RecipeFormModal({ initialData, posData, onClose, onRefresh }) {
   const [recipeName, setRecipeName] = useState(initialData?.recipe_name || '')
   const [productId, setProductId] = useState(initialData?.product_id || '')
-  const [materialId, setMaterialId] = useState(initialData?.material_id || '')
-  const [quantity, setQuantity] = useState(initialData?.quantity || '')
+  const [materials, setMaterials] = useState(initialData?.materials || [{ material_id: '', quantity: '' }])
   const [status, setStatus] = useState(initialData ? initialData.status : true)
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!recipeName || !productId || !materialId || !quantity) return toast.error('Semua kolom wajib diisi')
+    if (!recipeName || !productId || materials.some(m => !m.material_id || !m.quantity)) {
+      return toast.error('Semua kolom wajib diisi')
+    }
     setSaving(true)
     try {
       const payload = {
         orgId: 'f63d5959-6c12-4765-8d27-2990f7f3139f',
         recipeName,
         productId,
-        materialId,
-        quantity: Number(quantity),
+        materials: materials.map(m => ({ materialId: m.material_id, quantity: Number(m.quantity) })),
         status
       }
-      if (initialData?.id) {
-        await updatePosRecipe(initialData.id, payload)
-        toast.success('Resep berhasil diperbarui')
-      } else {
-        await createPosRecipe(payload)
-        toast.success('Resep berhasil ditambahkan')
-      }
+      await savePosRecipeBatch(payload)
+      toast.success(initialData ? 'Resep berhasil diperbarui' : 'Resep berhasil ditambahkan')
       if (onRefresh) onRefresh()
       onClose()
     } catch (err) {
@@ -185,9 +180,17 @@ function RecipeFormModal({ initialData, posData, onClose, onRefresh }) {
     }
   }
 
+  const addMaterialRow = () => setMaterials([...materials, { material_id: '', quantity: '' }])
+  const removeMaterialRow = (idx) => setMaterials(materials.filter((_, i) => i !== idx))
+  const updateMaterial = (idx, field, value) => {
+    const updated = [...materials]
+    updated[idx][field] = value
+    setMaterials(updated)
+  }
+
   return createPortal(
     <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-      <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 450}}>
+      <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto'}}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
           <h2 style={{margin: 0, fontSize: 18}}>{initialData ? 'Edit Resep' : 'Tambah Resep'}</h2>
           <button onClick={onClose} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20} /></button>
@@ -206,19 +209,33 @@ function RecipeFormModal({ initialData, posData, onClose, onRefresh }) {
               ))}
             </select>
           </label>
-          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
-            Pilih Bahan Baku
-            <select value={materialId} onChange={e => setMaterialId(e.target.value)} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required>
-              <option value="">-- Pilih Bahan Baku --</option>
-              {posData?.stockItems?.filter(item => item.item_type === 'material').map(item => (
-                <option key={item.id} value={item.id}>{item.item_name} ({item.sku})</option>
-              ))}
-            </select>
-          </label>
-          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
-            Qty Penggunaan
-            <input type="number" step="0.001" value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="Contoh: 1.5" style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required />
-          </label>
+          
+          <div style={{border: '1px solid #eee', padding: 16, borderRadius: 8}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12}}>
+              <strong style={{fontSize: 13}}>Daftar Bahan Baku</strong>
+              <button type="button" onClick={addMaterialRow} style={{background: 'none', color: '#0ea5e9', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4}}><Plus size={14} /> Tambah Bahan</button>
+            </div>
+            
+            {materials.map((m, idx) => (
+              <div key={idx} style={{display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 12}}>
+                <div style={{flex: 2}}>
+                  <select value={m.material_id} onChange={e => updateMaterial(idx, 'material_id', e.target.value)} style={{width: '100%', padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required>
+                    <option value="">-- Bahan Baku --</option>
+                    {posData?.stockItems?.filter(item => item.item_type === 'material').map(item => (
+                      <option key={item.id} value={item.id}>{item.item_name} ({item.unit})</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{flex: 1}}>
+                  <input type="number" step="0.001" value={m.quantity} onChange={e => updateMaterial(idx, 'quantity', e.target.value)} placeholder="Qty" style={{width: '100%', padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required />
+                </div>
+                {materials.length > 1 && (
+                  <button type="button" onClick={() => removeMaterialRow(idx)} style={{background: 'none', border: 'none', color: '#ef4444', padding: '10px 4px', cursor: 'pointer'}}><Trash2 size={16} /></button>
+                )}
+              </div>
+            ))}
+          </div>
+
           <label style={{display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer'}}>
             <input type="checkbox" checked={status} onChange={e => setStatus(e.target.checked)} style={{width: 18, height: 18}} />
             Aktif
@@ -1117,12 +1134,33 @@ function getRowsForPage(page, posData) {
   }
   if (page === 'Master Resep') {
     const recipes = posData.recipes || []
-    return recipes.map(recipe => [
-      recipe.product_name || '-',
-      recipe.material_name || '-',
-      formatQty(recipe.quantity),
-      recipe.status ? 'Aktif' : 'Tidak Aktif',
-      { item: recipe, id: recipe.id, orgId: recipe.org_id }
+    // Group by recipe_name and product_id
+    const grouped = {}
+    recipes.forEach(r => {
+      const key = `${r.recipe_name}_${r.product_id}`
+      if (!grouped[key]) {
+        grouped[key] = {
+          recipe_name: r.recipe_name,
+          product_id: r.product_id,
+          product_name: r.product_name,
+          status: r.status,
+          materials: []
+        }
+      }
+      grouped[key].materials.push({
+        material_name: r.material_name,
+        quantity: r.quantity,
+        material_id: r.material_id
+      })
+    })
+
+    return Object.values(grouped).map(g => [
+      g.recipe_name || '-',
+      g.product_name || '-',
+      g.materials.map(m => m.material_name).join(', ') || '-',
+      g.materials.map(m => formatQty(m.quantity)).join(', ') || '-',
+      g.status ? 'Aktif' : 'Tidak Aktif',
+      { type: 'resep', id: `${g.recipe_name}_${g.product_id}`, item: g }
     ])
   }
   return []
@@ -6014,6 +6052,8 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                                 orgId: cell.orgId,
                                 type: config.title === 'Daftar Kategori' ? 'kategori' : config.title === 'Daftar Kategori Catatan' ? 'note-category' : config.title === 'Master Resep' ? 'resep' : 'produk',
                                 name: cell.name || cell.item?.recipe_name || cell.item?.item_name || cell.item?.name || 'item ini',
+                                recipeName: cell.item?.recipe_name,
+                                productId: cell.item?.product_id
                               })
                             }} aria-label="Hapus Item"><Trash2 size={16} color="#ef4444" /></button>
                           </div>
@@ -6045,7 +6085,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                   await deleteNoteCategory(target.id)
                   toast.success('Kategori catatan berhasil dihapus')
                 } else if (target.type === 'resep') {
-                  await deletePosRecipe(target.id)
+                  await deletePosRecipeBatch(target.recipeName, target.productId)
                   toast.success('Resep berhasil dihapus')
                 } else {
                   await deleteProduct(target.id, target.orgId)

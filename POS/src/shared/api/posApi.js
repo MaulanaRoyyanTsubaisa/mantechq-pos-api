@@ -118,12 +118,10 @@ export function deleteNoteCategory(id) {
 }
 
 // Recipes
-export function createPosRecipe(payload) {
-  return apiRequest('/pos-recipes', { method: 'POST', body: JSON.stringify(payload) })
+export function savePosRecipeBatch(payload) {
+  return apiRequest('/pos-recipes/batch', { method: 'POST', body: JSON.stringify(payload) })
 }
-export function updatePosRecipe(id, payload) {
-  return apiRequest(`/pos-recipes/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
-}
-export function deletePosRecipe(id) {
-  return apiRequest(`/pos-recipes/${id}`, { method: 'DELETE' })
+
+export function deletePosRecipeBatch(recipeName, productId) {
+  return apiRequest(`/pos-recipes/batch?recipeName=${encodeURIComponent(recipeName)}&productId=${encodeURIComponent(productId)}`, { method: 'DELETE' })
 }
