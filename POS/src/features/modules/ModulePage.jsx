@@ -1765,7 +1765,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Semua')
   const [favorite, setFavorite] = useState(false)
-  const liveRows = config.title === 'Daftar Produk' ? mapStockToProductRows(posData.stockItems || []) : config.rows || []
+  const liveRows = getRowsForPage(config.title, posData)
   const rows = liveRows.filter((row) => {
     const matchesQuery = row.join(' ').toLowerCase().includes(query.toLowerCase())
     const statusText = row.join(' ')
