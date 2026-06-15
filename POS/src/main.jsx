@@ -201,7 +201,7 @@ function RecipeFormModal({ initialData, posData, onClose, onRefresh }) {
             Pilih Produk
             <select value={productId} onChange={e => setProductId(e.target.value)} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required>
               <option value="">-- Pilih Produk --</option>
-              {posData?.stockItems?.map(item => (
+              {posData?.stockItems?.filter(item => item.item_type !== 'material').map(item => (
                 <option key={item.id} value={item.id}>{item.item_name} ({item.sku})</option>
               ))}
             </select>
@@ -210,7 +210,7 @@ function RecipeFormModal({ initialData, posData, onClose, onRefresh }) {
             Pilih Bahan Baku
             <select value={materialId} onChange={e => setMaterialId(e.target.value)} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required>
               <option value="">-- Pilih Bahan Baku --</option>
-              {posData?.stockItems?.map(item => (
+              {posData?.stockItems?.filter(item => item.item_type === 'material').map(item => (
                 <option key={item.id} value={item.id}>{item.item_name} ({item.sku})</option>
               ))}
             </select>
