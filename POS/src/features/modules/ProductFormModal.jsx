@@ -13,6 +13,7 @@ export function ProductFormModal({ posData, onClose, onSuccess, initialData }) {
     qty_on_hand: initialData?.qty_on_hand || '',
     qty_minimum: initialData?.qty_minimum || '',
     photo_url: initialData?.photo_url || '',
+    item_type: initialData?.item_type || 'product',
   })
 
   const orgId = posData?.memberships?.[0]?.org_id
@@ -41,6 +42,7 @@ export function ProductFormModal({ posData, onClose, onSuccess, initialData }) {
         qtyOnHand: Number(formData.qty_on_hand),
         qtyMinimum: Number(formData.qty_minimum),
         photoUrl: formData.photo_url,
+        itemType: formData.item_type,
         createdBy: posData?.user?.id
       }
       if (initialData?.id) {
@@ -62,7 +64,7 @@ export function ProductFormModal({ posData, onClose, onSuccess, initialData }) {
     <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div className="report-dialog" style={{ width: 'min(560px, calc(100vw - 32px))', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
         <header style={{ padding: '18px 24px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-          <h2 style={{ margin: 0, fontSize: 18, color: 'var(--brand-dark)' }}>{initialData?.id ? 'Edit Produk' : 'Tambah Produk Baru'}</h2>
+          <h2 style={{ margin: 0, fontSize: 18, color: 'var(--brand-dark)' }}>{initialData?.id ? (formData.item_type === 'material' ? 'Edit Bahan Baku' : 'Edit Produk') : (formData.item_type === 'material' ? 'Tambah Bahan Baku' : 'Tambah Produk Baru')}</h2>
           <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}><X size={20} /></button>
         </header>
         
@@ -72,8 +74,8 @@ export function ProductFormModal({ posData, onClose, onSuccess, initialData }) {
             <input required name="sku" value={formData.sku} onChange={handleChange} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 6, outline: 'none' }} placeholder="Contoh: BRC-001" />
           </div>
           <div style={{ display: 'grid', gap: 6 }}>
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#343941' }}>Nama Produk <span style={{ color: 'red' }}>*</span></label>
-            <input required name="item_name" value={formData.item_name} onChange={handleChange} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 6, outline: 'none' }} placeholder="Contoh: Kopi Susu" />
+            <label style={{ fontSize: 13, fontWeight: 700, color: '#343941' }}>{formData.item_type === 'material' ? 'Nama Bahan Baku' : 'Nama Produk'} <span style={{ color: 'red' }}>*</span></label>
+            <input required name="item_name" value={formData.item_name} onChange={handleChange} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', border: '1px solid var(--line)', borderRadius: 6, outline: 'none' }} placeholder={formData.item_type === 'material' ? 'Contoh: Biji Kopi Arabica' : 'Contoh: Kopi Susu'} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
             <div style={{ display: 'grid', gap: 6 }}>
@@ -133,7 +135,7 @@ export function ProductFormModal({ posData, onClose, onSuccess, initialData }) {
         <footer style={{ padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid var(--line)', display: 'flex', gap: 12, justifyContent: 'flex-end', flexShrink: 0 }}>
           <button type="button" onClick={onClose} style={{ padding: '0 16px', height: 38, border: '1px solid var(--line)', background: '#fff', borderRadius: 6, fontWeight: 600, cursor: 'pointer', color: '#343941' }}>Batal</button>
           <button form="product-form" type="submit" disabled={loading} style={{ padding: '0 16px', height: 38, border: 'none', background: 'var(--brand)', color: '#fff', borderRadius: 6, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-            {loading ? 'Menyimpan...' : 'Simpan Produk'}
+            {loading ? 'Menyimpan...' : (formData.item_type === 'material' ? 'Simpan Bahan Baku' : 'Simpan Produk')}
           </button>
         </footer>
       </div>

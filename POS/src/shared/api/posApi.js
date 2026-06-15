@@ -116,3 +116,14 @@ export function updateNoteCategory(id, payload) {
 export function deleteNoteCategory(id) {
   return apiRequest(`/note-categories/${id}`, { method: 'DELETE' })
 }
+
+// Recipes
+export function createPosRecipe(payload) {
+  return apiRequest('/pos-recipes', { method: 'POST', body: JSON.stringify(payload) })
+}
+export function updatePosRecipe(id, payload) {
+  return apiRequest(`/pos-recipes/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+export function deletePosRecipe(id) {
+  return apiRequest(`/pos-recipes/${id}`, { method: 'DELETE' })
+}

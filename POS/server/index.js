@@ -70,6 +70,7 @@ function toCamelProduct(body) {
     qtyMinimum: body.qtyMinimum ?? body.qty_minimum ?? 0,
     createdBy: body.createdBy || body.created_by,
     photoUrl: body.photoUrl || body.photo_url,
+    itemType: body.itemType || body.item_type || 'product',
   }
 }
 
@@ -278,9 +279,9 @@ app.post('/api/products', async (req, res) => {
     const result = await pool.query(
       `insert into public.st_mast (
         org_id, outlet_id, sku, item_name, category_name, unit,
-        sell_price, qty_on_hand, qty_minimum, is_active, created_by, photo_url
+        sell_price, qty_on_hand, qty_minimum, is_active, created_by, photo_url, item_type
       )
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, $12)
       returning *`,
       [
         product.orgId,
@@ -294,6 +295,7 @@ app.post('/api/products', async (req, res) => {
         Number(product.qtyMinimum || 0),
         product.createdBy || null,
         product.photoUrl || null,
+        product.itemType,
       ],
     )
     res.status(201).json(result.rows[0])
@@ -308,7 +310,7 @@ app.put('/api/products/:id', async (req, res) => {
     const result = await pool.query(
       `update public.st_mast set
         sku = $1, item_name = $2, category_name = $3, unit = $4,
-        sell_price = $5, qty_on_hand = $6, qty_minimum = $7, is_active = $8, photo_url = $9, updated_at = now()
+        sell_price = $5, qty_on_hand = $6, qty_minimum = $7, is_active = $8, photo_url = $9, updated_at = now(), item_type = $12
       where id = $10 and org_id = $11
       returning *`,
       [
@@ -319,10 +321,11 @@ app.put('/api/products/:id', async (req, res) => {
         Number(product.sellPrice || 0),
         Number(product.qtyOnHand || 0),
         Number(product.qtyMinimum || 0),
-        req.body.is_active !== false,
+        req.body.is_active ?? true,
         product.photoUrl || null,
         req.params.id,
-        product.orgId
+        req.body.orgId || req.body.org_id,
+        product.itemType,
       ]
     )
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
@@ -401,7 +404,7 @@ app.get('/api/pos-data', async (req, res) => {
     const membershipUserFilter = req.query.userId ? 'and user_id = $1' : ''
     if (req.query.userId) membershipParams.push(req.query.userId)
 
-    const [memberships, stockItems, sales, salesDetails, stockMutations, customers, shifts, categories, noteCategories] = await Promise.all([
+    const [memberships, stockItems, sales, salesDetails, stockMutations, customers, shifts, categories, noteCategories, recipes] = await Promise.all([
       pool.query(
         `select * from public.pos_team_members
          where is_active = true ${membershipUserFilter}
@@ -439,7 +442,16 @@ app.get('/api/pos-data', async (req, res) => {
         req.query.userId ? [req.query.userId] : []
       ).catch(() => ({ rows: [] })),
       pool.query('select * from public.pos_product_categories order by sequence asc').catch(() => ({ rows: [] })),
-      pool.query('select * from public.note_categories order by created_at desc').catch(() => ({ rows: [] }))
+      pool.query('select * from public.note_categories order by created_at desc').catch(() => ({ rows: [] })),
+      pool.query(`
+        select r.*, 
+          p.item_name as product_name,
+          m.item_name as material_name
+        from public.pos_recipes r
+        join public.st_mast p on p.id = r.product_id
+        join public.st_mast m on m.id = r.material_id
+        order by r.created_at desc
+      `).catch(() => ({ rows: [] }))
     ])
 
     res.json({
@@ -452,6 +464,7 @@ app.get('/api/pos-data', async (req, res) => {
       shifts: shifts.rows,
       categories: categories.rows,
       noteCategories: noteCategories.rows,
+      recipes: recipes.rows
     })
   } catch (error) {
     sendPgError(res, error)
@@ -605,9 +618,7 @@ app.post('/api/shifts', async (req, res) => {
   }
 })
 
-app.use('/api', (_req, res) => {
-  res.status(404).json({ error: 'Endpoint tidak ditemukan.' })
-})
+
 
 // ---------------------------------------------------------------------
 // PHASE 2 & 3: INVENTORY, CRM, ADVANCED SALES ENDPOINTS
@@ -790,9 +801,48 @@ app.post('/api/shifts', async (req, res) => {
   }
 })
 
-app.use('/api', (_req, res) => {
-  res.status(404).json({ error: 'Endpoint tidak ditemukan.' })
+// --- POS Recipes CRUD ---
+app.post('/api/pos-recipes', async (req, res) => {
+  const { orgId, recipeName, productId, materialId, quantity, status } = req.body
+  try {
+    const result = await pool.query(
+      `insert into public.pos_recipes (org_id, recipe_name, product_id, material_id, quantity, status)
+       values ($1, $2, $3, $4, $5, $6) returning *`,
+      [orgId, recipeName, productId, materialId, quantity, status]
+    )
+    res.json(result.rows[0])
+  } catch (error) {
+    sendPgError(res, error)
+  }
 })
+
+app.put('/api/pos-recipes/:id', async (req, res) => {
+  const { recipeName, productId, materialId, quantity, status } = req.body
+  try {
+    const result = await pool.query(
+      `update public.pos_recipes set
+        recipe_name = $1, product_id = $2, material_id = $3, quantity = $4, status = $5, updated_at = now()
+       where id = $6 returning *`,
+      [recipeName, productId, materialId, quantity, status, req.params.id]
+    )
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
+    res.json(result.rows[0])
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+app.delete('/api/pos-recipes/:id', async (req, res) => {
+  try {
+    const result = await pool.query('delete from public.pos_recipes where id = $1 returning id', [req.params.id])
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' })
+    res.json({ success: true })
+  } catch (error) {
+    sendPgError(res, error)
+  }
+})
+
+
 
 // ---------------------------------------------------------------------
 // PHASE 2 & 3: INVENTORY, CRM, ADVANCED SALES ENDPOINTS
@@ -1017,8 +1067,12 @@ app.post('/api/mutasi-outlet', async (req, res) => {
   }
 })
 
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Endpoint tidak ditemukan.' })
+})
+
 if (process.env.NODE_ENV !== 'production' || (!process.env.VERCEL && !process.env.RENDER)) {
-  app.listen(port, () => {
+  app.listen(port, '0.0.0.0', () => {
     console.log(`API Server running on port ${port}`)
   })
 }

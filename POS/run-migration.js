@@ -36,7 +36,7 @@ async function run() {
 
   try {
     console.log('Connecting to', databaseUrl.split('@')[1])
-    const sql = fs.readFileSync(path.join(process.cwd(), 'postgres/migrations/003_note_categories.sql'), 'utf8')
+    const sql = fs.readFileSync(path.join(process.cwd(), 'postgres/migrations/005_item_type_to_st_mast.sql'), 'utf8')
     await pool.query(sql)
     console.log('Migration successful!')
   } catch (err) {

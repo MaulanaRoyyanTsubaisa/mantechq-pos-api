@@ -61,7 +61,7 @@ import {
   updateCategory,
   deleteCategory,
 } from './lib/api.js'
-import { deleteProduct, updateProduct, deleteNoteCategory, updateNoteCategory, createNoteCategory } from './shared/api/posApi.js'
+import { deleteProduct, updateProduct, deleteNoteCategory, updateNoteCategory, createNoteCategory, createPosRecipe, updatePosRecipe, deletePosRecipe } from './shared/api/posApi.js'
 import { PosApp } from './features/pos/PosApp.jsx'
 import { ProductFormModal } from './features/modules/ProductFormModal.jsx'
 import capitalVisual from './assets/capital-visual.png'
@@ -142,6 +142,92 @@ function ConfirmModal({ open, title, message, icon, confirmLabel = 'Ya, Lanjutka
           <button className="cm-btn cm-btn-cancel" onClick={onCancel}>{cancelLabel}</button>
           <button className="cm-btn cm-btn-confirm" style={{ background: variantColor }} onClick={onConfirm}>{confirmLabel}</button>
         </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+function RecipeFormModal({ initialData, posData, onClose, onRefresh }) {
+  const [recipeName, setRecipeName] = useState(initialData?.recipe_name || '')
+  const [productId, setProductId] = useState(initialData?.product_id || '')
+  const [materialId, setMaterialId] = useState(initialData?.material_id || '')
+  const [quantity, setQuantity] = useState(initialData?.quantity || '')
+  const [status, setStatus] = useState(initialData ? initialData.status : true)
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!recipeName || !productId || !materialId || !quantity) return toast.error('Semua kolom wajib diisi')
+    setSaving(true)
+    try {
+      const payload = {
+        orgId: 'f63d5959-6c12-4765-8d27-2990f7f3139f',
+        recipeName,
+        productId,
+        materialId,
+        quantity: Number(quantity),
+        status
+      }
+      if (initialData?.id) {
+        await updatePosRecipe(initialData.id, payload)
+        toast.success('Resep berhasil diperbarui')
+      } else {
+        await createPosRecipe(payload)
+        toast.success('Resep berhasil ditambahkan')
+      }
+      if (onRefresh) onRefresh()
+      onClose()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return createPortal(
+    <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 450}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+          <h2 style={{margin: 0, fontSize: 18}}>{initialData ? 'Edit Resep' : 'Tambah Resep'}</h2>
+          <button onClick={onClose} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+            Nama Resep
+            <input value={recipeName} onChange={e => setRecipeName(e.target.value)} placeholder="Contoh: Kopi Susu Standar" style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required />
+          </label>
+          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+            Pilih Produk
+            <select value={productId} onChange={e => setProductId(e.target.value)} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required>
+              <option value="">-- Pilih Produk --</option>
+              {posData?.stockItems?.map(item => (
+                <option key={item.id} value={item.id}>{item.item_name} ({item.sku})</option>
+              ))}
+            </select>
+          </label>
+          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+            Pilih Bahan Baku
+            <select value={materialId} onChange={e => setMaterialId(e.target.value)} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required>
+              <option value="">-- Pilih Bahan Baku --</option>
+              {posData?.stockItems?.map(item => (
+                <option key={item.id} value={item.id}>{item.item_name} ({item.sku})</option>
+              ))}
+            </select>
+          </label>
+          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+            Qty Penggunaan
+            <input type="number" step="0.001" value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="Contoh: 1.5" style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required />
+          </label>
+          <label style={{display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer'}}>
+            <input type="checkbox" checked={status} onChange={e => setStatus(e.target.checked)} style={{width: 18, height: 18}} />
+            Aktif
+          </label>
+          <div style={{marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 12}}>
+            <button className="btn-secondary" onClick={onClose} type="button">Batal</button>
+            <button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Resep'}</button>
+          </div>
+        </form>
       </div>
     </div>,
     document.body
@@ -1004,10 +1090,20 @@ function getRowsForPage(page, posData) {
       ]
     })
   }
-  if (page === 'Daftar Produk') return mapStockToProductRows(stockItems)
-  if (page === 'Cetak Barcode') return mapStockToBarcodeRows(stockItems)
-  if (['Kelola Stok', 'Daftar Bahan Baku', 'Lap. Ringkasan Persediaan', 'Lap. Detail Persediaan'].includes(page)) {
+  if (page === 'Daftar Produk') return mapStockToProductRows(stockItems.filter(i => i.item_type !== 'material'))
+  if (page === 'Cetak Barcode') return mapStockToBarcodeRows(stockItems.filter(i => i.item_type !== 'material'))
+  if (page === 'Kelola Stok' || page === 'Lap. Ringkasan Persediaan' || page === 'Lap. Detail Persediaan') {
     return mapStockToInventoryRows(stockItems)
+  }
+  if (page === 'Daftar Bahan Baku') {
+    return stockItems.filter(i => i.item_type === 'material').map(item => [
+      item.item_name,
+      item.unit,
+      formatQty(item.qty_on_hand),
+      formatQty(item.qty_minimum),
+      item.is_active ? 'Tampil di Menu' : 'Sembunyi',
+      { item, id: item.id, orgId: item.org_id }
+    ])
   }
   if (page === 'Detail Penjualan') return mapSalesDetailRows(salesDetails)
   if (page === 'Daftar Kategori Catatan') {
@@ -1017,6 +1113,16 @@ function getRowsForPage(page, posData) {
       0, // JUMLAH CATATAN
       cat.status ? 'Tampil di Menu' : 'Tidak Tampil di Menu',
       { item: cat, id: cat.id, orgId: cat.org_id }
+    ])
+  }
+  if (page === 'Master Resep') {
+    const recipes = posData.recipes || []
+    return recipes.map(recipe => [
+      recipe.product_name || '-',
+      recipe.material_name || '-',
+      formatQty(recipe.quantity),
+      recipe.status ? 'Aktif' : 'Tidak Aktif',
+      { item: recipe, id: recipe.id, orgId: recipe.org_id }
     ])
   }
   return []
@@ -5730,9 +5836,9 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
     const matchesStatus = status === 'Semua' || statusText.includes(status)
     return matchesQuery && matchesStatus
   })
-
   const [showAddModal, setShowAddModal] = useState(false)
   const [showNoteCategoryModal, setShowNoteCategoryModal] = useState(false)
+  const [showRecipeModal, setShowRecipeModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null) // { id, orgId, type: 'kategori'|'produk', name }
 
@@ -5740,12 +5846,27 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
     if (action === 'Tambah Produk') {
       if (onStartFlow) onStartFlow('product')
       else {
-        setEditingProduct(null)
+        setEditingProduct({ item_type: 'product' })
         setShowAddModal(true)
       }
     } else if (action === 'Tambah Bahan Baku') {
-      setEditingProduct(null)
+      setEditingProduct({ item_type: 'material' })
       setShowAddModal(true)
+    } else if (action === 'Impor Bahan Baku') {
+      toast.info('Fitur impor bahan baku sedang dalam pengembangan')
+    } else if (action === 'Ekspor Bahan Baku') {
+      try {
+        const header = config.columns.slice(0, -1).join(',')
+        const csvContent = liveRows.map(row => row.slice(0, -1).map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
+        const blob = new Blob([`${header}\n${csvContent}`], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = 'Bahan_Baku.csv'
+        link.click()
+        toast.success('Berhasil mengekspor bahan baku')
+      } catch (e) {
+        toast.error('Gagal mengekspor data')
+      }
     } else if (action.toLowerCase().includes('impor')) {
       toast.success(`${action} dibuka`)
     } else {
@@ -5770,6 +5891,14 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
         <NoteCategoryModal 
           initialData={editingProduct}
           onClose={() => setShowNoteCategoryModal(false)} 
+          onRefresh={() => posData?.refresh?.()} 
+        />
+      )}
+      {showRecipeModal && (
+        <RecipeFormModal 
+          initialData={editingProduct}
+          posData={posData}
+          onClose={() => setShowRecipeModal(false)} 
           onRefresh={() => posData?.refresh?.()} 
         />
       )}
@@ -5798,10 +5927,16 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
             {config.addLabel ? (
               <Button onClick={() => {
                 setEditingProduct(null)
-                if (config.addLabel === 'Tambah Produk' || config.addLabel === 'Tambah Bahan Baku') {
+                if (config.addLabel === 'Tambah Produk') {
+                  setEditingProduct({ item_type: 'product' })
+                  setShowAddModal(true)
+                } else if (config.addLabel === 'Tambah Bahan Baku') {
+                  setEditingProduct({ item_type: 'material' })
                   setShowAddModal(true)
                 } else if (config.addLabel === 'Tambah Kategori Catatan') {
                   setShowNoteCategoryModal(true)
+                } else if (config.addLabel === 'Tambah Resep') {
+                  setShowRecipeModal(true)
                 } else if (config.addFlow) {
                   onStartFlow(config.addFlow)
                 } else {
@@ -5865,6 +6000,9 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                               } else if (config.title === 'Daftar Kategori Catatan') {
                                 setEditingProduct(cell.item)
                                 setShowNoteCategoryModal(true)
+                              } else if (config.title === 'Master Resep') {
+                                setEditingProduct(cell.item)
+                                setShowRecipeModal(true)
                               } else {
                                 setEditingProduct(cell.item)
                                 setShowAddModal(true)
@@ -5874,8 +6012,8 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                               setConfirmDelete({
                                 id: cell.id,
                                 orgId: cell.orgId,
-                                type: config.title === 'Daftar Kategori' ? 'kategori' : config.title === 'Daftar Kategori Catatan' ? 'note-category' : 'produk',
-                                name: cell.name || cell.item?.item_name || cell.item?.name || 'item ini',
+                                type: config.title === 'Daftar Kategori' ? 'kategori' : config.title === 'Daftar Kategori Catatan' ? 'note-category' : config.title === 'Master Resep' ? 'resep' : 'produk',
+                                name: cell.name || cell.item?.recipe_name || cell.item?.item_name || cell.item?.name || 'item ini',
                               })
                             }} aria-label="Hapus Item"><Trash2 size={16} color="#ef4444" /></button>
                           </div>
@@ -5906,6 +6044,9 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                 } else if (target.type === 'note-category') {
                   await deleteNoteCategory(target.id)
                   toast.success('Kategori catatan berhasil dihapus')
+                } else if (target.type === 'resep') {
+                  await deletePosRecipe(target.id)
+                  toast.success('Resep berhasil dihapus')
                 } else {
                   await deleteProduct(target.id, target.orgId)
                   toast.success('Produk berhasil dihapus')
