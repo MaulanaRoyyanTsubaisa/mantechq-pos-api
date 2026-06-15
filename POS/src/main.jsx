@@ -7701,6 +7701,8 @@ function usePostgresPosData(session) {
     shifts: [],
     categories: [],
     noteCategories: [],
+    recipes: [],
+    customers: [],
   })
 
   const refresh = async () => {
@@ -7724,6 +7726,8 @@ function usePostgresPosData(session) {
       shifts: data.shifts || [],
       categories: data.categories || [],
       noteCategories: data.noteCategories || [],
+      recipes: data.recipes || [],
+      customers: data.customers || [],
     })
   }
 
