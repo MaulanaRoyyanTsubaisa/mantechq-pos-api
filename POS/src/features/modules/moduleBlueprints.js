@@ -971,6 +971,38 @@ function getRowsForPage(page, posData) {
     ])
   }
 
+  if (page === 'Master Resep') {
+    const recipes = posData.recipes || []
+    // Group by recipe_name and product_id
+    const grouped = {}
+    recipes.forEach(r => {
+      const key = `${r.recipe_name}_${r.product_id}`
+      if (!grouped[key]) {
+        grouped[key] = {
+          recipe_name: r.recipe_name,
+          product_id: r.product_id,
+          product_name: r.product_name,
+          status: r.status,
+          materials: []
+        }
+      }
+      grouped[key].materials.push({
+        material_name: r.material_name,
+        quantity: r.quantity,
+        material_id: r.material_id
+      })
+    })
+
+    return Object.values(grouped).map(g => [
+      g.recipe_name || '-',
+      g.product_name || '-',
+      g.materials.map(m => m.material_name).join(', ') || '-',
+      g.materials.map(m => formatQty(m.quantity)).join(', ') || '-',
+      g.status ? 'Aktif' : 'Tidak Aktif',
+      { type: 'resep', id: `${g.recipe_name}_${g.product_id}`, item: g }
+    ])
+  }
+
   return []
 }
 
