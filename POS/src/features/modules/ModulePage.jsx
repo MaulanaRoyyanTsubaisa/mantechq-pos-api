@@ -138,7 +138,7 @@ function ModulePage({ activePage, onStartFlow, posData }) {
     return <ProductDirectoryPage config={productPageConfigs[activePage]} onStartFlow={onStartFlow} posData={posData} />
   }
 
-  if (activePage === 'Daftar Bahan Baku') return <DaftarBahanBakuPage />
+
   if (activePage === 'Pemesanan Stok') return <PemesananStokPage />
   if (activePage === 'Daftar Stok') return <DaftarStokPage />
   if (activePage === 'Daftar Pemasok') return <DaftarPemasokPage />

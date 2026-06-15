@@ -641,15 +641,7 @@ Object.assign(moduleBlueprints, {
     columns: ['FOTO', 'NAMA PRODUK', 'SKU', 'KATEGORI', 'HARGA MODAL', 'HARGA BELI', 'HARGA JUAL', 'STATUS'],
     rows: [],
   },
-  'Daftar Bahan Baku': {
-    type: 'master',
-    title: 'Daftar Bahan Baku',
-    actions: ['Impor Bahan Baku', 'Ekspor Bahan Baku', 'Tambah Bahan Baku'],
-    filters: [],
-    controls: 'search-only',
-    columns: ['SKU', 'NAMA', 'SATUAN'],
-    rows: [],
-  },
+
   'Daftar Pelanggan': {
     type: 'master',
     title: 'Daftar Pelanggan',
@@ -685,6 +677,14 @@ const productPageConfigs = {
     columns: ['NAMA KATEGORI', 'URUTAN', 'JUMLAH PRODUK', 'DEPARTEMEN', 'STATUS', ''],
     rows: [['IT', '1', '0 item', 'IT', 'Tampil di Menu', '']],
     pagination: 'Ditampilkan 1 - 1 dari 1 data',
+  },
+  'Daftar Bahan Baku': {
+    title: 'Daftar Bahan Baku',
+    addLabel: 'Tambah Bahan Baku',
+    addFlow: 'material',
+    actions: ['Impor Bahan Baku', 'Ekspor Bahan Baku'],
+    columns: ['BAHAN BAKU', 'SATUAN', 'STOK', 'MINIMUM', 'STATUS', ''],
+    rows: [],
   },
   'Daftar Produk': {
     title: 'Daftar Produk',
@@ -944,10 +944,20 @@ function getRowsForPage(page, posData) {
   const salesDetails = posData.salesDetails || []
   const stockMutations = posData.stockMutations || []
 
-  if (page === 'Daftar Produk') return mapStockToProductRows(stockItems)
-  if (page === 'Cetak Barcode') return mapStockToBarcodeRows(stockItems)
-  if (['Kelola Stok', 'Daftar Bahan Baku', 'Lap. Ringkasan Persediaan', 'Lap. Detail Persediaan'].includes(page)) {
+  if (page === 'Daftar Produk') return mapStockToProductRows(stockItems.filter(i => i.item_type !== 'material'))
+  if (page === 'Cetak Barcode') return mapStockToBarcodeRows(stockItems.filter(i => i.item_type !== 'material'))
+  if (['Kelola Stok', 'Lap. Ringkasan Persediaan', 'Lap. Detail Persediaan'].includes(page)) {
     return mapStockToInventoryRows(stockItems)
+  }
+  if (page === 'Daftar Bahan Baku') {
+    return stockItems.filter(i => i.item_type === 'material').map(item => [
+      item.item_name,
+      item.unit,
+      formatQty(item.qty_on_hand),
+      formatQty(item.qty_minimum),
+      item.is_active ? 'Tampil di Menu' : 'Sembunyi',
+      { item, id: item.id, orgId: item.org_id }
+    ])
   }
   if (page === 'Detail Penjualan') return mapSalesDetailRows(salesDetails)
   if (page === 'Riwayat Stok') return mapStockMovementRows(stockMutations)

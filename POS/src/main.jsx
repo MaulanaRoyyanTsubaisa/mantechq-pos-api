@@ -802,15 +802,7 @@ Object.assign(moduleBlueprints, {
     columns: ['NAMA PRODUK', 'SKU', 'KATEGORI', 'HARGA MODAL', 'HARGA BELI', 'HARGA JUAL', 'STATUS'],
     rows: [],
   },
-  'Daftar Bahan Baku': {
-    type: 'master',
-    title: 'Daftar Bahan Baku',
-    actions: ['Impor Bahan Baku', 'Ekspor Bahan Baku', 'Tambah Bahan Baku'],
-    filters: [],
-    controls: 'search-only',
-    columns: ['SKU', 'NAMA', 'SATUAN'],
-    rows: [],
-  },
+
   'Daftar Pelanggan': {
     type: 'master',
     title: 'Daftar Pelanggan',
@@ -844,6 +836,14 @@ const productPageConfigs = {
     addLabel: 'Tambah Kategori',
     addFlow: 'category',
     columns: ['NAMA KATEGORI', 'URUTAN', 'JUMLAH PRODUK', 'DEPARTEMEN', 'STATUS', ''],
+    rows: [],
+  },
+  'Daftar Bahan Baku': {
+    title: 'Daftar Bahan Baku',
+    addLabel: 'Tambah Bahan Baku',
+    addFlow: 'material',
+    actions: ['Impor Bahan Baku', 'Ekspor Bahan Baku'],
+    columns: ['BAHAN BAKU', 'SATUAN', 'STOK', 'MINIMUM', 'STATUS', ''],
     rows: [],
   },
   'Daftar Produk': {
