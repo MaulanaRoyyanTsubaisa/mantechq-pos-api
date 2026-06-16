@@ -6420,7 +6420,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                               } else if (config.title === 'Kelola Stok') {
                                 setEditingProduct(cell.item)
                                 setShowStockOpnameModal(true)
-                              } else if (config.title === 'Basic Promo') {
+                              } else if (cell.type === 'promo' || config.title === 'Basic Promo' || config.title === 'Per Total Pembelian' || config.title === 'Per Produk') {
                                 setEditingProduct(cell.item)
                                 setShowPromoModal(true)
                               } else {
@@ -6432,7 +6432,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                               setConfirmDelete({
                                 id: cell.id,
                                 orgId: cell.orgId,
-                                type: config.title === 'Daftar Kategori' ? 'kategori' : config.title === 'Daftar Kategori Catatan' ? 'note-category' : config.title === 'Master Resep' ? 'resep' : config.title === 'Basic Promo' ? 'promo' : 'produk',
+                                type: config.title === 'Daftar Kategori' ? 'kategori' : config.title === 'Daftar Kategori Catatan' ? 'note-category' : config.title === 'Master Resep' ? 'resep' : (cell.type === 'promo' || config.title === 'Basic Promo' || config.title === 'Per Total Pembelian' || config.title === 'Per Produk') ? 'promo' : 'produk',
                                 name: cell.name || cell.item?.recipe_name || cell.item?.item_name || cell.item?.name || 'item ini',
                                 recipeName: cell.item?.recipe_name,
                                 productId: cell.item?.product_id
