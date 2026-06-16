@@ -426,6 +426,7 @@ function PromoFormModal({ initialData, posData, onClose, onRefresh }) {
         orgId: 'f63d5959-6c12-4765-8d27-2990f7f3139f',
         name,
         type,
+        scope: initialData?.scope || 'BASIC',
         value: Number(value),
         minPurchase: minPurchase ? Number(minPurchase) : 0,
         maxDiscount: maxDiscount ? Number(maxDiscount) : null,
@@ -1176,6 +1177,12 @@ const productPageConfigs = {
     columns: ['NAMA PROMO', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS', ''],
     rows: [],
   },
+  'Per Total Pembelian': {
+    title: 'Per Total Pembelian',
+    addLabel: 'Tambah Promo Total',
+    columns: ['NAMA PROMO', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS', ''],
+    rows: [],
+  },
 }
 
 function cn(...classes) {
@@ -1433,8 +1440,9 @@ function getRowsForPage(page, posData) {
       { type: 'resep', id: `${g.recipe_name}_${g.product_id}`, item: g }
     ])
   }
-  if (page === 'Basic Promo') {
-    const promos = posData.promos || []
+  if (page === 'Basic Promo' || page === 'Per Total Pembelian') {
+    const scopeFilter = page === 'Per Total Pembelian' ? 'TOTAL' : 'BASIC'
+    const promos = (posData.promos || []).filter(p => (p.scope || 'BASIC') === scopeFilter)
     return promos.map(promo => {
       const periode = promo.start_date || promo.end_date 
         ? `${promo.start_date ? new Date(promo.start_date).toLocaleDateString('id-ID') : '-'} s/d ${promo.end_date ? new Date(promo.end_date).toLocaleDateString('id-ID') : '-'}`
@@ -6182,6 +6190,9 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
       setShowAddModal(true)
     } else if (action === 'Tambah Promo') {
       setEditingProduct(null)
+      setShowPromoModal(true)
+    } else if (action === 'Tambah Promo Total') {
+      setEditingProduct({ scope: 'TOTAL' })
       setShowPromoModal(true)
     } else if (action === 'Impor Bahan Baku') {
       toast.info('Fitur impor bahan baku sedang dalam pengembangan')
