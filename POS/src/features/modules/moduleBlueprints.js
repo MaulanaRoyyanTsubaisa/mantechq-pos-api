@@ -606,18 +606,38 @@ const reportPageConfigs = {
   },
 }
 
-;['Basic Promo', 'Per Total Pembelian', 'Per Produk'].forEach((page) => {
-  moduleBlueprints[page] = {
-    type: 'master',
-    title: page,
-    description: 'Kelola promo aktif untuk transaksi kasir dan pelanggan.',
-    actions: ['Tambah Promo'],
-    filters: ['Outlet', 'Status'],
-    controls: 'status-tabs',
-    columns: ['NAMA PROMO', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS'],
-    rows: [],
-  }
-})
+moduleBlueprints['Basic Promo'] = {
+  type: 'master',
+  title: 'Basic Promo',
+  description: 'Kelola promo aktif untuk transaksi kasir dan pelanggan.',
+  actions: ['Tambah Promo'],
+  filters: ['Outlet', 'Status'],
+  controls: 'status-tabs',
+  columns: ['NAMA PROMO', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS', ''],
+  rows: [],
+}
+
+moduleBlueprints['Per Total Pembelian'] = {
+  type: 'master',
+  title: 'Per Total Pembelian',
+  description: 'Kelola promo aktif untuk transaksi kasir dan pelanggan.',
+  actions: ['Tambah Promo Total'],
+  filters: ['Outlet', 'Status'],
+  controls: 'status-tabs',
+  columns: ['NAMA PROMO', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS', ''],
+  rows: [],
+}
+
+moduleBlueprints['Per Produk'] = {
+  type: 'master',
+  title: 'Per Produk',
+  description: 'Kelola promo aktif untuk transaksi kasir dan pelanggan.',
+  actions: ['Tambah Promo Produk'],
+  filters: ['Outlet', 'Status'],
+  controls: 'status-tabs',
+  columns: ['NAMA PROMO', 'PRODUK', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS', ''],
+  rows: [],
+}
 
 Object.assign(moduleBlueprints, {
   'Daftar Produk': {
