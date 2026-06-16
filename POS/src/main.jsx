@@ -63,7 +63,7 @@ import {
   updateCategory,
   deleteCategory,
 } from './lib/api.js'
-import { deleteProduct, updateProduct, deleteNoteCategory, updateNoteCategory, createNoteCategory, savePosRecipeBatch, deletePosRecipeBatch } from './shared/api/posApi.js'
+import { deleteProduct, updateProduct, deleteNoteCategory, updateNoteCategory, createNoteCategory, savePosRecipeBatch, deletePosRecipeBatch, createPromo, updatePromo, deletePromo } from './shared/api/posApi.js'
 import { PosApp } from './features/pos/PosApp.jsx'
 import { ProductFormModal } from './features/modules/ProductFormModal.jsx'
 import capitalVisual from './assets/capital-visual.png'
@@ -405,6 +405,113 @@ function StockOpnameModal({ initialData, onClose, onRefresh }) {
     document.body
   )
 }
+
+function PromoFormModal({ initialData, posData, onClose, onRefresh }) {
+  const [name, setName] = useState(initialData?.name || '')
+  const [type, setType] = useState(initialData?.type || 'PERCENTAGE')
+  const [value, setValue] = useState(initialData?.value || '')
+  const [minPurchase, setMinPurchase] = useState(initialData?.min_purchase || '')
+  const [maxDiscount, setMaxDiscount] = useState(initialData?.max_discount || '')
+  const [startDate, setStartDate] = useState(initialData?.start_date ? new Date(initialData.start_date).toISOString().slice(0, 16) : '')
+  const [endDate, setEndDate] = useState(initialData?.end_date ? new Date(initialData.end_date).toISOString().slice(0, 16) : '')
+  const [status, setStatus] = useState(initialData?.status || 'ACTIVE')
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!name || !value) return toast.error('Nama dan nilai promo wajib diisi')
+    setSaving(true)
+    try {
+      const payload = {
+        orgId: 'f63d5959-6c12-4765-8d27-2990f7f3139f',
+        name,
+        type,
+        value: Number(value),
+        minPurchase: minPurchase ? Number(minPurchase) : 0,
+        maxDiscount: maxDiscount ? Number(maxDiscount) : null,
+        startDate: startDate ? new Date(startDate).toISOString() : null,
+        endDate: endDate ? new Date(endDate).toISOString() : null,
+        status
+      }
+      if (initialData?.id) {
+        await updatePromo(initialData.id, payload)
+        toast.success('Promo berhasil diperbarui')
+      } else {
+        await createPromo(payload)
+        toast.success('Promo berhasil ditambahkan')
+      }
+      if (onRefresh) onRefresh()
+      onClose()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return createPortal(
+    <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto'}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+          <h2 style={{margin: 0, fontSize: 18}}>{initialData ? 'Edit Promo' : 'Tambah Promo'}</h2>
+          <button onClick={onClose} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+            Nama Promo
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Contoh: Promo Lebaran" style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required />
+          </label>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+            <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+              Tipe Promo
+              <select value={type} onChange={e => setType(e.target.value)} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}}>
+                <option value="PERCENTAGE">Persentase (%)</option>
+                <option value="NOMINAL">Nominal (Rp)</option>
+              </select>
+            </label>
+            <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+              Nilai Promo
+              <input type="number" value={value} onChange={e => setValue(e.target.value)} placeholder={type === 'PERCENTAGE' ? 'Contoh: 10' : 'Contoh: 15000'} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required />
+            </label>
+          </div>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+            <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+              Minimal Pembelian (Opsional)
+              <input type="number" value={minPurchase} onChange={e => setMinPurchase(e.target.value)} placeholder="0" style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} />
+            </label>
+            <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+              Maksimal Diskon (Opsional)
+              <input type="number" value={maxDiscount} onChange={e => setMaxDiscount(e.target.value)} placeholder={type === 'PERCENTAGE' ? 'Contoh: 25000' : 'Abaikan'} disabled={type === 'NOMINAL'} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} />
+            </label>
+          </div>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+            <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+              Waktu Mulai
+              <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} />
+            </label>
+            <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+              Waktu Selesai
+              <input type="datetime-local" value={endDate} onChange={e => setEndDate(e.target.value)} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} />
+            </label>
+          </div>
+          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+            Status
+            <select value={status} onChange={e => setStatus(e.target.value)} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}}>
+              <option value="ACTIVE">Aktif</option>
+              <option value="INACTIVE">Tidak Aktif</option>
+            </select>
+          </label>
+          <div style={{marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 12}}>
+            <button className="btn-secondary" onClick={onClose} type="button">Batal</button>
+            <button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan Promo'}</button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 const sidebarGroups = [
   { label: 'Menu Favorit', icon: Star, children: [] },
   { label: 'Dashboard', icon: LayoutDashboard, children: [] },
@@ -948,6 +1055,7 @@ const reportPageConfigs = {
     title: page,
     description: 'Kelola promo aktif untuk transaksi kasir dan pelanggan.',
     actions: ['Tambah Promo'],
+    addLabel: 'Tambah Promo',
     filters: ['Outlet', 'Status'],
     controls: 'status-tabs',
     columns: ['NAMA PROMO', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS'],
@@ -1060,6 +1168,12 @@ const productPageConfigs = {
     actions: ['Riwayat Opname', 'Impor Data'],
     filters: ['Semua Tipe'],
     columns: ['NAMA ITEM', 'SKU/KODE', 'TIPE', 'STOK SISTEM', 'STATUS', ''],
+    rows: [],
+  },
+  'Basic Promo': {
+    title: 'Basic Promo',
+    addLabel: 'Tambah Promo',
+    columns: ['NAMA PROMO', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS', ''],
     rows: [],
   },
 }
@@ -1318,6 +1432,23 @@ function getRowsForPage(page, posData) {
       g.status ? 'Aktif' : 'Tidak Aktif',
       { type: 'resep', id: `${g.recipe_name}_${g.product_id}`, item: g }
     ])
+  }
+  if (page === 'Basic Promo') {
+    const promos = posData.promos || []
+    return promos.map(promo => {
+      const periode = promo.start_date || promo.end_date 
+        ? `${promo.start_date ? new Date(promo.start_date).toLocaleDateString('id-ID') : '-'} s/d ${promo.end_date ? new Date(promo.end_date).toLocaleDateString('id-ID') : '-'}`
+        : 'Selamanya'
+      
+      return [
+        promo.name,
+        periode,
+        promo.type === 'PERCENTAGE' ? 'Persentase' : 'Nominal',
+        promo.type === 'PERCENTAGE' ? `${promo.value}%` : `Rp ${formatQty(promo.value)}`,
+        promo.status === 'ACTIVE' ? 'Aktif' : 'Tidak Aktif',
+        { type: 'promo', id: promo.id, item: promo }
+      ]
+    })
   }
   return []
 }
@@ -6035,6 +6166,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
   const [showRecipeModal, setShowRecipeModal] = useState(false)
   const [showRecipeDetailModal, setShowRecipeDetailModal] = useState(false)
   const [showStockOpnameModal, setShowStockOpnameModal] = useState(false)
+  const [showPromoModal, setShowPromoModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null) // { id, orgId, type: 'kategori'|'produk', name }
 
@@ -6048,6 +6180,9 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
     } else if (action === 'Tambah Bahan Baku') {
       setEditingProduct({ item_type: 'material' })
       setShowAddModal(true)
+    } else if (action === 'Tambah Promo') {
+      setEditingProduct(null)
+      setShowPromoModal(true)
     } else if (action === 'Impor Bahan Baku') {
       toast.info('Fitur impor bahan baku sedang dalam pengembangan')
     } else if (action === 'Ekspor Bahan Baku') {
@@ -6111,6 +6246,14 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
           onRefresh={() => posData?.refresh?.()}
         />
       )}
+      {showPromoModal && (
+        <PromoFormModal 
+          initialData={editingProduct}
+          posData={posData}
+          onClose={() => setShowPromoModal(false)}
+          onRefresh={() => posData?.refresh?.()}
+        />
+      )}
       <CapitalBanner compact />
       <section className="panel product-directory-card">
         <header className="product-directory-head">
@@ -6148,6 +6291,8 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                   setShowRecipeModal(true)
                 } else if (config.addLabel === 'Penyesuaian Stok') {
                   setShowStockOpnameModal(true)
+                } else if (config.addLabel === 'Tambah Promo') {
+                  setShowPromoModal(true)
                 } else if (config.addFlow) {
                   onStartFlow(config.addFlow)
                 } else {
@@ -6223,6 +6368,9 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                               } else if (config.title === 'Kelola Stok') {
                                 setEditingProduct(cell.item)
                                 setShowStockOpnameModal(true)
+                              } else if (config.title === 'Basic Promo') {
+                                setEditingProduct(cell.item)
+                                setShowPromoModal(true)
                               } else {
                                 setEditingProduct(cell.item)
                                 setShowAddModal(true)
@@ -6232,7 +6380,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                               setConfirmDelete({
                                 id: cell.id,
                                 orgId: cell.orgId,
-                                type: config.title === 'Daftar Kategori' ? 'kategori' : config.title === 'Daftar Kategori Catatan' ? 'note-category' : config.title === 'Master Resep' ? 'resep' : 'produk',
+                                type: config.title === 'Daftar Kategori' ? 'kategori' : config.title === 'Daftar Kategori Catatan' ? 'note-category' : config.title === 'Master Resep' ? 'resep' : config.title === 'Basic Promo' ? 'promo' : 'produk',
                                 name: cell.name || cell.item?.recipe_name || cell.item?.item_name || cell.item?.name || 'item ini',
                                 recipeName: cell.item?.recipe_name,
                                 productId: cell.item?.product_id
@@ -6269,6 +6417,9 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                 } else if (target.type === 'resep') {
                   await deletePosRecipeBatch(target.recipeName, target.productId)
                   toast.success('Resep berhasil dihapus')
+                } else if (target.type === 'promo') {
+                  await deletePromo(target.id)
+                  toast.success('Promo berhasil dihapus')
                 } else {
                   await deleteProduct(target.id, target.orgId)
                   toast.success('Produk berhasil dihapus')
@@ -6307,6 +6458,7 @@ function TransactionPage({ posData, session }) {
   const [paymentMethod, setPaymentMethod] = useState(paymentMethodOptions[0])
   const [paymentStatus, setPaymentStatus] = useState('paid')
   const [discountTotal, setDiscountTotal] = useState('0')
+  const [selectedPromoId, setSelectedPromoId] = useState('')
   const [taxTotal, setTaxTotal] = useState('0')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -6323,6 +6475,25 @@ function TransactionPage({ posData, session }) {
     return text.includes(query.toLowerCase())
   })
   const subtotal = cart.reduce((sum, item) => sum + Math.max((item.qty * item.price) - item.discount, 0), 0)
+  
+  const activePromos = (posData.promos || []).filter(p => p.status === 'ACTIVE' && (!p.start_date || new Date(p.start_date) <= new Date()) && (!p.end_date || new Date(p.end_date) >= new Date()))
+
+  useEffect(() => {
+    if (selectedPromoId) {
+      const promo = activePromos.find(p => p.id === selectedPromoId)
+      if (promo) {
+        if (promo.type === 'PERCENTAGE') {
+          const discount = (subtotal * promo.value) / 100
+          setDiscountTotal(discount.toString())
+        } else {
+          setDiscountTotal(promo.value.toString())
+        }
+      }
+    } else {
+      setDiscountTotal('0')
+    }
+  }, [selectedPromoId, subtotal])
+
   const discountValue = parseCurrencyInput(discountTotal)
   const taxValue = parseCurrencyInput(taxTotal)
   const grandTotal = Math.max(subtotal - discountValue + taxValue, 0)
@@ -6375,6 +6546,7 @@ function TransactionPage({ posData, session }) {
   const resetTransaction = () => {
     setCart([])
     setDiscountTotal('0')
+    setSelectedPromoId('')
     setTaxTotal('0')
     setNote('')
     setPaymentMethod(paymentMethodOptions[0])
@@ -6532,8 +6704,20 @@ function TransactionPage({ posData, session }) {
 
             <div className="transaction-summary-box">
               <label>
-                Diskon Transaksi
-                <input value={discountTotal} onChange={(event) => setDiscountTotal(event.target.value)} />
+                Promo Transaksi
+                <select value={selectedPromoId} onChange={(event) => setSelectedPromoId(event.target.value)}>
+                  <option value="">Tanpa Promo</option>
+                  {activePromos.map(promo => (
+                    <option key={promo.id} value={promo.id}>{promo.name} ({promo.type === 'PERCENTAGE' ? `${promo.value}%` : formatRupiah(promo.value)})</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Diskon Tambahan (Manual)
+                <input value={discountTotal} onChange={(event) => {
+                  setSelectedPromoId('') // clear promo if manually typed
+                  setDiscountTotal(event.target.value)
+                }} />
               </label>
               <label>
                 Pajak

@@ -125,3 +125,14 @@ export function savePosRecipeBatch(payload) {
 export function deletePosRecipeBatch(recipeName, productId) {
   return apiRequest(`/pos-recipes/batch?recipeName=${encodeURIComponent(recipeName)}&productId=${encodeURIComponent(productId)}`, { method: 'DELETE' })
 }
+
+// Promos
+export function createPromo(payload) {
+  return apiRequest('/promos', { method: 'POST', body: JSON.stringify(payload) })
+}
+export function updatePromo(id, payload) {
+  return apiRequest(`/promos/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+export function deletePromo(id) {
+  return apiRequest(`/promos/${id}`, { method: 'DELETE' })
+}

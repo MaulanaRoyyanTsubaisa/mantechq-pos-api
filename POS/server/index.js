@@ -143,6 +143,21 @@ async function initDb() {
         created_at timestamptz default now(),
         updated_at timestamptz default now()
       );
+
+      CREATE TABLE IF NOT EXISTS public.promos (
+        id uuid primary key default gen_random_uuid(),
+        org_id uuid not null,
+        name text not null,
+        type text not null,
+        value numeric(14,2) not null,
+        min_purchase numeric(14,2) default 0,
+        max_discount numeric(14,2),
+        start_date timestamptz,
+        end_date timestamptz,
+        status text default 'ACTIVE',
+        created_at timestamptz default now(),
+        updated_at timestamptz default now()
+      );
     `)
     console.log('Database tables verified.')
   } catch (err) {
@@ -404,7 +419,7 @@ app.get('/api/pos-data', async (req, res) => {
     const membershipUserFilter = req.query.userId ? 'and user_id = $1' : ''
     if (req.query.userId) membershipParams.push(req.query.userId)
 
-    const [memberships, stockItems, sales, salesDetails, stockMutations, customers, shifts, categories, noteCategories, recipes] = await Promise.all([
+    const [memberships, stockItems, sales, salesDetails, stockMutations, customers, shifts, categories, noteCategories, recipes, promos] = await Promise.all([
       pool.query(
         `select * from public.pos_team_members
          where is_active = true ${membershipUserFilter}
@@ -451,7 +466,8 @@ app.get('/api/pos-data', async (req, res) => {
         join public.st_mast p on p.id = r.product_id
         join public.st_mast m on m.id = r.material_id
         order by r.created_at desc
-      `).catch(() => ({ rows: [] }))
+      `).catch(() => ({ rows: [] })),
+      pool.query('select * from public.promos order by created_at desc').catch(() => ({ rows: [] }))
     ])
 
     res.json({
@@ -464,7 +480,8 @@ app.get('/api/pos-data', async (req, res) => {
       shifts: shifts.rows,
       categories: categories.rows,
       noteCategories: noteCategories.rows,
-      recipes: recipes.rows
+      recipes: recipes.rows,
+      promos: promos.rows
     })
   } catch (error) {
     sendPgError(res, error)
@@ -542,6 +559,74 @@ app.delete('/api/note-categories/:id', async (req, res) => {
   } catch (error) {
     console.error('Delete note category error:', error)
     res.status(500).json({ error: 'Failed to delete note category' })
+  }
+})
+
+// PROMO ENDPOINTS
+app.post('/api/promos', async (req, res) => {
+  try {
+    const { orgId, name, type, value, minPurchase, maxDiscount, startDate, endDate, status } = req.body
+    if (!orgId || !name || !type || value === undefined) {
+      return res.status(400).json({ error: 'orgId, name, type, and value are required' })
+    }
+
+    const result = await pool.query(
+      `insert into public.promos (org_id, name, type, value, min_purchase, max_discount, start_date, end_date, status)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       returning *`,
+      [orgId, name, type, value, minPurchase || 0, maxDiscount || null, startDate || null, endDate || null, status || 'ACTIVE']
+    )
+    res.json(result.rows[0])
+  } catch (error) {
+    console.error('Create promo error:', error)
+    res.status(500).json({ error: 'Failed to create promo' })
+  }
+})
+
+app.put('/api/promos/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, type, value, minPurchase, maxDiscount, startDate, endDate, status } = req.body
+    
+    const updates = []
+    const values = []
+    let idx = 1
+    
+    if (name !== undefined) { updates.push(`name = $${idx++}`); values.push(name) }
+    if (type !== undefined) { updates.push(`type = $${idx++}`); values.push(type) }
+    if (value !== undefined) { updates.push(`value = $${idx++}`); values.push(value) }
+    if (minPurchase !== undefined) { updates.push(`min_purchase = $${idx++}`); values.push(minPurchase) }
+    if (maxDiscount !== undefined) { updates.push(`max_discount = $${idx++}`); values.push(maxDiscount) }
+    if (startDate !== undefined) { updates.push(`start_date = $${idx++}`); values.push(startDate) }
+    if (endDate !== undefined) { updates.push(`end_date = $${idx++}`); values.push(endDate) }
+    if (status !== undefined) { updates.push(`status = $${idx++}`); values.push(status) }
+    
+    if (updates.length === 0) return res.json({ success: true })
+    
+    updates.push(`updated_at = now()`)
+    values.push(id)
+    
+    const result = await pool.query(
+      `update public.promos set ${updates.join(', ')} where id = $${idx} returning *`,
+      values
+    )
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Promo not found' })
+    res.json(result.rows[0])
+  } catch (error) {
+    console.error('Update promo error:', error)
+    res.status(500).json({ error: 'Failed to update promo' })
+  }
+})
+
+app.delete('/api/promos/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const result = await pool.query('delete from public.promos where id = $1 returning *', [id])
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Promo not found' })
+    res.json({ success: true, deleted: result.rows[0] })
+  } catch (error) {
+    console.error('Delete promo error:', error)
+    res.status(500).json({ error: 'Failed to delete promo' })
   }
 })
 
