@@ -156,11 +156,13 @@ async function initDb() {
         start_date timestamptz,
         end_date timestamptz,
         status text default 'ACTIVE',
+        product_id uuid references public.st_mast(id),
         created_at timestamptz default now(),
         updated_at timestamptz default now()
       );
     `)
     await client.query(`ALTER TABLE public.promos ADD COLUMN IF NOT EXISTS scope text default 'BASIC'`)
+    await client.query(`ALTER TABLE public.promos ADD COLUMN IF NOT EXISTS product_id uuid references public.st_mast(id)`)
     console.log('Database tables verified.')
   } catch (err) {
     console.error('Failed to init DB:', err)
@@ -469,7 +471,12 @@ app.get('/api/pos-data', async (req, res) => {
         join public.st_mast m on m.id = r.material_id
         order by r.created_at desc
       `).catch(() => ({ rows: [] })),
-      pool.query('select * from public.promos order by created_at desc').catch(() => ({ rows: [] }))
+      pool.query(`
+        select p.*, s.item_name as product_name 
+        from public.promos p
+        left join public.st_mast s on s.id = p.product_id
+        order by p.created_at desc
+      `).catch(() => ({ rows: [] }))
     ])
 
     res.json({
@@ -567,16 +574,16 @@ app.delete('/api/note-categories/:id', async (req, res) => {
 // PROMO ENDPOINTS
 app.post('/api/promos', async (req, res) => {
   try {
-    const { orgId, name, type, scope, value, minPurchase, maxDiscount, startDate, endDate, status } = req.body
+    const { orgId, name, type, scope, value, minPurchase, maxDiscount, startDate, endDate, status, productId } = req.body
     if (!orgId || !name || !type || value === undefined) {
       return res.status(400).json({ error: 'orgId, name, type, and value are required' })
     }
 
     const result = await pool.query(
-      `insert into public.promos (org_id, name, type, scope, value, min_purchase, max_discount, start_date, end_date, status)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `insert into public.promos (org_id, name, type, scope, value, min_purchase, max_discount, start_date, end_date, status, product_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        returning *`,
-      [orgId, name, type, scope || 'BASIC', value, minPurchase || 0, maxDiscount || null, startDate || null, endDate || null, status || 'ACTIVE']
+      [orgId, name, type, scope || 'BASIC', value, minPurchase || 0, maxDiscount || null, startDate || null, endDate || null, status || 'ACTIVE', productId || null]
     )
     res.json(result.rows[0])
   } catch (error) {
@@ -588,7 +595,7 @@ app.post('/api/promos', async (req, res) => {
 app.put('/api/promos/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const { name, type, scope, value, minPurchase, maxDiscount, startDate, endDate, status } = req.body
+    const { name, type, scope, value, minPurchase, maxDiscount, startDate, endDate, status, productId } = req.body
     
     const updates = []
     const values = []
@@ -603,6 +610,7 @@ app.put('/api/promos/:id', async (req, res) => {
     if (startDate !== undefined) { updates.push(`start_date = $${idx++}`); values.push(startDate) }
     if (endDate !== undefined) { updates.push(`end_date = $${idx++}`); values.push(endDate) }
     if (status !== undefined) { updates.push(`status = $${idx++}`); values.push(status) }
+    if (productId !== undefined) { updates.push(`product_id = $${idx++}`); values.push(productId) }
     
     if (updates.length === 0) return res.json({ success: true })
     

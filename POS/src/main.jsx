@@ -415,7 +415,9 @@ function PromoFormModal({ initialData, posData, onClose, onRefresh }) {
   const [startDate, setStartDate] = useState(initialData?.start_date ? new Date(initialData.start_date).toISOString().slice(0, 16) : '')
   const [endDate, setEndDate] = useState(initialData?.end_date ? new Date(initialData.end_date).toISOString().slice(0, 16) : '')
   const [status, setStatus] = useState(initialData?.status || 'ACTIVE')
+  const [productId, setProductId] = useState(initialData?.product_id || '')
   const [saving, setSaving] = useState(false)
+  const isProductScope = initialData?.scope === 'PRODUCT' || initialData?.product_id
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -428,6 +430,7 @@ function PromoFormModal({ initialData, posData, onClose, onRefresh }) {
         type,
         scope: initialData?.scope || 'BASIC',
         value: Number(value),
+        productId: productId || null,
         minPurchase: minPurchase ? Number(minPurchase) : 0,
         maxDiscount: maxDiscount ? Number(maxDiscount) : null,
         startDate: startDate ? new Date(startDate).toISOString() : null,
@@ -462,6 +465,17 @@ function PromoFormModal({ initialData, posData, onClose, onRefresh }) {
             Nama Promo
             <input value={name} onChange={e => setName(e.target.value)} placeholder="Contoh: Promo Lebaran" style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required />
           </label>
+          {isProductScope && (
+            <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+              Produk Pilihan
+              <select value={productId} onChange={e => setProductId(e.target.value)} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required>
+                <option value="">-- Pilih Produk --</option>
+                {posData.stockItems?.filter(i => i.is_active && !i.is_material).map(item => (
+                  <option key={item.id} value={item.id}>{item.item_name}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
             <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
               Tipe Promo
@@ -1183,6 +1197,12 @@ const productPageConfigs = {
     columns: ['NAMA PROMO', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS', ''],
     rows: [],
   },
+  'Per Produk': {
+    title: 'Per Produk',
+    addLabel: 'Tambah Promo Produk',
+    columns: ['NAMA PROMO', 'PRODUK', 'PERIODE', 'TIPE PROMO', 'NILAI PROMO', 'STATUS', ''],
+    rows: [],
+  },
 }
 
 function cn(...classes) {
@@ -1450,6 +1470,24 @@ function getRowsForPage(page, posData) {
       
       return [
         promo.name,
+        periode,
+        promo.type === 'PERCENTAGE' ? 'Persentase' : 'Nominal',
+        promo.type === 'PERCENTAGE' ? `${promo.value}%` : `Rp ${formatQty(promo.value)}`,
+        promo.status === 'ACTIVE' ? 'Aktif' : 'Tidak Aktif',
+        { type: 'promo', id: promo.id, item: promo }
+      ]
+    })
+  }
+  if (page === 'Per Produk') {
+    const promos = (posData.promos || []).filter(p => p.scope === 'PRODUCT')
+    return promos.map(promo => {
+      const periode = promo.start_date || promo.end_date 
+        ? `${promo.start_date ? new Date(promo.start_date).toLocaleDateString('id-ID') : '-'} s/d ${promo.end_date ? new Date(promo.end_date).toLocaleDateString('id-ID') : '-'}`
+        : 'Selamanya'
+      
+      return [
+        promo.name,
+        promo.product_name || '-',
         periode,
         promo.type === 'PERCENTAGE' ? 'Persentase' : 'Nominal',
         promo.type === 'PERCENTAGE' ? `${promo.value}%` : `Rp ${formatQty(promo.value)}`,
@@ -6193,6 +6231,9 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
       setShowPromoModal(true)
     } else if (action === 'Tambah Promo Total') {
       setEditingProduct({ scope: 'TOTAL' })
+      setShowPromoModal(true)
+    } else if (action === 'Tambah Promo Produk') {
+      setEditingProduct({ scope: 'PRODUCT' })
       setShowPromoModal(true)
     } else if (action === 'Impor Bahan Baku') {
       toast.info('Fitur impor bahan baku sedang dalam pengembangan')
