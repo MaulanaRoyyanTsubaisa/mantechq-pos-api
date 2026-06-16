@@ -359,7 +359,6 @@ const crudBlueprints = {
   'Master Resep': ['Produk', 'Bahan Baku', 'Qty Resep', 'Status'],
   'Daftar Bahan Baku': ['Bahan Baku', 'Satuan', 'Stok', 'Minimum', 'Status'],
   'Pembelian Stok': ['No Pembelian', 'Pemasok', 'Tanggal', 'Total', 'Status'],
-  'Kelola Stok': ['Item', 'Stok Sistem', 'Stok Fisik', 'Selisih', 'Status'],
   'Produksi Stok': ['No Produksi', 'Produk', 'Qty', 'Tanggal', 'Status'],
   'Mutasi Antar Outlet': ['No Mutasi', 'Dari Outlet', 'Ke Outlet', 'Qty', 'Status'],
   'Daftar Pemasok': ['Pemasok', 'Kontak', 'Kategori', 'Status'],
@@ -745,6 +744,13 @@ const productPageConfigs = {
     columns: ['NAMA RESEP', 'PRODUK', 'BAHAN BAKU', 'QTY RESEP', 'STATUS', ''],
     rows: [],
   },
+  'Kelola Stok': {
+    title: 'Kelola Stok',
+    actions: ['Riwayat Opname', 'Impor Data'],
+    filters: ['Semua Tipe'],
+    columns: ['NAMA ITEM', 'SKU/KODE', 'TIPE', 'STOK SISTEM', 'STATUS', ''],
+    rows: [],
+  },
 }
 
 function cn(...classes) {
@@ -825,10 +831,11 @@ function mapStockToBarcodeRows(stockItems) {
 function mapStockToInventoryRows(stockItems) {
   return stockItems.map((item) => [
     item.item_name,
-    item.sku,
+    item.sku || '-',
+    item.item_type === 'material' ? 'Bahan Baku' : 'Produk',
     `${formatQty(item.qty_on_hand)} ${item.unit || 'Pcs'}`,
-    `${formatQty(item.qty_minimum)} ${item.unit || 'Pcs'}`,
     item.is_active ? 'Aktif' : 'Nonaktif',
+    { item, id: item.id, orgId: item.org_id }
   ])
 }
 

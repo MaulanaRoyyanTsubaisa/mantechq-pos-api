@@ -993,7 +993,7 @@ app.post('/api/stock-opname', async (req, res) => {
         
         // 2. update actual stock in st_mast
         await client.query(
-          `UPDATE public.st_mast SET stock_qty = $1 WHERE id = $2`,
+          `UPDATE public.st_mast SET qty_on_hand = $1 WHERE id = $2`,
           [item.actualQty, item.stMastId]
         )
         
@@ -1039,15 +1039,15 @@ app.post('/api/mutasi-outlet', async (req, res) => {
     const { orgId, sourceOutletId, targetOutletId, stMastId, qty, notes, userId } = req.body
     
     // Decrease source outlet stock
-    const sourceStockRes = await client.query(`SELECT stock_qty FROM public.st_mast WHERE id = $1 AND outlet_id = $2`, [stMastId, sourceOutletId])
+    const sourceStockRes = await client.query(`SELECT qty_on_hand FROM public.st_mast WHERE id = $1 AND outlet_id = $2`, [stMastId, sourceOutletId])
     if (sourceStockRes.rows.length === 0) throw new Error('Stok asal tidak ditemukan')
-    const sourceQty = Number(sourceStockRes.rows[0].stock_qty)
+    const sourceQty = Number(sourceStockRes.rows[0].qty_on_hand)
     if (sourceQty < qty) throw new Error('Stok asal tidak mencukupi')
 
-    await client.query(`UPDATE public.st_mast SET stock_qty = stock_qty - $1 WHERE id = $2 AND outlet_id = $3`, [qty, stMastId, sourceOutletId])
+    await client.query(`UPDATE public.st_mast SET qty_on_hand = qty_on_hand - $1 WHERE id = $2 AND outlet_id = $3`, [qty, stMastId, sourceOutletId])
 
     // Increase target outlet stock (assuming target outlet has the same st_mast product, if not, we would need to create it. For MVP, assume it exists or we just track it)
-    await client.query(`UPDATE public.st_mast SET stock_qty = stock_qty + $1 WHERE id = $2 AND outlet_id = $3`, [qty, stMastId, targetOutletId])
+    await client.query(`UPDATE public.st_mast SET qty_on_hand = qty_on_hand + $1 WHERE id = $2 AND outlet_id = $3`, [qty, stMastId, targetOutletId])
 
     // Insert to st_mutation (Out from source)
     await client.query(

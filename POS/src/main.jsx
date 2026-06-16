@@ -34,6 +34,7 @@ import {
   PanelLeftOpen,
   Percent,
   Plus,
+  Edit,
   Search,
   Settings,
   ShieldCheck,
@@ -309,6 +310,96 @@ function RecipeDetailModal({ data, onClose }) {
         <div style={{marginTop: 24, display: 'flex', justifyContent: 'flex-end'}}>
           <button className="btn-primary" onClick={onClose} type="button">Tutup</button>
         </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+function StockOpnameModal({ initialData, onClose, onRefresh }) {
+  const [physicalStock, setPhysicalStock] = useState(initialData?.qty_on_hand || 0)
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const systemStock = initialData?.qty_on_hand || 0
+  const diff = physicalStock - systemStock
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const session = JSON.parse(sessionStorage.getItem('pos_session') || '{}')
+      const orgId = session.user?.org_id || 'f63d5959-6c12-4765-8d27-2990f7f3139f'
+      const { createStockOpname } = await import('./shared/api/posApi.js')
+      
+      const payload = {
+        orgId,
+        outletId: session.user?.outlet_id || '98765432-1234-abcd-5678-000000000000',
+        userId: session.user?.id || '2db44cc3-7221-4dcb-9da7-767471249e0a',
+        notes: notes || 'Penyesuaian stok manual dari halaman Kelola Stok',
+        items: [{
+          stMastId: initialData.id,
+          systemQty: systemStock,
+          actualQty: Number(physicalStock),
+          note: notes
+        }]
+      }
+      
+      await createStockOpname(payload)
+      toast.success('Stok berhasil disesuaikan')
+      if (onRefresh) onRefresh()
+      onClose()
+    } catch (err) {
+      toast.error(err.message || 'Gagal menyesuaikan stok')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!initialData) return null
+
+  return createPortal(
+    <div className="modal-overlay" style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+      <div className="modal-content" style={{background: '#fff', padding: 24, borderRadius: 12, width: '100%', maxWidth: 450, maxHeight: '90vh', overflowY: 'auto'}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+          <h2 style={{margin: 0, fontSize: 18}}>Update Stok Fisik</h2>
+          <button onClick={onClose} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+          <div style={{display: 'flex', flexDirection: 'column', gap: 4}}>
+            <span style={{fontSize: 12, color: '#64748b', fontWeight: 600}}>ITEM</span>
+            <div style={{fontSize: 15, fontWeight: 500, color: '#0f172a'}}>{initialData.item_name} {initialData.sku ? `(${initialData.sku})` : ''}</div>
+          </div>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, background: '#f8fafc', padding: 12, borderRadius: 8}}>
+            <div>
+              <span style={{fontSize: 12, color: '#64748b', fontWeight: 600}}>STOK SISTEM</span>
+              <div style={{fontSize: 16, fontWeight: 600, color: '#475569'}}>{formatQty(systemStock)} {initialData.unit || 'Pcs'}</div>
+            </div>
+            <div>
+              <span style={{fontSize: 12, color: '#64748b', fontWeight: 600}}>SELISIH</span>
+              <div style={{fontSize: 16, fontWeight: 600, color: diff === 0 ? '#475569' : (diff > 0 ? '#16a34a' : '#dc2626')}}>
+                {diff > 0 ? '+' : ''}{formatQty(diff)} {initialData.unit || 'Pcs'}
+              </div>
+            </div>
+          </div>
+          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+            Stok Fisik Aktual
+            <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+              <input type="number" step="0.001" value={physicalStock} onChange={e => setPhysicalStock(e.target.value)} style={{flex: 1, padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14}} required />
+              <span style={{fontSize: 14, color: '#475569', fontWeight: 500}}>{initialData.unit || 'Pcs'}</span>
+            </div>
+          </label>
+          <label style={{display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, fontWeight: 500}}>
+            Catatan Penyesuaian (Opsional)
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Contoh: Stok opname harian" rows={2} style={{padding: '10px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 14, resize: 'vertical'}} />
+          </label>
+          
+          <div style={{marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 12}}>
+            <button className="btn-secondary" onClick={onClose} type="button">Batal</button>
+            <button className="btn-primary" type="submit" disabled={saving || physicalStock === ''}>
+              {saving ? 'Menyimpan...' : 'Simpan Penyesuaian'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>,
     document.body
@@ -600,7 +691,6 @@ const crudBlueprints = {
   'Master Resep': ['Produk', 'Bahan Baku', 'Qty Resep', 'Status'],
   'Daftar Bahan Baku': ['Bahan Baku', 'Satuan', 'Stok', 'Minimum', 'Status'],
   'Pembelian Stok': ['No Pembelian', 'Pemasok', 'Tanggal', 'Total', 'Status'],
-  'Kelola Stok': ['Item', 'Stok Sistem', 'Stok Fisik', 'Selisih', 'Status'],
   'Produksi Stok': ['No Produksi', 'Produk', 'Qty', 'Tanggal', 'Status'],
   'Mutasi Antar Outlet': ['No Mutasi', 'Dari Outlet', 'Ke Outlet', 'Qty', 'Status'],
   'Daftar Pemasok': ['Pemasok', 'Kontak', 'Kategori', 'Status'],
@@ -970,6 +1060,13 @@ const productPageConfigs = {
     columns: ['NAMA RESEP', 'PRODUK', 'BAHAN BAKU', 'QTY RESEP', 'STATUS', ''],
     rows: [],
   },
+  'Kelola Stok': {
+    title: 'Kelola Stok',
+    actions: ['Riwayat Opname', 'Impor Data'],
+    filters: ['Semua Tipe'],
+    columns: ['NAMA ITEM', 'SKU/KODE', 'TIPE', 'STOK SISTEM', 'STATUS', ''],
+    rows: [],
+  },
 }
 
 function cn(...classes) {
@@ -1050,10 +1147,11 @@ function mapStockToBarcodeRows(stockItems) {
 function mapStockToInventoryRows(stockItems) {
   return stockItems.map((item) => [
     item.item_name,
-    item.sku,
+    item.sku || '-',
+    item.item_type === 'material' ? 'Bahan Baku' : 'Produk',
     `${formatQty(item.qty_on_hand)} ${item.unit || 'Pcs'}`,
-    `${formatQty(item.qty_minimum)} ${item.unit || 'Pcs'}`,
     item.is_active ? 'Aktif' : 'Nonaktif',
+    { item, id: item.id, orgId: item.org_id }
   ])
 }
 
@@ -5941,6 +6039,7 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
   const [showNoteCategoryModal, setShowNoteCategoryModal] = useState(false)
   const [showRecipeModal, setShowRecipeModal] = useState(false)
   const [showRecipeDetailModal, setShowRecipeDetailModal] = useState(false)
+  const [showStockOpnameModal, setShowStockOpnameModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null) // { id, orgId, type: 'kategori'|'produk', name }
 
@@ -6010,6 +6109,13 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
           onClose={() => setShowRecipeDetailModal(false)} 
         />
       )}
+      {showStockOpnameModal && (
+        <StockOpnameModal 
+          initialData={editingProduct}
+          onClose={() => setShowStockOpnameModal(false)}
+          onRefresh={() => posData?.refresh?.()}
+        />
+      )}
       <CapitalBanner compact />
       <section className="panel product-directory-card">
         <header className="product-directory-head">
@@ -6045,6 +6151,8 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                   setShowNoteCategoryModal(true)
                 } else if (config.addLabel === 'Tambah Resep') {
                   setShowRecipeModal(true)
+                } else if (config.addLabel === 'Penyesuaian Stok') {
+                  setShowStockOpnameModal(true)
                 } else if (config.addFlow) {
                   onStartFlow(config.addFlow)
                 } else {
@@ -6117,11 +6225,14 @@ function ProductDirectoryPage({ config, onStartFlow, posData }) {
                               } else if (config.title === 'Master Resep') {
                                 setEditingProduct(cell.item)
                                 setShowRecipeModal(true)
+                              } else if (config.title === 'Kelola Stok') {
+                                setEditingProduct(cell.item)
+                                setShowStockOpnameModal(true)
                               } else {
                                 setEditingProduct(cell.item)
                                 setShowAddModal(true)
                               }
-                            }} aria-label="Edit Produk"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
+                            }} aria-label="Edit Item"><Edit size={16} /></button>
                             <button className="icon-link" onClick={() => {
                               setConfirmDelete({
                                 id: cell.id,
