@@ -118,10 +118,6 @@ const sidebarGroups = [
     children: [
       'Daftar Bahan Baku',
       {
-        label: 'Pembelian Stok',
-        children: ['Permintaan Barang', 'Pemesanan Stok', 'Pengiriman Pembelian', 'Faktur Pembelian', 'Pembayaran Faktur', 'Retur'],
-      },
-      {
         label: 'Kelola Stok',
         children: ['Daftar Stok', 'Stok Opname', 'Stok Terbuang', 'Riwayat Stok'],
       },
@@ -129,11 +125,6 @@ const sidebarGroups = [
       'Mutasi Antar Outlet',
       'Daftar Pemasok'
     ],
-  },
-  {
-    label: 'Pelanggan',
-    icon: Users,
-    children: ['Daftar Pelanggan', 'Grup Pelanggan', 'Grup Harga Spesial', 'Kustom Data Pelanggan', 'Pengaturan Data Pelanggan'],
   },
   {
     label: 'Promosi',

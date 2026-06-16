@@ -460,12 +460,7 @@ const sidebarGroups = [
   {
     label: 'Inventori',
     icon: Boxes,
-    children: ['Daftar Bahan Baku', 'Pembelian Stok', 'Kelola Stok'],
-  },
-  {
-    label: 'Pelanggan',
-    icon: Users,
-    children: ['Daftar Pelanggan', 'Grup Pelanggan', 'Grup Harga Spesial', 'Kustom Data Pelanggan', 'Pengaturan Data Pelanggan'],
+    children: ['Daftar Bahan Baku', 'Kelola Stok'],
   },
   {
     label: 'Promosi',
